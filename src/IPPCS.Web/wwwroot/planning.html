@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="fa" dir="rtl"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>IPPCS | برنامه‌ریزی MPS، MRP و CRP</title>
+<link rel="stylesheet" href="/css/production.css">
+<script defer src="/js/jalali-datepicker.js"></script>
+<script defer src="/js/planning-stage3.js"></script>
+</head><body>
+<div class="app-shell">
+<aside class="sidebar">
+  <div class="brand"><div class="brand-logo">IP</div><div><strong>ایندامین سایپا</strong><small>برنامه‌ریزی و کنترل تولید</small></div></div>
+  <div class="side-caption">توسعه فاز برنامه‌ریزی</div>
+  <nav>
+    <a class="planning-link" href="/app.html">بازگشت به صفحه اصلی</a>
+    <button data-section="bomversion" class="nav-active">نسخه‌بندی BOM</button>
+    <button data-section="mps">برنامه اصلی تولید (MPS)</button>
+    <button data-section="assumptions">موجودی و دریافت‌های برنامه‌ای</button>
+    <button data-section="mrp">محاسبات MRP و CRP</button>
+  </nav>
+  <div class="sidebar-foot">فاز سوم • نسخه آزمایشی<br>تمام داده‌ها صرفاً ورودی مستقل برنامه‌ریزی‌اند.</div>
+</aside>
+<div class="main"><header class="topbar"><div><div class="eyebrow">هسته برنامه‌ریزی و کنترل تولید</div><h1 id="title">نسخه‌بندی BOM</h1></div><span class="environment-pill">نسخه توسعه 0.3.0</span></header>
+<main class="content">
+<div class="notice" id="alert" hidden role="status" aria-live="polite"></div>
+<div class="callout">این بخش مستقل از نرم‌افزارهای انبار، خرید، فروش و منابع انسانی است. موجودی و رسیدهای این صفحه فقط <strong>فرضیات محاسباتی</strong> هستند و هیچ عملیات انباری یا خرید انجام نمی‌دهند. نتایج MRP/CRP در این مرحله پیش‌نمایش تخصصی و نیازمند اعتبارسنجی عملیاتی هستند.</div>
+<section class="page" id="bomversion">
+  <div class="section-title"><h3>ساختار مواد نسخه‌دار و تاریخ‌دار</h3><small>فقط نسخه تأییدشده در محاسبات MRP جدید استفاده می‌شود.</small></div>
+  <form id="bom-version-form" class="panel form-grid">
+    <label>کالای تولیدی والد<select name="parentItemId" data-item required></select></label>
+    <label>کد نسخه<input name="revision" required maxlength="32" placeholder="A-01"></label>
+    <label>تاریخ شروع اعتبار<span class="jalali-field"><input data-jalali-date name="from" required placeholder="انتخاب تاریخ"><button type="button" class="date-trigger" data-jalali-trigger>▣</button></span></label>
+    <label>تاریخ پایان اعتبار (اختیاری)<span class="jalali-field"><input data-jalali-date name="until" placeholder="بدون پایان"><button type="button" class="date-trigger" data-jalali-trigger>▣</button></span></label>
+    <div class="form-actions"><button class="btn-main" type="submit">ایجاد نسخه پیش‌نویس BOM</button></div>
+  </form>
+  <form id="bom-line-form" class="panel form-grid">
+    <h3 class="wide">افزودن ماده یا قطعه به نسخه پیش‌نویس</h3>
+    <label>نسخه BOM<select name="revisionId" id="bom-revision-select" required></select></label>
+    <label>قطعه زیرمجموعه<select name="componentItemId" data-item required></select></label>
+    <label>ضریب مصرف<input name="quantityPer" type="number" step="any" min="0.000001" required></label>
+    <label>درصد ضایعات استاندارد<input name="scrapPercent" type="number" step="any" min="0" max="99.99" value="0" required></label>
+    <label>ترتیب عملیات<input name="sequence" type="number" min="1" value="10" required></label>
+    <div class="form-actions"><button class="btn-main" type="submit">افزودن جزء</button></div>
+  </form>
+  <div class="panel"><h3>سوابق نسخه‌های BOM</h3><div id="bom-table"></div></div>
+</section>
+<section class="page" id="mps" hidden>
+  <div class="section-title"><h3>برنامه اصلی تولید (MPS)</h3><small>نسخه پیش‌نویس، ردیف‌های برنامه و تأیید قطعی آن.</small></div>
+  <form id="mps-form" class="panel form-grid">
+    <label>شناسه نسخه برنامه<input name="code" required maxlength="64" placeholder="MPS-1405-W32"></label>
+    <div class="form-actions"><button class="btn-main" type="submit">ایجاد نسخه برنامه</button></div>
+  </form>
+  <form id="mps-line-form" class="panel form-grid">
+    <h3 class="wide">افزودن ردیف برنامه</h3>
+    <label>نسخه MPS پیش‌نویس<select name="mpsId" id="mps-draft-select" required></select></label>
+    <label>محصول نهایی<select name="itemId" data-finished required></select></label>
+    <label>مقدار تولید<input name="quantity" type="number" step="any" min="0.0001" required></label>
+    <label>تاریخ نیاز<span class="jalali-field"><input name="due" data-jalali-date placeholder="انتخاب تاریخ" required><button type="button" class="date-trigger" data-jalali-trigger>▣</button></span></label>
+    <label>مرجع داخلی برنامه<input name="reference" maxlength="120" placeholder="برنامه هفتگی"></label>
+    <div class="form-actions"><button class="btn-main" type="submit">ثبت ردیف برنامه</button></div>
+  </form>
+  <div class="panel"><h3>نسخه‌ها و ردیف‌های برنامه اصلی تولید</h3><div id="mps-table"></div></div>
+</section>
+<section class="page" id="assumptions" hidden>
+  <div class="section-title"><h3>فرضیات تأمین و موجودی برنامه‌ریزی</h3><small>بدون ارتباط با پایگاه داده انبار یا خرید.</small></div>
+  <form id="balance-form" class="panel form-grid">
+    <label>کالا<select name="itemId" data-item required></select></label>
+    <label>موجودی فیزیکی فرضی<input name="physical" type="number" step="any" min="0" value="0" required></label>
+    <label>موجودی رزروشده<input name="reserved" type="number" step="any" min="0" value="0" required></label>
+    <label>موجودی قرنطینه<input name="quarantined" type="number" step="any" min="0" value="0" required></label>
+    <label>موجودی اطمینان<input name="safety" type="number" step="any" min="0" value="0" required></label>
+    <label>زمان تأمین/ساخت (روز)<input name="lead" type="number" min="0" max="3650" value="1" required></label>
+    <label>حداقل بچ<input name="min" type="number" min="0.0001" step="any" value="1" required></label>
+    <label>مضرب بچ<input name="multiple" type="number" min="0.0001" step="any" value="1" required></label>
+    <label>تاریخ مبنای موجودی<span class="jalali-field"><input name="snapshot" data-jalali-date required><button type="button" class="date-trigger" data-jalali-trigger>▣</button></span></label>
+    <div class="form-actions"><button class="btn-main" type="submit">ثبت یا به‌روزرسانی فرضیات</button></div>
+  </form>
+  <div class="panel"><h3>مانده‌های برنامه‌ریزی</h3><div id="balance-table"></div></div>
+  <form id="receipt-form" class="panel form-grid">
+    <h3 class="wide">ثبت دریافت برنامه‌ریزی‌شده (نه رسید انبار)</h3>
+    <label>کالا<select name="itemId" data-item required></select></label>
+    <label>مقدار دریافت<input name="quantity" type="number" min="0.0001" step="any" required></label>
+    <label>تاریخ دسترس‌پذیری<span class="jalali-field"><input name="date" data-jalali-date required><button type="button" class="date-trigger" data-jalali-trigger>▣</button></span></label>
+    <label>مرجع ورودی فرضی<input name="reference" maxlength="120"></label>
+    <div class="form-actions"><button class="btn-main" type="submit">افزودن دریافت برنامه‌ای</button></div>
+  </form>
+  <div class="panel"><h3>دریافت‌های برنامه‌ریزی‌شده</h3><div id="receipt-table"></div></div>
+</section>
+<section class="page" id="mrp" hidden>
+  <div class="section-title"><h3>محاسبات برنامه‌ریزی مواد و ظرفیت</h3><small>MRP خالص اولیه همراه با Snapshot؛ CRP تخمین روزانه است و هنوز برنامه‌ریز محدودیت‌دار نیست.</small></div>
+  <div class="panel form-grid">
+    <label>نسخه MPS تأییدشده<select id="calculate-mps" required></select></label>
+    <div class="form-actions"><button id="mrp-run" class="btn-main" type="button">محاسبه MRP خالص</button><button id="crp-run" class="btn-outline" type="button">نمایش بارگذاری ظرفیت CRP</button></div>
+  </div>
+  <div class="panel"><h3 id="calculation-title">نتایج محاسبه</h3><div id="calculation-table"></div></div>
+  <div class="callout">محاسبه MRP با موجودی، رزرو، قرنطینه، حداقل موجودی، دریافت برنامه‌ای، حداقل/مضرب بچ و Lead Time انجام می‌شود. ردیف‌هایی که زمان آزادسازی آن‌ها گذشته است باید توسط برنامه‌ریز بررسی شوند. این نسخه هنوز Pegging کامل و بهینه‌سازی زمان‌بندی محدودیت‌دار ندارد.</div>
+</section>
+</main><footer class="footer">IPPCS • طراحی مستقل مدیریت تولید<span>مرحله ۳ • توسعه</span></footer></div></div>
+</body></html>
