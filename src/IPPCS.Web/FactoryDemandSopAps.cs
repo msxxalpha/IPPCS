@@ -185,6 +185,23 @@ public static class FactoryDemandApsEndpoints
             return Results.NoContent();
         }).RequireAuthorization("IpPlanningWrite");
 
+        api.MapPost("/factory-demand/{demandId:guid}/to-mps/{mpsId:guid}",
+            async(Guid demandId,Guid mpsId,ProductionDb db,CancellationToken ct)=>{
+            await using var transaction=await db.Database.BeginTransactionAsync(IsolationLevel.Serializable,ct);
+            var demand=await db.FactoryDemands.AsNoTracking().SingleOrDefaultAsync(x=>x.Id==demandId,ct);
+            var plan=await db.MpsVersions.SingleOrDefaultAsync(x=>x.Id==mpsId,ct);
+            if(demand is null||plan is null)return Results.NotFound();
+            if(plan.State!=PlanningApproval.Draft)
+                return Results.Conflict(new{message="انتقال تقاضا فقط به MPS پیش‌نویس مجاز است."});
+            var reference="DEMAND:"+demand.Id.ToString("N");
+            if(await db.MpsDemandLines.AnyAsync(x=>x.MpsVersionId==mpsId&&x.Reference==reference,ct))
+                return Results.Conflict(new{message="این تقاضا قبلاً به نسخه انتخاب‌شده MPS منتقل شده است."});
+            var line=new MpsDemandLine{MpsVersionId=mpsId,ItemId=demand.ItemId,
+                NeededOn=demand.DueOn,Quantity=demand.Quantity,Reference=reference};
+            db.MpsDemandLines.Add(line);await db.SaveChangesAsync(ct);await transaction.CommitAsync(ct);
+            return Results.Created($"/api/v1/mps/{mpsId}",new{line.Id,demandId,mpsId});
+        }).RequireAuthorization("IpPlanningWrite");
+
         api.MapGet("/factory-sop",async(ProductionDb db,CancellationToken ct)=>{
             var rows=await db.FactorySopReviews.AsNoTracking()
                 .OrderByDescending(x=>x.CalculatedUtc).Take(100).ToListAsync(ct);
