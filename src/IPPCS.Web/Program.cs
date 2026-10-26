@@ -38,8 +38,9 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.UseIpCsrfProtection();
 app.MapIpAuth();
+app.MapLocalAccounts();
 app.MapGet("/", () => Results.Redirect("/app.html"));
-app.MapGet("/health", () => Results.Ok(new { service = "IPPCS", status = "ready", version = "0.7.0" }));
+app.MapGet("/health", () => Results.Ok(new { service = "IPPCS", status = "ready", version = "0.7.1" }));
 var api = app.MapGroup("/api/v1").RequireAuthorization("IpProductionUser");
 
 // Items are planning references, NOT warehouse inventory records.
