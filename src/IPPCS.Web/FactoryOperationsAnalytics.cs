@@ -233,6 +233,6 @@ public static class FactoryOperationsAnalyticsEndpoints
                     unscheduled=scenario.Unscheduled.Count,late=scenario.TotalLateOperations},
                 note="این محاسبه فقط شبیه‌سازی است؛ هیچ برنامه یا ظرفیت واقعی تغییر نکرده است."});
         });
-        return routes;
+        return endpoints;
     }
 }
