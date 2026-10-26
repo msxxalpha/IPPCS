@@ -59,3 +59,11 @@ The MRP engine deliberately refuses to guess unknown item balances/lead-time pol
 - Every additional entity/model change must ship a reviewed incremental EF migration. The build workflow runs `dotnet ef migrations has-pending-model-changes` to prevent silent DbContext/SQL drift.
 - A separate SQL Server integration workflow starts a disposable SQL Server container with generated test-only credentials and attempts to apply the actual committed schema.
 - If a database already has nontrivial business data, test and back up before running a migration; no destructive rebuild is authorized.
+
+## Stage 5 quality/WIP/OEE
+- New `/execution.html` tabs: Quality + WIP, and preliminary OEE.
+- When an operation produces good units, an active order can place an unconsumed subset on a quality hold. Later operations are blocked while predecessor quality holds remain open. A quality inspector/administrator resolves a hold into accepted or quality-scrapped output, under an audited operation record. The released balance is not a warehouse inventory item or warehouse transfer.
+- WIP is **derived** from manufacturing operation confirmations minus unresolved holds, quality scrap, and work already reported at the next operation. It is an in-process flow view, not a new warehouse or material stock ledger.
+- OEE uses a manually entered planned-production-minutes assumption per work center and Persian date, timestamped shop-floor confirmations and downtime events. Its values are provisional until shift calendar, ideal cycle data and event timestamp validation are fully deployed.
+- OEE is calculated by local factory date in timezone `Asia/Tehran` (config key `Production:TimeZoneId`). Persist actual event timestamps as UTC.
+- Granular policies: `IpQualityApprove` for disposition, `IpOeePlanning` for planned production minutes, and `IpProductionUser` for reading shop-floor/quality/OEE. Only administrator bootstrap is currently available; broader role and user administration needs further work.
