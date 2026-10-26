@@ -11,23 +11,23 @@ Planning inventory inputs, customer demand inputs, supplier lead times (if neces
 | # | Module | Status |
 |---|---|---|
 | 01 | Production master data (items, BOM, routings, resources) | Partial UI + API: versioned BOM, routings, operations, centers, shifts; revision-approval checks |
-| 02 | Manufacturing demand inputs and forecasts | Not started |
-| 03 | S&OP production balancing | Not started |
+| 02 | Manufacturing demand inputs and forecasts | Partial: independent dated finished-item demand and forecast inputs with deletion and Persian UI; forecasting algorithms pending |
+| 03 | S&OP production balancing | Partial: 90-day rough-cut demand/load vs available shift minutes and saved snapshots; per-center bottleneck balancing and approval pending |
 | 04 | MPS master production schedule | Partial: MPS version, date-specific finished-item lines, approval/locking and Persian forms |
 | 05 | Multilevel net MRP and pegging | Prototype net MRP: manual balance/receipt assumptions, safety, reservations, quarantines, lot sizing, lead time, multilevel BOM, immutable calculation snapshots; pegging not implemented |
 | 06 | CRP finite and infinite capacity | Rough-cut same-day capacity/load preview using approved routings and shifts, no finite allocation yet |
-| 07 | APS constraint-based scheduler | Not started |
+| 07 | APS constraint-based scheduler | Prototype: finite non-overlapping work-center time slots, routing precedence by MPS line, non-preemptive shift capacity, lateness and unscheduled warnings; material constraints and optimizer pending |
 | 08 | Production order lifecycle | Partial: draft/release/hold/resume/cancel/completion, routing and BOM snapshots, order audit |
 | 09 | Semi-finished shop-floor control | Partial: sequential confirmations, good/scrap/rework, quality-adjusted WIP flow; no stock movement |
 | 10 | Final shock absorber assembly execution | Partial: approved finished-item work order + operation progress |
-| 11 | Line-side material planning and consumption | Not started |
-| 12 | Plan adherence and deviation management | Basic planned vs actual quantity in workbench; deviation reason workflows pending |
+| 11 | Line-side material planning and consumption | Partial: manual local consumption versus approved BOM quantity and variances; no warehouse transactions, physical reservations or backflush |
+| 12 | Plan adherence and deviation management | Partial: MPS version vs completed final good output by product and due-date range; no order-to-MPS pegging or root-cause workflow |
 | 13 | In-process quality controls / quarantine | Partial: approved dated Control Plan, operation-specific numeric characteristics, frozen work-order checks, mandatory inspection gate, out-of-spec quality hold and immutable measurement history. Sampling rules/SPC pending |
 | 14 | OEE and downtime classification | Preliminary daily OEE from manually planned minutes, reported output and downtime; advanced time/PLC validation pending |
 | 15 | Manufacturing lot/serial traceability | Partial: exact lot history plus auditable quantity-limited links between adjacent operation confirmations of a work order; cross-order component genealogy pending |
-| 16 | What-if simulations and scenarios | Not started |
-| 17 | Conversion cost and productivity analysis | Not started |
-| 18 | Manufacturing KPI dashboards and decision support | Partial: center/day OEE preview and manufacturing WIP visibility; comprehensive dashboards pending |
+| 16 | What-if simulations and scenarios | Partial: side-effect-free baseline/scenario finite-capacity multipliers and scheduled/late/unscheduled comparisons |
+| 17 | Conversion cost and productivity analysis | Partial: user-entered internal center rate assumptions, standard-cycle conversion estimate and scrap-cost estimates; no actual ledger/cost-accounting integration |
+| 18 | Manufacturing KPI dashboards and decision support | Partial: OEE/WIP plus operational order, open-quality, stoppage, lateness, final good and MPS fulfillment previews; full drilldown/alerts pending |
 
 ## Architecture
 ASP.NET Core web API / EF Core SQL Server. Modular monolith direction; this bootstrap will be split into domain/application/infrastructure modules as implementation expands.
