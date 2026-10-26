@@ -131,7 +131,7 @@
         const selected=parse(input.value);
         if(selected?.y===view.y&&selected?.m===view.m&&selected?.d===d)day.classList.add("selected");
         day.setAttribute("aria-label",`${d} ${months[view.m-1]} ${view.y}`);
-        day.onclick=()=>{input.value=format({y:view.y,m:view.m,d});validInput();input.dispatchEvent(new Event("input",{bubbles:true}));input.dispatchEvent(new Event("change",{bubbles:true}));close();input.focus({preventScroll:true});};
+        day.onclick=()=>{input.value=format({y:view.y,m:view.m,d});validInput();input.dispatchEvent(new Event("input",{bubbles:true}));input.dispatchEvent(new Event("change",{bubbles:true}));close();};
         grid.append(day);
       }
       picker.append(grid);
