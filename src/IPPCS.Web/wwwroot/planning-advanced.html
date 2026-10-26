@@ -35,6 +35,12 @@
 <label>مقدار<input name="quantity" type="number" step="any" min="0.0001" required></label>
 <div class="form-actions"><button type="submit" class="btn-main">ثبت تقاضا</button></div>
 </form><div class="panel"><h3>فهرست تقاضاهای داخلی</h3><div id="demand-table"></div></div>
+<div class="panel form-grid">
+<label>نسخه پیش‌نویس هدف MPS<select id="demand-mps-target"></select></label>
+<div class="form-actions"><button id="demand-transfer" class="btn-outline" type="button">انتقال تقاضای انتخاب‌شده به MPS</button></div>
+</div><div class="panel"><h3>انتخاب تقاضا برای انتقال</h3>
+<select id="demand-target" aria-label="انتخاب تقاضای داخلی"></select>
+</div>
 </section>
 <section id="sop" class="page" hidden>
 <div class="section-title"><h3>تراز تجمیعی ظرفیت در برابر نیاز</h3><small>پیش‌نمایش بار کل کارخانه، نه برنامه نهایی توزیع بار بین مراکز</small></div>
@@ -44,6 +50,7 @@
 <label>تا تاریخ<span class="jalali-field"><input name="through" data-jalali-date required><button type="button" data-jalali-trigger class="date-trigger">▣</button></span></label>
 <div class="form-actions"><button type="submit" class="btn-main">محاسبه و ثبت Snapshot S&OP</button></div></form>
 <div class="panel"><h3>نتایج ثبت‌شده تراز تولید</h3><div id="sop-table"></div></div>
+<div class="panel"><h3>آخرین تراز به تفکیک مرکز کاری</h3><div id="sop-centers"></div></div>
 </section>
 <section id="aps" class="page" hidden>
 <div class="section-title"><h3>زمان‌بندی ظرفیت محدود در شیفت</h3><small>بدون همپوشانی مرکز کاری و با ترتیب عملیات. محدودیت مواد و زمان‌بندی بین شیفتی هنوز در حال توسعه است.</small></div>
@@ -53,7 +60,9 @@
 <label>افق (روز)<input name="horizon" type="number" min="1" max="90" value="14" required></label>
 <label>ضریب ظرفیت<input name="capacity" type="number" min="0.1" max="2" step="any" value="1" required></label>
 <div class="form-actions"><button type="submit" class="btn-main">محاسبه زمان‌بندی محدودیت‌دار</button></div></form>
-<div class="panel"><h3>پیش‌نمایش عملیات قابل زمان‌بندی</h3><div id="aps-table"></div></div>
+<div class="panel"><h3>نمای گانت عملیاتی بر اساس روز و مرکز کاری</h3>
+<div id="aps-gantt"></div>
+</div><div class="panel"><h3>پیش‌نمایش عملیات قابل زمان‌بندی</h3><div id="aps-table"></div></div>
 <div class="panel"><h3>عملیات خارج از ظرفیت</h3><div id="aps-errors"></div></div>
 <div class="panel"><h3>تاریخچه محاسبات APS</h3><div id="aps-runs"></div></div>
 </section>
