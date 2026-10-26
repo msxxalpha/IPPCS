@@ -21,7 +21,7 @@ Manual planning balances and expected receipts are IPPCS-only assumptions, not w
 - CRP is a rough-cut capacity preview, not finite resource scheduling.
 - APS, advanced material pegging and several other promised modules have not been developed yet.
 - Local authentication exists; granular per-module permissions, plant user management and security acceptance tests are still pending.
-- Complete reviewed SQL migrations and practical SQL Server/IIS testing remain deployment prerequisites. Non-Development web hosting is blocked by design.
+- An EF Core-generated baseline migration is now checked into Git and monitored for model drift. Practical SQL Server migration/UAT and IIS deployment acceptance remain prerequisites. Non-Development web hosting is blocked by design.
 - Authenticated production APIs require CSRF request token for state changes.
 
 ## Local developer setup
@@ -29,3 +29,6 @@ Use the [full developer guide](docs/DEVELOPER_GUIDE.md). Never put SQL passwords
 
 ## Change control
 Branch `feature/production-platform-foundation`, Draft PR #1. `main` is not modified until acceptance.
+
+## Database schema verification
+The committed baseline migration is located in `src/IPPCS.Web/Migrations/CI/`. GitHub CI enforces `has-pending-model-changes`, and a separate disposable SQL Server migration workflow lives at `.github/workflows/sql-schema.yml`. Follow the [developer guide](docs/DEVELOPER_GUIDE.md) rather than scaffolding another initial migration.
