@@ -14,3 +14,11 @@ jobs:
         run: dotnet restore src/IPPCS.Web/IPPCS.Web.csproj
       - name: Build
         run: dotnet build src/IPPCS.Web/IPPCS.Web.csproj -c Release --no-restore
+      - name: .NET calendar unit tests
+        run: dotnet test tests/IPPCS.Tests/IPPCS.Tests.csproj --configuration Release
+      - name: Browser script syntax
+        run: |
+          node --check src/IPPCS.Web/wwwroot/js/jalali-datepicker.js
+          node --check src/IPPCS.Web/wwwroot/js/production.js
+      - name: Jalali browser calendar tests
+        run: node --test tests/jalali.test.cjs
