@@ -86,6 +86,7 @@ jobs:
           curl --fail --silent --show-error -b /tmp/ippcs-cookie \
             http://127.0.0.1:5295/api/v1/items > /tmp/ippcs-items.json
           python3 -c 'import json;assert any(x["code"]=="SHOCK-CI-001" for x in json.load(open("/tmp/ippcs-items.json")))'
+          python3 tests/production_e2e_smoke.py
           echo "PASS: unauthorized=401, CSRF denied=400, login successful, protected SQL Server insert and read round trip."
       - name: Cleanup
         if: always()
