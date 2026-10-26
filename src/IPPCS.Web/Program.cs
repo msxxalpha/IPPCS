@@ -18,7 +18,8 @@ var app = builder.Build();
 app.UseExceptionHandler();
 if (app.Environment.IsDevelopment()) { app.UseSwagger(); app.UseSwaggerUI(); }
 app.UseHttpsRedirection();
-app.MapGet("/", () => Results.Redirect("/health"));
+app.UseStaticFiles();
+app.MapGet("/", () => Results.Redirect("/app.html"));
 app.MapGet("/health", () => Results.Ok(new { service = "IPPCS", status = "ready", version = "0.1.0" }));
 var api = app.MapGroup("/api/v1");
 
@@ -116,6 +117,7 @@ api.MapGet("/planning/gross-requirements/{planId:guid}", async (Guid planId, Pro
     return Results.Ok(new { plan.Id, plan.ItemId, plan.Quantity, requirements = totals.Select(x => new { itemId = x.Key, quantity = x.Value }) });
 });
 
+app.MapManufacturingFoundation();
 app.Run();
 
 public sealed class ProductionDb(DbContextOptions<ProductionDb> options) : DbContext(options)
@@ -124,6 +126,9 @@ public sealed class ProductionDb(DbContextOptions<ProductionDb> options) : DbCon
     public DbSet<WorkCenter> WorkCenters => Set<WorkCenter>();
     public DbSet<BomComponent> BomComponents => Set<BomComponent>();
     public DbSet<ProductionPlan> ProductionPlans => Set<ProductionPlan>();
+    public DbSet<RoutingRevision> RoutingRevisions => Set<RoutingRevision>();
+    public DbSet<RoutingOperation> RoutingOperations => Set<RoutingOperation>();
+    public DbSet<WorkShift> WorkShifts => Set<WorkShift>();
     protected override void OnModelCreating(ModelBuilder model)
     {
         model.Entity<PlanningItem>().HasIndex(x => x.Code).IsUnique();
@@ -141,6 +146,7 @@ public sealed class ProductionDb(DbContextOptions<ProductionDb> options) : DbCon
         model.Entity<BomComponent>().HasOne<PlanningItem>().WithMany().HasForeignKey(x => x.ComponentItemId).OnDelete(DeleteBehavior.Restrict);
         model.Entity<ProductionPlan>().Property(x => x.Quantity).HasPrecision(18, 4);
         model.Entity<ProductionPlan>().HasOne<PlanningItem>().WithMany().HasForeignKey(x => x.ItemId).OnDelete(DeleteBehavior.Restrict);
+        ManufacturingFoundationEndpoints.ConfigureManufacturingModel(model);
     }
 }
 public enum PlanningItemType { RawMaterial, SemiFinished, Finished, Consumable }
