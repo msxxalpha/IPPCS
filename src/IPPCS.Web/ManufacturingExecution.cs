@@ -156,7 +156,7 @@ public static class ManufacturingExecutionEndpoints
     }
     public static IEndpointRouteBuilder MapManufacturingExecution(this IEndpointRouteBuilder routes)
     {
-        var api=routes.MapGroup("/api/v1");
+        var api=routes.MapGroup("/api/v1").RequireAuthorization("IpProductionUser");
         api.MapGet("/manufacturing-orders",async(ProductionDb db,CancellationToken ct)=>{
             var orders=await db.ManufacturingOrders.AsNoTracking().Include(x=>x.Operations)
                 .OrderByDescending(x=>x.CreatedUtc).Take(200).ToListAsync(ct);
