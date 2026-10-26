@@ -1,0 +1,50 @@
+name: IPPCS SQL schema integration
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - feature/production-platform-foundation
+jobs:
+  sqlserver-schema:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Start disposable SQL Server with generated credential
+        shell: bash
+        run: |
+          password=$(openssl rand -base64 36 | tr -dc 'A-Za-z0-9' | head -c 24)
+          echo "::add-mask::$password"
+          echo "CI_DB_PASSWORD=$password" >> "$GITHUB_ENV"
+          docker run -d --name ippcs-ci-sql \
+            -e ACCEPT_EULA=Y -e MSSQL_PID=Developer \
+            -e MSSQL_SA_PASSWORD="$password" -p 1433:1433 \
+            mcr.microsoft.com/mssql/server:2022-latest
+      - name: Build and apply checked-in EF Core migration
+        shell: bash
+        run: |
+          export ASPNETCORE_ENVIRONMENT=Development
+          export ConnectionStrings__Production="Server=127.0.0.1,1433;Database=IPPCS_CI;User Id=sa;Password=${CI_DB_PASSWORD};Encrypt=True;TrustServerCertificate=True;"
+          dotnet restore src/IPPCS.Web/IPPCS.Web.csproj
+          dotnet build src/IPPCS.Web/IPPCS.Web.csproj -c Release --no-restore
+          dotnet tool install --global dotnet-ef --version 10.0.0
+          success=0
+          for attempt in $(seq 1 8); do
+            if dotnet ef database update --project src/IPPCS.Web/IPPCS.Web.csproj --startup-project src/IPPCS.Web/IPPCS.Web.csproj --configuration Release > /tmp/ippcs-migrate.log 2>&1; then
+              success=1
+              break
+            fi
+            echo "Schema attempt $attempt/8"
+            sleep 8
+          done
+          if [ "$success" -ne 1 ]; then
+            echo "SQL migration failed; inspect model and database configuration."
+            exit 1
+          fi
+          echo "PASS: versioned EF schema applied to disposable SQL Server."
+      - name: Cleanup
+        if: always()
+        run: docker rm -f ippcs-ci-sql || true
