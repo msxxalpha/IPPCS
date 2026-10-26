@@ -10,12 +10,12 @@ Planning inventory inputs, customer demand inputs, supplier lead times (if neces
 ## Contract: 18 main modules (all in scope)
 | # | Module | Status |
 |---|---|---|
-| 01 | Production master data (items, BOM, routings, resources) | Partial prototype |
+| 01 | Production master data (items, BOM, routings, resources) | Partial UI + API: items, BOM, versioned routings, operations, centers, shifts |
 | 02 | Manufacturing demand inputs and forecasts | Not started |
 | 03 | S&OP production balancing | Not started |
 | 04 | MPS master production schedule | Partial prototype |
 | 05 | Multilevel net MRP and pegging | Gross-requirements prototype only |
-| 06 | CRP finite and infinite capacity | Not started |
+| 06 | CRP finite and infinite capacity | Work-shift master data only; calculation not started |
 | 07 | APS constraint-based scheduler | Not started |
 | 08 | Production order lifecycle | Not started |
 | 09 | Semi-finished shop-floor control | Not started |
@@ -31,7 +31,7 @@ Planning inventory inputs, customer demand inputs, supplier lead times (if neces
 
 ## Architecture
 ASP.NET Core web API / EF Core SQL Server. Modular monolith direction; this bootstrap will be split into domain/application/infrastructure modules as implementation expands.
-Future scope includes Jalali UI (UTC/Gregorian persisted), role-based permissions, approval workflow, planning snapshots, Excel imports, audit, API and end-to-end testing.
+Initial Persian RTL user interface and shared Jalali datepicker implemented. Dates are stored as Gregorian SQL date/time, with PersianCalendar server checks. Still pending: production authorization, comprehensive route/BOM versioning, planning snapshots, Excel imports, audit, EF migrations, full API/integration tests, shop-floor controls, MRP/CRP/APS algorithms.
 
 ## Acceptance guardrails
 - No claim of completion until user-visible screens, business rules, persistence, permissions and tests exist.
