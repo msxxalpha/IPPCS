@@ -1,6 +1,10 @@
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddDbContext<ProductionDb>(o =>
@@ -13,6 +17,12 @@ builder.Services.AddDbContext<ProductionDb>(o =>
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddProblemDetails();
+builder.Services.AddIpSecurity();
+builder.Services.AddRateLimiter(options=>options.AddFixedWindowLimiter("ip-login",policy=>{
+    policy.PermitLimit=8;
+    policy.Window=TimeSpan.FromMinutes(2);
+    policy.QueueLimit=0;
+}));
 
 var app = builder.Build();
 // The prototype has no authentication yet. Deny non-development hosting until security is implemented.
@@ -22,9 +32,15 @@ app.UseExceptionHandler();
 if (app.Environment.IsDevelopment()) { app.UseSwagger(); app.UseSwaggerUI(); }
 app.UseHttpsRedirection();
 app.UseStaticFiles();
+app.UseRouting();
+app.UseRateLimiter();
+app.UseAuthentication();
+app.UseAuthorization();
+app.UseIpCsrfProtection();
+app.MapIpAuth();
 app.MapGet("/", () => Results.Redirect("/app.html"));
-app.MapGet("/health", () => Results.Ok(new { service = "IPPCS", status = "ready", version = "0.4.0" }));
-var api = app.MapGroup("/api/v1");
+app.MapGet("/health", () => Results.Ok(new { service = "IPPCS", status = "ready", version = "0.4.1" }));
+var api = app.MapGroup("/api/v1").RequireAuthorization("IpProductionUser");
 
 // Items are planning references, NOT warehouse inventory records.
 api.MapGet("/items", async (ProductionDb db, CancellationToken ct) =>
@@ -125,7 +141,7 @@ app.MapPlanningStageThree();
 app.MapManufacturingExecution();
 app.Run();
 
-public sealed class ProductionDb(DbContextOptions<ProductionDb> options) : DbContext(options)
+public sealed class ProductionDb(DbContextOptions<ProductionDb> options) : IdentityDbContext<IdentityUser>(options)
 {
     public DbSet<PlanningItem> Items => Set<PlanningItem>();
     public DbSet<WorkCenter> WorkCenters => Set<WorkCenter>();
@@ -148,6 +164,7 @@ public sealed class ProductionDb(DbContextOptions<ProductionDb> options) : DbCon
     public DbSet<ManufacturingOrderAudit> ManufacturingOrderAudits => Set<ManufacturingOrderAudit>();
     protected override void OnModelCreating(ModelBuilder model)
     {
+        base.OnModelCreating(model);
         model.Entity<PlanningItem>().HasIndex(x => x.Code).IsUnique();
         model.Entity<PlanningItem>().Property(x => x.Code).HasMaxLength(64);
         model.Entity<PlanningItem>().Property(x => x.Name).HasMaxLength(256);
