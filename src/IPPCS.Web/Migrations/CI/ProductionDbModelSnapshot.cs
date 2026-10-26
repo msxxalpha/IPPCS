@@ -54,6 +54,52 @@ namespace IPPCS.Web.Migrations.CI
                     b.ToTable("BomComponents");
                 });
 
+            modelBuilder.Entity("ControlPlanCharacteristic", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(240)
+                        .HasColumnType("nvarchar(240)");
+
+                    b.Property<bool>("Mandatory")
+                        .HasColumnType("bit");
+
+                    b.Property<decimal?>("Maximum")
+                        .HasPrecision(18, 6)
+                        .HasColumnType("decimal(18,6)");
+
+                    b.Property<decimal?>("Minimum")
+                        .HasPrecision(18, 6)
+                        .HasColumnType("decimal(18,6)");
+
+                    b.Property<int>("OperationSequence")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("PlanId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Unit")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PlanId", "OperationSequence", "Code")
+                        .IsUnique();
+
+                    b.ToTable("ControlPlanCharacteristics");
+                });
+
             modelBuilder.Entity("ManufacturingBomLine", b =>
                 {
                     b.Property<Guid>("Id")
@@ -157,6 +203,44 @@ namespace IPPCS.Web.Migrations.CI
                     b.ToTable("ManufacturingConfirmations");
                 });
 
+            modelBuilder.Entity("ManufacturingControlPlan", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ApprovedBy")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<DateTime?>("ApprovedUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<Guid>("RoutingRevisionId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("State")
+                        .HasColumnType("int");
+
+                    b.Property<DateOnly>("ValidFrom")
+                        .HasColumnType("date");
+
+                    b.Property<DateOnly?>("ValidUntil")
+                        .HasColumnType("date");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RoutingRevisionId", "Code")
+                        .IsUnique();
+
+                    b.ToTable("ManufacturingControlPlans");
+                });
+
             modelBuilder.Entity("ManufacturingDowntime", b =>
                 {
                     b.Property<Guid>("Id")
@@ -187,6 +271,143 @@ namespace IPPCS.Web.Migrations.CI
                     b.HasIndex("OrderId");
 
                     b.ToTable("ManufacturingDowntimes");
+                });
+
+            modelBuilder.Entity("ManufacturingInspectionRequirement", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(240)
+                        .HasColumnType("nvarchar(240)");
+
+                    b.Property<DateTime?>("LastMeasuredUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool?>("LastPassed")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("Mandatory")
+                        .HasColumnType("bit");
+
+                    b.Property<decimal?>("Maximum")
+                        .HasPrecision(18, 6)
+                        .HasColumnType("decimal(18,6)");
+
+                    b.Property<decimal?>("Minimum")
+                        .HasPrecision(18, 6)
+                        .HasColumnType("decimal(18,6)");
+
+                    b.Property<Guid>("OrderOperationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("SourceCharacteristicId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Unit")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SourceCharacteristicId");
+
+                    b.HasIndex("OrderOperationId", "Code")
+                        .IsUnique();
+
+                    b.ToTable("ManufacturingInspectionRequirements");
+                });
+
+            modelBuilder.Entity("ManufacturingInspectionResult", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<Guid>("OrderId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("Passed")
+                        .HasColumnType("bit");
+
+                    b.Property<decimal>("QuarantinedQuantity")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<string>("RecordedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<DateTime>("RecordedUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("RequirementId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("Value")
+                        .HasPrecision(18, 6)
+                        .HasColumnType("decimal(18,6)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrderId");
+
+                    b.HasIndex("RequirementId");
+
+                    b.ToTable("ManufacturingInspectionResults");
+                });
+
+            modelBuilder.Entity("ManufacturingLotGenealogy", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("DestinationConfirmationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("LinkedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<DateTime>("LinkedUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("OrderId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("Quantity")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<Guid>("SourceConfirmationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DestinationConfirmationId");
+
+                    b.HasIndex("OrderId");
+
+                    b.HasIndex("SourceConfirmationId", "DestinationConfirmationId")
+                        .IsUnique();
+
+                    b.ToTable("ManufacturingLotGenealogies");
                 });
 
             modelBuilder.Entity("ManufacturingOeePlan", b =>
@@ -993,6 +1214,17 @@ namespace IPPCS.Web.Migrations.CI
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("ControlPlanCharacteristic", b =>
+                {
+                    b.HasOne("ManufacturingControlPlan", "Plan")
+                        .WithMany("Characteristics")
+                        .HasForeignKey("PlanId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Plan");
+                });
+
             modelBuilder.Entity("ManufacturingBomLine", b =>
                 {
                     b.HasOne("PlanningItem", null)
@@ -1030,6 +1262,15 @@ namespace IPPCS.Web.Migrations.CI
                     b.Navigation("Operation");
                 });
 
+            modelBuilder.Entity("ManufacturingControlPlan", b =>
+                {
+                    b.HasOne("RoutingRevision", null)
+                        .WithMany()
+                        .HasForeignKey("RoutingRevisionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("ManufacturingDowntime", b =>
                 {
                     b.HasOne("ManufacturingOrderOperation", null)
@@ -1041,6 +1282,61 @@ namespace IPPCS.Web.Migrations.CI
                     b.HasOne("ManufacturingOrder", null)
                         .WithMany()
                         .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("ManufacturingInspectionRequirement", b =>
+                {
+                    b.HasOne("ManufacturingOrderOperation", "Operation")
+                        .WithMany("InspectionRequirements")
+                        .HasForeignKey("OrderOperationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("ControlPlanCharacteristic", null)
+                        .WithMany()
+                        .HasForeignKey("SourceCharacteristicId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Operation");
+                });
+
+            modelBuilder.Entity("ManufacturingInspectionResult", b =>
+                {
+                    b.HasOne("ManufacturingOrder", null)
+                        .WithMany()
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ManufacturingInspectionRequirement", "Requirement")
+                        .WithMany()
+                        .HasForeignKey("RequirementId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Requirement");
+                });
+
+            modelBuilder.Entity("ManufacturingLotGenealogy", b =>
+                {
+                    b.HasOne("ManufacturingConfirmation", null)
+                        .WithMany()
+                        .HasForeignKey("DestinationConfirmationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ManufacturingOrder", null)
+                        .WithMany()
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ManufacturingConfirmation", null)
+                        .WithMany()
+                        .HasForeignKey("SourceConfirmationId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
@@ -1251,6 +1547,11 @@ namespace IPPCS.Web.Migrations.CI
                     b.Navigation("Lines");
                 });
 
+            modelBuilder.Entity("ManufacturingControlPlan", b =>
+                {
+                    b.Navigation("Characteristics");
+                });
+
             modelBuilder.Entity("ManufacturingOrder", b =>
                 {
                     b.Navigation("Operations");
@@ -1259,6 +1560,8 @@ namespace IPPCS.Web.Migrations.CI
             modelBuilder.Entity("ManufacturingOrderOperation", b =>
                 {
                     b.Navigation("Confirmations");
+
+                    b.Navigation("InspectionRequirements");
                 });
 
             modelBuilder.Entity("MpsVersion", b =>
