@@ -202,6 +202,10 @@ demand = request("/api/v1/factory-demand", "POST", {
     "dueOnJalali": JALALI_NOW, "quantity": 10, "category": "Forecast"
 }, 201)
 assert demand["id"]
+draft = request("/api/v1/mps", "POST", {"code": "CI-MPS-FROM-DEMAND"}, 201)
+linked = request(f"/api/v1/factory-demand/{demand['id']}/to-mps/{draft['id']}", "POST", status=201)
+assert linked["mpsId"] == draft["id"]
+request(f"/api/v1/factory-demand/{demand['id']}/to-mps/{draft['id']}", "POST", status=409)
 sop = request("/api/v1/factory-sop/calculate", "POST", {
     "code": "CI-SOP-001", "fromJalali": JALALI_NOW, "throughJalali": JALALI_NOW
 })
