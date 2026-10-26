@@ -221,9 +221,12 @@ public static class ManufacturingExecutionEndpoints
                 ||bom.ValidFrom>order.PlannedStart||(bom.ValidUntil.HasValue&&bom.ValidUntil.Value<order.PlannedStart)
                 ||route.Operations.Count==0)
                 return Results.Conflict(new{message="مسیر و BOM معتبر مصوب وجود ندارند."});
+            // Explicitly mark newly materialized routing steps as Added. Appending a child
+            // with an already-assigned Guid to a tracked collection can make EF infer an
+            // existing entity and issue UPDATE instead of INSERT (false concurrency 409).
             foreach(var op in route.Operations.OrderBy(x=>x.Sequence))
-                order.Operations.Add(new ManufacturingOrderOperation{
-                    Sequence=op.Sequence,Name=op.Name,WorkCenterId=op.WorkCenterId,
+                db.ManufacturingOrderOperations.Add(new ManufacturingOrderOperation{
+                    OrderId=id,Sequence=op.Sequence,Name=op.Name,WorkCenterId=op.WorkCenterId,
                     SetupMinutes=op.SetupMinutes,RunMinutesPerUnit=op.RunMinutesPerUnit
                 });
             order.Status=ManufacturingOrderStatus.Released;
