@@ -104,3 +104,10 @@ The current dashboard uses the UTC confirmation/timestamp converted to plant loc
 - APS has a date- and center-specific Gantt bar view. It remains nonpreemptive and does not reserve materials or account for alternate work centers.
 - Dedicated `IpPlanningWrite` policy limits new demand/S&OP/APS/scenario state changes to Administrator/Planner and `IpShopFloorWrite` limits line-side consumption writes to Administrator/ProductionOperator. Older prototype endpoints still require broader permission refactoring.
 - The complete factory acceptance backlog is in `docs/ACCEPTANCE_MATRIX.md`.
+
+## Standalone application account administration
+- Log in as the development bootstrap Administrator and open `/system-users.html`. Create separate Planner, ProductionOperator or QualityInspector **IPPCS-only** credentials. No employee, national-ID, organizational role or HR portal fields are read or stored.
+- Password policy: at least 12 characters with uppercase, lowercase, number and special character. Passwords are hashed by ASP.NET Core Identity, never included in returned user payloads.
+- Any signed-in account can change its own password via the same page. Admin can lock/unlock operator accounts, but cannot lock the active Administrator account.
+- Stage-seven authorization: Planner (or Administrator) for production demand input/MPS intake, S&OP/APS calculations and What-if; ProductionOperator (or Administrator) for shop-floor material consumption; QualityInspector (or Administrator) for inspection/quality disposition. **Legacy endpoints still need a complete route-by-route role matrix before production acceptance.**
+- Never share passwords in GitHub, logs, documents or this chat. Development/CI credentials are generated or injected via secrets; live passwords need organizational provisioning policies before UAT.
