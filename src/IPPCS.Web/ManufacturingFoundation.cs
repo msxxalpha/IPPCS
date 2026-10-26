@@ -91,7 +91,7 @@ public static class ManufacturingFoundationEndpoints
                 x.Id, x.ItemId, x.RevisionCode, x.State,
                 effectiveFromJalali = PersianPlanningDates.Format(x.EffectiveFrom),
                 effectiveToJalali = x.EffectiveTo.HasValue ? PersianPlanningDates.Format(x.EffectiveTo.Value) : null,
-                x.Operations
+                operations = x.Operations.OrderBy(o => o.Sequence).Select(o => new { o.Id, o.Sequence, o.Name, o.WorkCenterId, o.SetupMinutes, o.RunMinutesPerUnit, o.YieldPercent }).ToArray()
             }));
         });
 
