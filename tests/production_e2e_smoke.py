@@ -113,5 +113,79 @@ assert all(row["orderNumber"] == "CI-WORKORDER-STAGE5" for row in lots["records"
 history = request(f"/api/v1/manufacturing-orders/{order_id}/history")["events"]
 assert any(e["action"] == "QualityHold" for e in history)
 assert any(e["action"] == "QualityRelease" for e in history)
+# Stage six: approved Control Plan is snapshot-bound to this routing revision at release.
+control = request("/api/v1/control-plans", "POST", {
+    "routingRevisionId": route_id, "code": "CI-CONTROLPLAN-001",
+    "validFromJalali": JALALI_NOW, "validUntilJalali": None
+}, 201)
+for sequence, code, minimum, maximum in [
+    (10, "WELD-DIM", 10, 20), (20, "DAMPING-FORCE", 65, 85)
+]:
+    request(f"/api/v1/control-plans/{control['id']}/characteristics", "POST", {
+        "operationSequence": sequence, "code": code, "description": code,
+        "unit": "N", "minimum": minimum, "maximum": maximum, "mandatory": True
+    }, 201)
+request(f"/api/v1/control-plans/{control['id']}/approve", "POST")
+fresh = request("/api/v1/manufacturing-orders", "POST", {
+    "number": "CI-CONTROLLED-STAGE6", "itemId": product["id"], "plannedQuantity": 10,
+    "plannedStartJalali": JALALI_NOW, "dueOnJalali": JALALI_NOW
+}, 201)
+fid = fresh["id"]
+released = request(f"/api/v1/manufacturing-orders/{fid}/release", "POST")
+assert released["status"] == 1
+first, second = released["operations"]
+requirements = request(f"/api/v1/manufacturing-orders/{fid}/inspection-requirements")["requirements"]
+assert len(requirements) == 2 and all(r["mandatory"] for r in requirements)
+r1 = next(r for r in requirements if r["operationSequence"] == 10)
+r2 = next(r for r in requirements if r["operationSequence"] == 20)
+request(f"/api/v1/manufacturing-orders/{fid}/operations/{first['id']}/confirm", "POST", {
+    "goodQuantity": 9, "scrapQuantity": 1, "reworkQuantity": 0,
+    "lotCode": "CP-LOT-BASE"
+})
+request(f"/api/v1/manufacturing-orders/{fid}/operations/{second['id']}/confirm", "POST", {
+    "goodQuantity": 9, "scrapQuantity": 0, "reworkQuantity": 0,
+    "lotCode": "CP-LOT-ASSEMBLY"
+}, 409)
+failed = request(f"/api/v1/manufacturing-orders/{fid}/inspections/{r1['id']}", "POST", {
+    "value": 6, "nonconformingQuantity": 3, "note": "Below control limit"
+})
+assert not failed["passed"]
+holds = request(f"/api/v1/manufacturing-orders/{fid}/quality-holds")
+open_hold = next(h for h in holds if h["status"] == 0)
+assert open_hold["quantity"] == 3
+request(f"/api/v1/manufacturing-orders/{fid}/quality-holds/{open_hold['id']}/disposition?decision=2",
+        "POST", {"note": "Quality scrap after investigation"})
+request(f"/api/v1/manufacturing-orders/{fid}/operations/{second['id']}/confirm", "POST", {
+    "goodQuantity": 6, "scrapQuantity": 0, "reworkQuantity": 0
+}, 409)
+passed = request(f"/api/v1/manufacturing-orders/{fid}/inspections/{r1['id']}", "POST", {
+    "value": 15, "nonconformingQuantity": 0, "note": "Reinspection passed"
+})
+assert passed["passed"]
+second_result = request(f"/api/v1/manufacturing-orders/{fid}/operations/{second['id']}/confirm", "POST", {
+    "goodQuantity": 6, "scrapQuantity": 0, "reworkQuantity": 0, "lotCode": "CP-LOT-ASSEMBLY"
+})
+assert second_result["status"] == 2, second_result
+final_inspection = request(f"/api/v1/manufacturing-orders/{fid}/inspections/{r2['id']}", "POST", {
+    "value": 70, "nonconformingQuantity": 0, "note": "Final damper force test passed"
+})
+assert final_inspection["orderStatus"] == 4
+measurements = request(f"/api/v1/manufacturing-orders/{fid}/inspection-results")
+assert len(measurements) == 3
+confirmations = request(f"/api/v1/manufacturing-orders/{fid}/confirmations")
+source = next(c for c in confirmations if c["operationSequence"] == 10)
+dest = next(c for c in confirmations if c["operationSequence"] == 20)
+request(f"/api/v1/manufacturing-orders/{fid}/lot-genealogy", "POST", {
+    "sourceConfirmationId": source["id"], "destinationConfirmationId": dest["id"],
+    "quantity": 6
+}, 201)
+links = request(f"/api/v1/manufacturing-orders/{fid}/lot-genealogy")
+assert len(links) == 1 and links[0]["quantity"] == 6
+request(f"/api/v1/manufacturing-orders/{fid}/lot-genealogy", "POST", {
+    "sourceConfirmationId": source["id"], "destinationConfirmationId": dest["id"],
+    "quantity": 1
+}, 409)
+print("PASS: approved Control Plan snapshots, required inspection gate, auto quarantine, "
+      "scrap disposition, reinspection, final quality release, and exact-lot stage genealogy.")
 print("PASS: SQL Server route+BOM approval, work order release, production, quality hold, "
       "blocked transfer, QC release, completed order, WIP, audit and OEE.")
