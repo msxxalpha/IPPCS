@@ -177,13 +177,13 @@ public static class FactoryDemandApsEndpoints
                 DueOn=date,Quantity=input.Quantity,Category=input.Category};
             db.FactoryDemands.Add(demand);await db.SaveChangesAsync(ct);
             return Results.Created($"/api/v1/factory-demand/{demand.Id}",new{demand.Id});
-        });
+        }).RequireAuthorization("IpPlanningWrite");
         api.MapDelete("/factory-demand/{id:guid}",async(Guid id,ProductionDb db,CancellationToken ct)=>{
             var demand=await db.FactoryDemands.FindAsync([id],ct);
             if(demand is null)return Results.NotFound();
             db.FactoryDemands.Remove(demand);await db.SaveChangesAsync(ct);
             return Results.NoContent();
-        });
+        }).RequireAuthorization("IpPlanningWrite");
 
         api.MapGet("/factory-sop",async(ProductionDb db,CancellationToken ct)=>{
             var rows=await db.FactorySopReviews.AsNoTracking()
@@ -232,7 +232,7 @@ public static class FactoryDemandApsEndpoints
             return Results.Ok(new{record.Id,record.Code,record.DemandQuantity,record.RoughCutMinutes,
                 record.AvailableMinutes,record.OverloadMinutes,warnings,
                 note="تراز تجمیعی مقدماتی است؛ توزیع بار بین مراکز و تاریخ‌ها در APS جداگانه بررسی می‌شود."});
-        });
+        }).RequireAuthorization("IpPlanningWrite");
 
         api.MapGet("/factory-aps/runs",async(ProductionDb db,CancellationToken ct)=>{
             var rows=await db.FactoryApsRuns.AsNoTracking()
@@ -293,7 +293,7 @@ public static class FactoryDemandApsEndpoints
                     finishTime=x.FinishesAt.ToString("HH:mm")}),
                 result.Unscheduled,result.TotalLateOperations,
                 disclaimer="پیش‌نویس زمان‌بندی با ظرفیت محدود؛ مواد، خرابی پیش‌بینی‌نشده، ابزار و بهینه‌سازی سراسری اعمال نشده‌اند."});
-        });
+        }).RequireAuthorization("IpPlanningWrite");
         return routes;
     }
 }
