@@ -39,7 +39,7 @@ app.UseAuthorization();
 app.UseIpCsrfProtection();
 app.MapIpAuth();
 app.MapGet("/", () => Results.Redirect("/app.html"));
-app.MapGet("/health", () => Results.Ok(new { service = "IPPCS", status = "ready", version = "0.4.1" }));
+app.MapGet("/health", () => Results.Ok(new { service = "IPPCS", status = "ready", version = "0.5.0" }));
 var api = app.MapGroup("/api/v1").RequireAuthorization("IpProductionUser");
 
 // Items are planning references, NOT warehouse inventory records.
@@ -139,6 +139,7 @@ api.MapGet("/planning/gross-requirements/{planId:guid}", async (Guid planId, Pro
 app.MapManufacturingFoundation();
 app.MapPlanningStageThree();
 app.MapManufacturingExecution();
+app.MapQualityAndOee();
 app.Run();
 
 public sealed class ProductionDb(DbContextOptions<ProductionDb> options) : IdentityDbContext<IdentityUser>(options)
@@ -162,6 +163,8 @@ public sealed class ProductionDb(DbContextOptions<ProductionDb> options) : Ident
     public DbSet<ManufacturingConfirmation> ManufacturingConfirmations => Set<ManufacturingConfirmation>();
     public DbSet<ManufacturingDowntime> ManufacturingDowntimes => Set<ManufacturingDowntime>();
     public DbSet<ManufacturingOrderAudit> ManufacturingOrderAudits => Set<ManufacturingOrderAudit>();
+    public DbSet<ManufacturingQualityHold> ManufacturingQualityHolds => Set<ManufacturingQualityHold>();
+    public DbSet<ManufacturingOeePlan> ManufacturingOeePlans => Set<ManufacturingOeePlan>();
     protected override void OnModelCreating(ModelBuilder model)
     {
         base.OnModelCreating(model);
@@ -183,6 +186,7 @@ public sealed class ProductionDb(DbContextOptions<ProductionDb> options) : Ident
         ManufacturingFoundationEndpoints.ConfigureManufacturingModel(model);
         PlanningStageThreeEndpoints.ConfigureModel(model);
         ManufacturingExecutionEndpoints.ConfigureModel(model);
+        ManufacturingQualityAndOeeEndpoints.ConfigureModel(model);
     }
 }
 public enum PlanningItemType { RawMaterial, SemiFinished, Finished, Consumable }
