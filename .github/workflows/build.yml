@@ -26,24 +26,7 @@ jobs:
           node --check src/IPPCS.Web/wwwroot/js/login.js
       - name: Jalali browser calendar tests
         run: node --test tests/jalali.test.cjs
-      - name: Verify EF Core schema is scaffoldable
+      - name: Verify committed migrations match EF Core model
         run: |
           dotnet tool install --global dotnet-ef --version 10.0.0
-          dotnet ef migrations add CiSchemaSmoke --project src/IPPCS.Web/IPPCS.Web.csproj --startup-project src/IPPCS.Web/IPPCS.Web.csproj --output-dir Migrations/CI
-          dotnet build src/IPPCS.Web/IPPCS.Web.csproj -c Release
-      - name: Emit temporary migration handoff payload
-        if: github.event_name == 'push' && github.ref == 'refs/heads/feature/production-platform-foundation'
-        run: |
-          for f in src/IPPCS.Web/Migrations/CI/*.cs; do
-            echo "IPPCS_MIGRATION_BEGIN:$f"
-            base64 -w0 "$f"
-            echo
-            echo "IPPCS_MIGRATION_END"
-          done
-      - name: Upload SQL schema migration for review
-        uses: actions/upload-artifact@v4
-        with:
-          name: ippcs-schema-preview
-          path: src/IPPCS.Web/Migrations/CI/**/*.cs
-          if-no-files-found: error
-          retention-days: 14
+          dotnet ef migrations has-pending-model-changes --project src/IPPCS.Web/IPPCS.Web.csproj --startup-project src/IPPCS.Web/IPPCS.Web.csproj
