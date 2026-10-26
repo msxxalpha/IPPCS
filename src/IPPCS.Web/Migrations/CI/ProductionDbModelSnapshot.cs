@@ -100,6 +100,194 @@ namespace IPPCS.Web.Migrations.CI
                     b.ToTable("ControlPlanCharacteristics");
                 });
 
+            modelBuilder.Entity("FactoryApsRun", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Algorithm")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<DateTime>("CalculatedUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("HorizonDays")
+                        .HasColumnType("int");
+
+                    b.Property<string>("InputJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid>("MpsVersionId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("OutputJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateOnly>("StartOn")
+                        .HasColumnType("date");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CalculatedUtc");
+
+                    b.HasIndex("MpsVersionId");
+
+                    b.ToTable("FactoryApsRuns");
+                });
+
+            modelBuilder.Entity("FactoryCenterCostRate", b =>
+                {
+                    b.Property<Guid>("WorkCenterId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("ConversionRialsPerMinute")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<DateOnly>("EffectiveFrom")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Note")
+                        .IsRequired()
+                        .HasMaxLength(400)
+                        .HasColumnType("nvarchar(400)");
+
+                    b.Property<decimal>("ScrapRialsPerUnit")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.HasKey("WorkCenterId");
+
+                    b.ToTable("FactoryCenterCostRates");
+                });
+
+            modelBuilder.Entity("FactoryDemand", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateOnly>("DueOn")
+                        .HasColumnType("date");
+
+                    b.Property<Guid>("ItemId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("Quantity")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<string>("Reference")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ItemId", "DueOn");
+
+                    b.ToTable("FactoryDemands");
+                });
+
+            modelBuilder.Entity("FactoryMaterialUsage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("ComponentItemId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("OrderId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("QuantityConsumed")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<string>("RecordedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<DateTime>("RecordedUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Reference")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ComponentItemId");
+
+                    b.HasIndex("OrderId", "ComponentItemId");
+
+                    b.ToTable("FactoryMaterialUsages");
+                });
+
+            modelBuilder.Entity("FactorySopReview", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("AvailableMinutes")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<DateTime>("CalculatedUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.Property<decimal>("DemandQuantity")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<DateOnly>("From")
+                        .HasColumnType("date");
+
+                    b.Property<decimal>("OverloadMinutes")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<decimal>("RoughCutMinutes")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<string>("SnapshotJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateOnly>("Through")
+                        .HasColumnType("date");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Code")
+                        .IsUnique();
+
+                    b.ToTable("FactorySopReviews");
+                });
+
             modelBuilder.Entity("ManufacturingBomLine", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1223,6 +1411,48 @@ namespace IPPCS.Web.Migrations.CI
                         .IsRequired();
 
                     b.Navigation("Plan");
+                });
+
+            modelBuilder.Entity("FactoryApsRun", b =>
+                {
+                    b.HasOne("MpsVersion", null)
+                        .WithMany()
+                        .HasForeignKey("MpsVersionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("FactoryCenterCostRate", b =>
+                {
+                    b.HasOne("WorkCenter", null)
+                        .WithMany()
+                        .HasForeignKey("WorkCenterId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("FactoryDemand", b =>
+                {
+                    b.HasOne("PlanningItem", null)
+                        .WithMany()
+                        .HasForeignKey("ItemId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("FactoryMaterialUsage", b =>
+                {
+                    b.HasOne("PlanningItem", null)
+                        .WithMany()
+                        .HasForeignKey("ComponentItemId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ManufacturingOrder", null)
+                        .WithMany()
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("ManufacturingBomLine", b =>
