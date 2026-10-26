@@ -21,6 +21,7 @@ jobs:
           node --check src/IPPCS.Web/wwwroot/js/jalali-datepicker.js
           node --check src/IPPCS.Web/wwwroot/js/production.js
           node --check src/IPPCS.Web/wwwroot/js/planning-stage3.js
+          node --check src/IPPCS.Web/wwwroot/js/execution.js
       - name: Jalali browser calendar tests
         run: node --test tests/jalali.test.cjs
       - name: Verify EF Core schema is scaffoldable
