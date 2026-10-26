@@ -82,7 +82,7 @@ public record PlanningReceiptInput(Guid ItemId, string AvailableOnJalali, decima
 public record MrpRow(Guid ItemId, DateOnly NeededOn, decimal GrossRequired, decimal OpeningAvailable,
     decimal NetShortage, decimal SuggestedQuantity, DateOnly? SuggestedRelease, decimal ClosingAvailable);
 public record CrpRow(Guid WorkCenterId, DateOnly NeededOn, decimal RequiredMinutes,
-    decimal CapacityMinutes, decimal OverloadMinutes, decimal UtilizationPercent);
+    decimal CapacityMinutes, decimal OverloadMinutes, decimal? UtilizationPercent);
 
 public static class PlanningCalculators
 {
@@ -97,8 +97,8 @@ public static class PlanningCalculators
         var visiting = new HashSet<Guid>();
         int AssignDepth(Guid id, int layer)
         {
-            if (!types.ContainsKey(id)) throw new InvalidOperationException("Unknown planning item.");
-            if (!visiting.Add(id)) throw new InvalidOperationException("Cyclic approved BOM revisions detected.");
+            if (!types.ContainsKey(id)) throw new InvalidOperationException("کالای موردنیاز در اطلاعات پایه تعریف نشده است.");
+            if (!visiting.Add(id)) throw new InvalidOperationException("در نسخه‌های تأییدشده BOM چرخه شناسایی شد.");
             depth[id] = Math.Max(depth.GetValueOrDefault(id),layer);
             if (graph.TryGetValue(id,out var r))
                 foreach(var part in r.SelectMany(x=>x.Lines)) AssignDepth(part.ComponentItemId, layer+1);
@@ -117,7 +117,7 @@ public static class PlanningCalculators
         foreach (var itemId in depth.OrderBy(x=>x.Value).ThenBy(x=>x.Key).Select(x=>x.Key))
         {
             var balance = byBalance.GetValueOrDefault(itemId)
-                ?? throw new InvalidOperationException("Planning balance and lead-time policy missing for an item.");
+                ?? throw new InvalidOperationException("موجودی مبنا یا قواعد زمان تأمین کالا ثبت نشده است.");
             decimal available = Math.Max(0m,
                 balance.PhysicalQuantity-balance.ReservedQuantity-balance.QuarantinedQuantity-balance.SafetyQuantity);
             var arrivals = byReceipt.GetValueOrDefault(itemId) ?? new List<PlanningExpectedReceipt>();
@@ -133,7 +133,7 @@ public static class PlanningCalculators
                 {
                     var min=balance.MinimumBatch;
                     var multiple=balance.BatchMultiple;
-                    if(min<=0||multiple<=0)throw new InvalidOperationException("Invalid batch policy.");
+                    if(min<=0||multiple<=0)throw new InvalidOperationException("حداقل بچ یا مضرب بچ نامعتبر است.");
                     var minimumRequired=Math.Max(shortage,min);
                     planned=decimal.Ceiling(minimumRequired/multiple)*multiple;
                 }
@@ -146,11 +146,11 @@ public static class PlanningCalculators
                 var selected=graph.GetValueOrDefault(itemId)?.Where(x=>x.ValidFrom<=release!.Value
                     && (x.ValidUntil is null||release.Value<=x.ValidUntil.Value)).ToList()
                     ?? new List<ManufacturingBomRevision>();
-                if(selected.Count>1)throw new InvalidOperationException("Ambiguous approved BOM revision.");
+                if(selected.Count>1)throw new InvalidOperationException("بیش از یک نسخه BOM معتبر برای تاریخ شروع ساخت یافت شد.");
                 if(selected.Count==0)
                 {
                     if(types[itemId] is PlanningItemType.Finished or PlanningItemType.SemiFinished)
-                        throw new InvalidOperationException("Approved BOM is missing for a manufactured item.");
+                        throw new InvalidOperationException("BOM مصوب معتبر برای یک کالای ساختنی موجود نیست.");
                     continue;
                 }
                 var effective=selected[0];
@@ -173,11 +173,11 @@ public static class PlanningCalculators
         {
             var route=routings.Where(r=>r.ItemId==line.ItemId && r.State==RoutingState.Approved
                 && r.EffectiveFrom<=line.NeededOn && (r.EffectiveTo is null||line.NeededOn<=r.EffectiveTo.Value)).ToArray();
-            if(route.Length!=1)throw new InvalidOperationException("Exactly one approved routing required for each MPS product/date.");
+            if(route.Length!=1)throw new InvalidOperationException("برای هر محصول و تاریخ برنامه باید دقیقاً یک مسیر ساخت مصوب معتبر وجود داشته باشد.");
             foreach(var op in route[0].Operations)
             {
                 var key=(op.WorkCenterId,line.NeededOn);
-                if(op.YieldPercent<=0)throw new InvalidOperationException("Invalid routing yield.");
+                if(op.YieldPercent<=0)throw new InvalidOperationException("بازده عملیات ساخت نامعتبر است.");
                 loads[key]=loads.GetValueOrDefault(key)+op.SetupMinutes+line.Quantity*op.RunMinutesPerUnit/(op.YieldPercent/100m);
             }
         }
@@ -186,7 +186,7 @@ public static class PlanningCalculators
                 && s.DayOfWeek==(int)x.Key.NeededOn.DayOfWeek);
             var cap=weekly.Sum(s=>(decimal)(s.EndTime-s.StartTime).TotalMinutes*s.EffectiveCapacityPercent/100m);
             return new CrpRow(x.Key.WorkCenterId,x.Key.NeededOn,x.Value,cap,
-                Math.Max(0,x.Value-cap),cap==0?0:Math.Round(x.Value/cap*100m,2));
+                Math.Max(0,x.Value-cap),cap==0?null:Math.Round(x.Value/cap*100m,2));
         }).ToList();
     }
 }
