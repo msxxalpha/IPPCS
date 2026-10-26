@@ -1,0 +1,104 @@
+<!doctype html><html lang="fa" dir="rtl"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>IPPCS | تقاضا، S&OP، APS و تحلیل تولید</title>
+<link rel="stylesheet" href="/css/production.css">
+<script defer src="/js/security-client.js"></script>
+<script defer src="/js/jalali-datepicker.js"></script>
+<script defer src="/js/planning-advanced.js"></script></head><body>
+<div class="app-shell"><aside class="sidebar">
+<div class="brand"><div class="brand-logo">IP</div><div><strong>ایندامین سایپا</strong><small>کنترل و زمان‌بندی تولید</small></div></div>
+<nav>
+<a class="planning-link" href="/app.html">داشبورد اصلی</a>
+<a class="planning-link" href="/planning.html">BOM / MPS / MRP</a>
+<a class="planning-link" href="/execution.html">اجرای عملیات تولید</a>
+<button class="nav-active" data-view="demand">تقاضای مستقل تولید</button>
+<button data-view="sop">تراز کلان S&OP</button>
+<button data-view="aps">زمان‌بندی محدودیت‌دار APS</button>
+<button data-view="whatif">سناریوهای ظرفیت What-if</button>
+<button data-view="materials">مصرف داخلی مواد پای خط</button>
+<button data-view="cost">هزینه تبدیل و بهره‌وری</button>
+<button data-view="dashboard">پایش برنامه و KPI</button>
+</nav><div class="sidebar-foot">IPPCS • فاز توسعه ۰٫۷<br>ماژول‌های ERP و اتصال به آن‌ها خارج از محدوده‌اند</div>
+</aside>
+<div class="main">
+<header class="topbar"><div><span class="eyebrow">سامانه مستقل برنامه‌ریزی تولید کمک‌فنر</span><h1 id="page-heading">تقاضای مستقل تولید</h1></div><button class="btn-outline" data-ip-logout type="button">خروج</button></header>
+<main class="content">
+<div id="flash" class="notice" role="status" aria-live="polite" hidden></div>
+<div class="callout">این سامانه هیچ ارتباط عملیاتی با نرم‌افزارهای انبار، خرید، فروش و منابع انسانی ندارد. تقاضاها، موجودی‌های فرضی، نرخ‌های تبدیل و مصرف پای خط فقط ورودی‌های مستقل برنامه‌ریزی/ثبت عملکرد IPPCS هستند.</div>
+<section id="demand" class="page">
+<div class="section-title"><h3>تقاضا و پیش‌بینی تولید</h3><small>ورود مستقیم نیاز محصول نهایی بدون اتصال به سیستم فروش</small></div>
+<form id="demand-form" class="panel form-grid">
+<label>محصول نهایی<select name="itemId" data-finished required></select></label>
+<label>مرجع برنامه‌ای<input name="reference" maxlength="100" required placeholder="برنامه هفتگی ساخت"></label>
+<label>نوع نیاز<select name="category" required><option value="Forecast">پیش‌بینی</option><option value="Confirmed">نیاز قطعی داخلی</option><option value="SafetyBuild">تولید اطمینان</option></select></label>
+<label>تاریخ نیاز<span class="jalali-field"><input name="due" data-jalali-date required placeholder="انتخاب تاریخ شمسی"><button type="button" data-jalali-trigger class="date-trigger">▣</button></span></label>
+<label>مقدار<input name="quantity" type="number" step="any" min="0.0001" required></label>
+<div class="form-actions"><button type="submit" class="btn-main">ثبت تقاضا</button></div>
+</form><div class="panel"><h3>فهرست تقاضاهای داخلی</h3><div id="demand-table"></div></div>
+</section>
+<section id="sop" class="page" hidden>
+<div class="section-title"><h3>تراز تجمیعی ظرفیت در برابر نیاز</h3><small>پیش‌نمایش بار کل کارخانه، نه برنامه نهایی توزیع بار بین مراکز</small></div>
+<form id="sop-form" class="panel form-grid">
+<label>کد ارزیابی<input name="code" maxlength="80" required placeholder="SOP-1405-09"></label>
+<label>از تاریخ<span class="jalali-field"><input name="from" data-jalali-date required><button type="button" data-jalali-trigger class="date-trigger">▣</button></span></label>
+<label>تا تاریخ<span class="jalali-field"><input name="through" data-jalali-date required><button type="button" data-jalali-trigger class="date-trigger">▣</button></span></label>
+<div class="form-actions"><button type="submit" class="btn-main">محاسبه و ثبت Snapshot S&OP</button></div></form>
+<div class="panel"><h3>نتایج ثبت‌شده تراز تولید</h3><div id="sop-table"></div></div>
+</section>
+<section id="aps" class="page" hidden>
+<div class="section-title"><h3>زمان‌بندی ظرفیت محدود در شیفت</h3><small>بدون همپوشانی مرکز کاری و با ترتیب عملیات. محدودیت مواد و زمان‌بندی بین شیفتی هنوز در حال توسعه است.</small></div>
+<form id="aps-form" class="panel form-grid">
+<label>نسخه MPS مصوب<select name="mpsId" data-mps required></select></label>
+<label>شروع افق<span class="jalali-field"><input name="start" data-jalali-date required><button type="button" data-jalali-trigger class="date-trigger">▣</button></span></label>
+<label>افق (روز)<input name="horizon" type="number" min="1" max="90" value="14" required></label>
+<label>ضریب ظرفیت<input name="capacity" type="number" min="0.1" max="2" step="any" value="1" required></label>
+<div class="form-actions"><button type="submit" class="btn-main">محاسبه زمان‌بندی محدودیت‌دار</button></div></form>
+<div class="panel"><h3>پیش‌نمایش عملیات قابل زمان‌بندی</h3><div id="aps-table"></div></div>
+<div class="panel"><h3>عملیات خارج از ظرفیت</h3><div id="aps-errors"></div></div>
+<div class="panel"><h3>تاریخچه محاسبات APS</h3><div id="aps-runs"></div></div>
+</section>
+<section id="whatif" class="page" hidden>
+<div class="section-title"><h3>بررسی تغییر ظرفیت بدون ثبت برنامه واقعی</h3><small>مقایسه تعداد عملیات قابل زمان‌بندی و دیرکرد در دو وضعیت</small></div>
+<form id="whatif-form" class="panel form-grid">
+<label>نسخه MPS<select name="mpsId" data-mps required></select></label>
+<label>شروع افق<span class="jalali-field"><input name="start" data-jalali-date required><button type="button" data-jalali-trigger class="date-trigger">▣</button></span></label>
+<label>افق (روز)<input name="horizon" type="number" min="1" max="90" value="14" required></label>
+<label>ضریب وضعیت پایه<input name="baseline" type="number" min="0.1" max="2" step="any" value="1" required></label>
+<label>ضریب سناریو<input name="scenario" type="number" min="0.1" max="2" step="any" value="1.25" required></label>
+<div class="form-actions"><button type="submit" class="btn-main">مقایسه سناریوها</button></div></form>
+<div class="panel"><h3>مقایسه نتایج</h3><div id="whatif-table"></div></div>
+</section>
+<section id="materials" class="page" hidden>
+<div class="section-title"><h3>ثبت مصرف تولیدی پای خط و انحراف BOM</h3><small>فقط مصرف عملیاتی است؛ هیچ حواله یا تغییر موجودی در انبار ایجاد نمی‌کند.</small></div>
+<form id="material-form" class="panel form-grid">
+<label>دستور ساخت فعال<select name="orderId" id="material-order" required></select></label>
+<label>جزء قابل مصرف<select name="componentItemId" id="material-component" required></select></label>
+<label>مقدار مصرف<input name="quantity" type="number" step="any" min="0.0001" required></label>
+<label>مرجع ثبت<input name="reference" required maxlength="200" placeholder="ثبت دستی مصرف در عملیات"></label>
+<div class="form-actions"><button type="submit" class="btn-main">ثبت مصرف داخلی تولید</button></div></form>
+<div class="panel"><h3>مصرف برنامه و واقعی</h3><div id="material-table"></div></div>
+</section>
+<section id="cost" class="page" hidden>
+<div class="section-title"><h3>برآورد هزینه تبدیل و ضایعات تولید</h3><small>ریال، مبتنی بر نرخ استاندارد هر مرکز؛ نه ماژول مالی یا حسابداری بهای تمام‌شده</small></div>
+<form id="cost-form" class="panel form-grid">
+<label>مرکز کاری<select name="center" id="cost-center" required></select></label>
+<label>نرخ تبدیل (ریال / دقیقه)<input name="rate" type="number" step="any" min="0" required></label>
+<label>هزینه فرضی هر ضایعه (ریال)<input name="scrap" type="number" step="any" min="0" required></label>
+<label>تاریخ مبنای نرخ<span class="jalali-field"><input name="from" data-jalali-date required><button type="button" data-jalali-trigger class="date-trigger">▣</button></span></label>
+<label>یادداشت<input name="note" maxlength="400"></label>
+<div class="form-actions"><button type="submit" class="btn-main">ثبت نرخ استاندارد تبدیل</button></div></form>
+<div class="panel form-grid"><label>دستور تولید<select id="cost-order"></select></label><div class="form-actions"><button type="button" class="btn-outline" id="cost-review">بررسی هزینه تخمینی</button></div></div>
+<div class="panel"><h3>برآورد هزینه تبدیل و ضایعات</h3><div id="cost-table"></div></div>
+</section>
+<section id="dashboard" class="page" hidden>
+<div class="section-title"><h3>پایش تولید و تحقق برنامه</h3><small>شاخص‌های اولیه عملیاتی در کنار نسخه MPS انتخابی</small></div>
+<div class="panel"><h3>وضعیت عملیاتی</h3><div id="overview-table"></div></div>
+<form id="adherence-form" class="panel form-grid">
+<label>نسخه MPS<select name="mpsId" data-all-mps required></select></label>
+<label>از تاریخ<span class="jalali-field"><input name="from" data-jalali-date required><button type="button" data-jalali-trigger class="date-trigger">▣</button></span></label>
+<label>تا تاریخ<span class="jalali-field"><input name="through" data-jalali-date required><button type="button" data-jalali-trigger class="date-trigger">▣</button></span></label>
+<div class="form-actions"><button type="submit" class="btn-main">محاسبه تحقق MPS</button></div></form>
+<div class="panel"><h3>انحراف برنامه</h3><div id="adherence-table"></div></div>
+</section>
+</main><footer class="footer">IPPCS • مستقل از انبار، فروش، خرید و منابع انسانی<span>نسخه توسعه 0.7</span></footer>
+</div></div></body></html>
