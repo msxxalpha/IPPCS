@@ -24,10 +24,10 @@ Planning inventory inputs, customer demand inputs, supplier lead times (if neces
 | 12 | Plan adherence and deviation management | Basic planned vs actual quantity in workbench; deviation reason workflows pending |
 | 13 | In-process quality controls / quarantine | Partial: quantity-specific quality holds, authorized release/scrap decisions, next-operation block, audit; formal Control Plan pending |
 | 14 | OEE and downtime classification | Preliminary daily OEE from manually planned minutes, reported output and downtime; advanced time/PLC validation pending |
-| 15 | Manufacturing lot/serial traceability | Basic lot identifier on operation confirmation, no end-to-end genealogy yet |
+| 15 | Manufacturing lot/serial traceability | Partial: lot codes on confirmations plus exact-code production history; no cross-BOM component genealogy |
 | 16 | What-if simulations and scenarios | Not started |
 | 17 | Conversion cost and productivity analysis | Not started |
-| 18 | Manufacturing KPI dashboards and decision support | First operational KPI table: daily center OEE preview; comprehensive dashboards pending |
+| 18 | Manufacturing KPI dashboards and decision support | Partial: center/day OEE preview and manufacturing WIP visibility; comprehensive dashboards pending |
 
 ## Architecture
 ASP.NET Core web API / EF Core SQL Server. Modular monolith direction; this bootstrap will be split into domain/application/infrastructure modules as implementation expands.
