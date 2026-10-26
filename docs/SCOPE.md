@@ -17,14 +17,14 @@ Planning inventory inputs, customer demand inputs, supplier lead times (if neces
 | 05 | Multilevel net MRP and pegging | Prototype net MRP: manual balance/receipt assumptions, safety, reservations, quarantines, lot sizing, lead time, multilevel BOM, immutable calculation snapshots; pegging not implemented |
 | 06 | CRP finite and infinite capacity | Rough-cut same-day capacity/load preview using approved routings and shifts, no finite allocation yet |
 | 07 | APS constraint-based scheduler | Not started |
-| 08 | Production order lifecycle | Not started |
-| 09 | Semi-finished shop-floor control | Not started |
-| 10 | Final shock absorber assembly execution | Not started |
+| 08 | Production order lifecycle | Partial: draft/release/hold/resume/cancel/completion, routing and BOM snapshots, order audit |
+| 09 | Semi-finished shop-floor control | Partial: sequential operation confirmations with good/scrap/rework quantities |
+| 10 | Final shock absorber assembly execution | Partial: approved finished-item work order + operation progress |
 | 11 | Line-side material planning and consumption | Not started |
-| 12 | Plan adherence and deviation management | Not started |
+| 12 | Plan adherence and deviation management | Basic planned vs actual quantity in workbench; deviation reason workflows pending |
 | 13 | In-process quality controls / quarantine | Not started |
-| 14 | OEE and downtime classification | Not started |
-| 15 | Manufacturing lot/serial traceability | Not started |
+| 14 | OEE and downtime classification | Partial downtime event entry; OEE calculation not started |
+| 15 | Manufacturing lot/serial traceability | Basic lot identifier on operation confirmation, no end-to-end genealogy yet |
 | 16 | What-if simulations and scenarios | Not started |
 | 17 | Conversion cost and productivity analysis | Not started |
 | 18 | Manufacturing KPI dashboards and decision support | Not started |
