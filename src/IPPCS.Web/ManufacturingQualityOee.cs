@@ -114,7 +114,7 @@ public static class ManufacturingPerformance
         ManufacturingExecutionEndpoints.CloseZeroInputOperations(order);
         if(ManufacturingExecutionEndpoints.IsActive(order.Status) &&
             order.Operations.Count>0 &&
-            order.Operations.All(x=>x.IsComplete && x.QualityPendingQuantity==0))
+            ManufacturingInspectionRules.CanComplete(order))
         {
             order.Status=ManufacturingOrderStatus.Completed;
             order.CompletedUtc=DateTime.UtcNow;
@@ -187,7 +187,8 @@ public static class ManufacturingQualityAndOeeEndpoints
                 ||string.IsNullOrWhiteSpace(input.Note)||input.Note.Length>500)
                 return Results.BadRequest(new{message="تصمیم و شرح تعیین تکلیف معتبر لازم است."});
             await using var tx=await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable,ct);
-            var order=await db.ManufacturingOrders.Include(x=>x.Operations).SingleOrDefaultAsync(x=>x.Id==id,ct);
+            var order=await db.ManufacturingOrders.Include(x=>x.Operations)
+                .ThenInclude(x=>x.InspectionRequirements).SingleOrDefaultAsync(x=>x.Id==id,ct);
             if(order is null)return Results.NotFound();
             var hold=await db.ManufacturingQualityHolds.SingleOrDefaultAsync(x=>x.Id==holdId&&x.OrderId==id,ct);
             if(hold is null)return Results.NotFound();
