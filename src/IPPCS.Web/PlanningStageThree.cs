@@ -116,9 +116,10 @@ public static class PlanningCalculators
 
         foreach (var itemId in depth.OrderBy(x=>x.Value).ThenBy(x=>x.Key).Select(x=>x.Key))
         {
-            var balance = byBalance.GetValueOrDefault(itemId);
-            decimal available = balance is null ? 0m :
-                Math.Max(0m,balance.PhysicalQuantity-balance.ReservedQuantity-balance.QuarantinedQuantity-balance.SafetyQuantity);
+            var balance = byBalance.GetValueOrDefault(itemId)
+                ?? throw new InvalidOperationException("Planning balance and lead-time policy missing for an item.");
+            decimal available = Math.Max(0m,
+                balance.PhysicalQuantity-balance.ReservedQuantity-balance.QuarantinedQuantity-balance.SafetyQuantity);
             var arrivals = byReceipt.GetValueOrDefault(itemId) ?? new List<PlanningExpectedReceipt>();
             var idx=0;
             var needs = demands.Where(x=>x.Key.ItemId==itemId).OrderBy(x=>x.Key.NeededOn).ToArray();
@@ -130,19 +131,20 @@ public static class PlanningCalculators
                 decimal shortage=Math.Max(0,n.Value-available),planned=0;
                 if(shortage>0)
                 {
-                    var min=balance is null?1m:balance.MinimumBatch;
-                    var multiple=balance is null?1m:balance.BatchMultiple;
+                    var min=balance.MinimumBatch;
+                    var multiple=balance.BatchMultiple;
                     if(min<=0||multiple<=0)throw new InvalidOperationException("Invalid batch policy.");
                     var minimumRequired=Math.Max(shortage,min);
                     planned=decimal.Ceiling(minimumRequired/multiple)*multiple;
                 }
-                var release=planned>0?n.Key.NeededOn.AddDays(-(balance?.LeadDays??0)):(DateOnly?)null;
+                var release=planned>0?n.Key.NeededOn.AddDays(-balance.LeadDays):(DateOnly?)null;
                 var before=available;
                 available += planned-n.Value;
                 rows.Add(new MrpRow(itemId,n.Key.NeededOn,n.Value,before,shortage,planned,release,available));
                 if(planned==0)continue;
-                var selected=graph.GetValueOrDefault(itemId)?.Where(x=>x.ValidFrom<=n.Key.NeededOn
-                    && (x.ValidUntil is null||n.Key.NeededOn<=x.ValidUntil.Value)).ToList()
+                // BOM version is selected at proposed production RELEASE date, not finish date.
+                var selected=graph.GetValueOrDefault(itemId)?.Where(x=>x.ValidFrom<=release!.Value
+                    && (x.ValidUntil is null||release.Value<=x.ValidUntil.Value)).ToList()
                     ?? new List<ManufacturingBomRevision>();
                 if(selected.Count>1)throw new InvalidOperationException("Ambiguous approved BOM revision.");
                 if(selected.Count==0)
@@ -381,6 +383,8 @@ public static class PlanningStageThreeEndpoints
                 return Results.Conflict(new{message="تاریخ مبنای موجودی‌های برنامه‌ریزی یکسان نیست."});
             if(balances.Count!=0 && version.Lines.Any(x=>x.NeededOn<balances[0].SnapshotDate))
                 return Results.Conflict(new{message="موعد برنامه قبل از تاریخ مبنای موجودی است."});
+            if(balances.Count!=0 && receipts.Any(x=>x.AvailableOn<=balances[0].SnapshotDate))
+                return Results.Conflict(new{message="دریافت پیش از تاریخ مبنای موجودی باعث احتساب دوباره می‌شود؛ آن را حذف یا در مانده مبنا لحاظ کنید."});
             List<MrpRow> result;
             try{result=PlanningCalculators.RunMrp(version.Lines,bom,balances,receipts,types);}
             catch(Exception ex)when(ex is InvalidOperationException or OverflowException or ArgumentOutOfRangeException)
