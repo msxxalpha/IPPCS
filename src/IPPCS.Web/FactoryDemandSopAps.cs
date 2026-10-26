@@ -1,4 +1,5 @@
 using System.Data;
+using System.Globalization;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 
@@ -134,6 +135,26 @@ public static class FiniteFactoryScheduler
     }
 }
 
+public static class FactoryForecasting
+{
+    private static readonly PersianCalendar Jalali = new();
+    public static decimal MonthlyMovingAverage(IEnumerable<FactoryDemand> history,DateOnly forecastMonth,
+        int lookbackMonths)
+    {
+        if(lookbackMonths is <2 or >12)throw new ArgumentOutOfRangeException(nameof(lookbackMonths));
+        var d=forecastMonth.ToDateTime(TimeOnly.MinValue);
+        var baseOrdinal=Jalali.GetYear(d)*12+Jalali.GetMonth(d)-1;
+        decimal sum=0;
+        foreach(var demand in history.Where(x=>x.Category=="Confirmed"))
+        {
+            var date=demand.DueOn.ToDateTime(TimeOnly.MinValue);
+            var ord=Jalali.GetYear(date)*12+Jalali.GetMonth(date)-1;
+            if(ord>=baseOrdinal-lookbackMonths&&ord<baseOrdinal)sum+=demand.Quantity;
+        }
+        return Math.Round(sum/lookbackMonths,4,MidpointRounding.AwayFromZero);
+    }
+}
+
 public static class FactoryDemandApsEndpoints
 {
     public static void ConfigureModel(ModelBuilder model)
@@ -165,6 +186,29 @@ public static class FactoryDemandApsEndpoints
             return Results.Ok(rows.Select(x=>new{x.Id,x.ItemId,x.Reference,x.Quantity,x.Category,
                 dueOnJalali=PersianPlanningDates.Format(x.DueOn)}));
         });
+        api.MapGet("/factory-demand/forecast/{itemId:guid}",
+            async(Guid itemId,string fromJalali,int lookback,int months,ProductionDb db,CancellationToken ct)=>{
+            if(!PersianPlanningDates.TryParse(fromJalali,out var from)
+                ||lookback is <2 or >12||months is <1 or >6)
+                return Results.BadRequest(new{message="ماه مبنای شمسی و تعداد دوره‌ها معتبر نیست."});
+            if(!await db.Items.AnyAsync(x=>x.Id==itemId&&x.Type==PlanningItemType.Finished,ct))
+                return Results.NotFound();
+            var history=await db.FactoryDemands.AsNoTracking()
+                .Where(x=>x.ItemId==itemId&&x.Category=="Confirmed").ToListAsync(ct);
+            var calendar=new PersianCalendar();
+            var dt=from.ToDateTime(TimeOnly.MinValue);
+            var year=calendar.GetYear(dt);var month=calendar.GetMonth(dt);
+            var ordinal=year*12+month-1;
+            var forecast=FactoryForecasting.MonthlyMovingAverage(history,from,lookback);
+            var rows=Enumerable.Range(0,months).Select(offset=>{
+                var next=ordinal+offset;
+                return new{jalaliYear=next/12,jalaliMonth=next%12+1,
+                    forecastQuantity=forecast};
+            }).ToArray();
+            return Results.Ok(new{itemId,lookbackMonths=lookback,historySamples=history.Count,rows,
+                disclaimer="میانگین متحرک ساده نیاز قطعی داخلی در ماه‌های گذشته؛ ماه‌های بدون تقاضای ثبت‌شده صفر در نظر گرفته می‌شوند. برآورد آماری تاییدشده نیست."});
+        });
+
         api.MapPost("/factory-demand",async(FactoryDemandInput input,ProductionDb db,CancellationToken ct)=>{
             if(input.Quantity<=0||input.Quantity>1000000000
                 ||!PersianPlanningDates.TryParse(input.DueOnJalali,out var date)
