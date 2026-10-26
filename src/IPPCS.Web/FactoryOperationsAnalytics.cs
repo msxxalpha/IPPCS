@@ -121,7 +121,7 @@ public static class FactoryOperationsAnalyticsEndpoints
             await db.SaveChangesAsync(ct);await tx.CommitAsync(ct);
             return Results.Created($"/api/v1/factory-material/{orderId}",new{record.Id,
                 warning="این صرفاً ثبت مصرف عملیات تولید است و موجودی هیچ انباری را تغییر نمی‌دهد."});
-        });
+        }).RequireAuthorization("IpShopFloorWrite");
 
         api.MapGet("/factory-cost/rates",async(ProductionDb db,CancellationToken ct)=>{
             var rows=await db.FactoryCenterCostRates.AsNoTracking()
@@ -232,7 +232,7 @@ public static class FactoryOperationsAnalyticsEndpoints
                 scenario=new{scheduled=scenario.Allocations.Count,
                     unscheduled=scenario.Unscheduled.Count,late=scenario.TotalLateOperations},
                 note="این محاسبه فقط شبیه‌سازی است؛ هیچ برنامه یا ظرفیت واقعی تغییر نکرده است."});
-        });
+        }).RequireAuthorization("IpPlanningWrite");
         return endpoints;
     }
 }
