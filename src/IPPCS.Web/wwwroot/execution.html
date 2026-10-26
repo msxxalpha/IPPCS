@@ -21,6 +21,7 @@
   <button data-page="history">تاریخچه دستور تولید</button>
   <button data-page="quality">کنترل کیفیت و WIP</button>
   <button data-page="oee">توقفات و OEE مقدماتی</button>
+  <button data-page="lottrace">جست‌وجوی بچ تولیدی</button>
  </nav>
  <div class="sidebar-foot">نسخه ۰٫۴ آزمایشی<br>اطلاعات عملکرد تولید صرفاً داخل IPPCS ذخیره می‌شود.</div>
 </aside>
@@ -113,6 +114,15 @@
    <p>Availability = زمان عملیاتی ÷ زمان برنامه؛ Performance = زمان سیکل استاندارد تولید ÷ زمان عملیاتی؛ Quality = تعداد سالم ÷ کل گزارش‌شده. ثبت دوباره‌کاری و مغایرت زمان می‌تواند باعث هشدار شود. هنوز اندازه‌گیری مستقیم PLC یا ثبت دقیق بازه توقف فعال نیست.</p>
    <div id="oee-table"></div>
   </div>
+ </section>
+ <section class="page" id="lottrace" hidden>
+  <div class="section-title"><h3>مرور سوابق تولید بر اساس کد بچ</h3>
+  <small>ردیابی سوابق ثبت تولید داخل IPPCS است، نه شجره کامل مواد اولیه و محصول یا اطلاعات انبار.</small></div>
+  <form id="lot-trace-form" class="panel form-grid">
+   <label>کد بچ ثبت‌شده<input name="lotCode" maxlength="100" required placeholder="مثلاً CI-LOT-001"></label>
+   <div class="form-actions"><button type="submit" class="btn-main">جست‌وجوی سابقه بچ</button></div>
+  </form>
+  <div class="panel"><h3>عملیات و گزارش‌های مرتبط</h3><div id="lot-trace-table"></div></div>
  </section>
  </main>
  <footer class="footer">IPPCS • اجرای تولید نیمه‌ساخته و مونتاژ<span>Build 0.4.0 • Draft</span></footer>
