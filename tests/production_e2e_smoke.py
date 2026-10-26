@@ -107,6 +107,9 @@ request("/api/v1/oee/plans", "PUT", {
 report = request("/api/v1/oee/daily?dateJalali=" + JALALI_NOW)
 row = next(x for x in report["rows"] if x["workCenterId"] == center["id"])
 assert row["good"] == 18 and row["scrap"] == 1 and row["oeePercent"] is not None, row
+lots = request("/api/v1/manufacturing-lots/search?lotCode=CI-LOT-001")
+assert lots["count"] == 2
+assert all(row["orderNumber"] == "CI-WORKORDER-STAGE5" for row in lots["records"])
 history = request(f"/api/v1/manufacturing-orders/{order_id}/history")["events"]
 assert any(e["action"] == "QualityHold" for e in history)
 assert any(e["action"] == "QualityRelease" for e in history)
