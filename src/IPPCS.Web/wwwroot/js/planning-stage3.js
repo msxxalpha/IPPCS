@@ -1,7 +1,7 @@
 (()=>{
 "use strict";
 const $=s=>document.querySelector(s), $$=s=>Array.from(document.querySelectorAll(s));
-const state={items:[],bom:[],mps:[],balances:[],receipts:[]};
+const state={items:[],centers:[],bom:[],mps:[],balances:[],receipts:[]};
 const val=(form,k)=>new FormData(form).get(k);
 const number=(form,k)=>Number(IPPCSJalali.toLatin(val(form,k)));
 const fmt=v=>Number(v).toLocaleString("fa-IR",{maximumFractionDigits:4});
@@ -66,9 +66,9 @@ function render(){
 }
 async function load(){
  const resources=await Promise.all([
-  call("/items"),call("/bom-revisions"),call("/mps"),call("/planning-balances"),call("/planning-receipts")
+  call("/items"),call("/work-centers"),call("/bom-revisions"),call("/mps"),call("/planning-balances"),call("/planning-receipts")
  ]);
- ["items","bom","mps","balances","receipts"].forEach((k,i)=>state[k]=resources[i]);
+ ["items","centers","bom","mps","balances","receipts"].forEach((k,i)=>state[k]=resources[i]);
  render();
 }
 function register(formId,fn){const form=$(formId);form.addEventListener("submit",async e=>{
@@ -125,7 +125,7 @@ function boot(){
    const result=await call("/crp/"+id+"/preview");
    $("#calculation-title").textContent="ظرفیت‌سنجی مقدماتی (CRP روزانه)";
    table("#calculation-table",[
-    ["مرکز کاری",r=>r.workCenterId],["روز","neededOnJalali"],
+    ["مرکز کاری",r=>state.centers.find(x=>x.id===r.workCenterId)?.name||r.workCenterId],["روز","neededOnJalali"],
     ["بار دقیقه",r=>fmt(r.requiredMinutes)],["ظرفیت دقیقه",r=>fmt(r.capacityMinutes)],
     ["اضافه‌بار دقیقه",r=>fmt(r.overloadMinutes)],["درصد بار",r=>fmt(r.utilizationPercent)+"٪"]
    ],result.rows);
