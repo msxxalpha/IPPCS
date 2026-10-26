@@ -142,6 +142,7 @@ app.MapManufacturingExecution();
 app.MapQualityAndOee();
 app.MapControlPlanEndpoints();
 app.MapDemandAps();
+app.MapOperationsAnalytics();
 app.Run();
 
 public sealed class ProductionDb(DbContextOptions<ProductionDb> options) : IdentityDbContext<IdentityUser>(options)
@@ -175,6 +176,8 @@ public sealed class ProductionDb(DbContextOptions<ProductionDb> options) : Ident
     public DbSet<FactoryDemand> FactoryDemands => Set<FactoryDemand>();
     public DbSet<FactorySopReview> FactorySopReviews => Set<FactorySopReview>();
     public DbSet<FactoryApsRun> FactoryApsRuns => Set<FactoryApsRun>();
+    public DbSet<FactoryMaterialUsage> FactoryMaterialUsages => Set<FactoryMaterialUsage>();
+    public DbSet<FactoryCenterCostRate> FactoryCenterCostRates => Set<FactoryCenterCostRate>();
     protected override void OnModelCreating(ModelBuilder model)
     {
         base.OnModelCreating(model);
@@ -199,6 +202,7 @@ public sealed class ProductionDb(DbContextOptions<ProductionDb> options) : Ident
         ManufacturingQualityAndOeeEndpoints.ConfigureModel(model);
         ManufacturingControlPlanEndpoints.ConfigureModel(model);
         FactoryDemandApsEndpoints.ConfigureModel(model);
+        FactoryOperationsAnalyticsEndpoints.ConfigureModel(model);
     }
 }
 public enum PlanningItemType { RawMaterial, SemiFinished, Finished, Consumable }
