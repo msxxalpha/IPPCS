@@ -206,7 +206,7 @@ public static class FactoryDemandApsEndpoints
             var routes=await db.RoutingRevisions.AsNoTracking().Include(x=>x.Operations)
                 .Where(x=>x.State==RoutingState.Approved).ToListAsync(ct);
             var shifts=await db.WorkShifts.AsNoTracking().ToListAsync(ct);
-            decimal load=0;
+            var workCenterLoad=new Dictionary<Guid,decimal>();
             var warnings=new List<string>();
             foreach(var demand in demands)
             {
@@ -214,24 +214,42 @@ public static class FactoryDemandApsEndpoints
                     && (x.EffectiveTo==null||demand.DueOn<=x.EffectiveTo)).ToList();
                 if(selected.Count!=1){warnings.Add($"مسیر ساخت مصوب برای نیاز {demand.Reference} یکتا نیست.");continue;}
                 if(selected[0].Operations.Any(op=>op.YieldPercent<=0)){warnings.Add($"بازده مسیر {demand.Reference} نامعتبر است.");continue;}
-                load+=selected[0].Operations.Sum(op=>op.SetupMinutes+op.RunMinutesPerUnit*
-                    demand.Quantity/(op.YieldPercent/100m));
+                foreach(var operation in selected[0].Operations)
+                {
+                    var required=operation.SetupMinutes+operation.RunMinutesPerUnit*
+                        demand.Quantity*100m/operation.YieldPercent;
+                    workCenterLoad[operation.WorkCenterId]=
+                        workCenterLoad.GetValueOrDefault(operation.WorkCenterId)+required;
+                }
             }
-            var capacity=0m;
+            var workCenterCapacity=new Dictionary<Guid,decimal>();
             for(var d=from;d<=through;d=d.AddDays(1))
-                capacity+=shifts.Where(x=>x.DayOfWeek==(int)d.DayOfWeek)
-                    .Sum(x=>(decimal)(x.EndTime-x.StartTime).TotalMinutes*x.EffectiveCapacityPercent/100m);
+                foreach(var shift in shifts.Where(x=>x.DayOfWeek==(int)d.DayOfWeek))
+                    workCenterCapacity[shift.WorkCenterId]=
+                        workCenterCapacity.GetValueOrDefault(shift.WorkCenterId)
+                        +(decimal)(shift.EndTime-shift.StartTime).TotalMinutes*
+                            shift.EffectiveCapacityPercent/100m;
+            var centerIds=workCenterLoad.Keys.Union(workCenterCapacity.Keys).OrderBy(x=>x).ToList();
+            var byCenter=centerIds.Select(id=>new{
+                workCenterId=id,requiredMinutes=workCenterLoad.GetValueOrDefault(id),
+                availableMinutes=workCenterCapacity.GetValueOrDefault(id),
+                overloadMinutes=Math.Max(0m,workCenterLoad.GetValueOrDefault(id)-
+                    workCenterCapacity.GetValueOrDefault(id))
+            }).ToList();
+            var load=byCenter.Sum(x=>x.requiredMinutes);
+            var capacity=byCenter.Sum(x=>x.availableMinutes);
+            var overload=byCenter.Sum(x=>x.overloadMinutes);
             var snapshot=new{demands=demands.Select(x=>new{x.ItemId,x.Quantity,x.DueOn,x.Reference}),
                 routingVersions=routes.Select(x=>new{x.Id,x.ItemId,x.RevisionCode}),warnings,
-                shiftCount=shifts.Count,load,capacity};
+                shiftCount=shifts.Count,byCenter,load,capacity,overload};
             var record=new FactorySopReview{Code=input.Code.Trim(),From=from,Through=through,
                 DemandQuantity=demands.Sum(x=>x.Quantity),RoughCutMinutes=load,
-                AvailableMinutes=capacity,OverloadMinutes=Math.Max(0,load-capacity),
+                AvailableMinutes=capacity,OverloadMinutes=overload,
                 SnapshotJson=JsonSerializer.Serialize(snapshot)};
             db.FactorySopReviews.Add(record);await db.SaveChangesAsync(ct);
             return Results.Ok(new{record.Id,record.Code,record.DemandQuantity,record.RoughCutMinutes,
-                record.AvailableMinutes,record.OverloadMinutes,warnings,
-                note="تراز تجمیعی مقدماتی است؛ توزیع بار بین مراکز و تاریخ‌ها در APS جداگانه بررسی می‌شود."});
+                record.AvailableMinutes,record.OverloadMinutes,byCenter,warnings,
+                note="اضافه‌بار مراکز کاری جداگانه محاسبه شده است؛ بار روزانه، مواد و توالی عملیات در APS بررسی می‌شوند."});
         }).RequireAuthorization("IpPlanningWrite");
 
         api.MapGet("/factory-aps/runs",async(ProductionDb db,CancellationToken ct)=>{
