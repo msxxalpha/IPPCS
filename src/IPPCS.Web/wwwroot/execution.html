@@ -6,6 +6,7 @@
 <script defer src="/js/security-client.js"></script>
 <script defer src="/js/jalali-datepicker.js"></script>
 <script defer src="/js/execution.js"></script>
+<script defer src="/js/quality-oee.js"></script>
 </head><body>
 <div class="app-shell">
 <aside class="sidebar">
@@ -18,6 +19,8 @@
   <button data-page="confirmations">ثبت عملکرد عملیات</button>
   <button data-page="stops">توقفات تولید</button>
   <button data-page="history">تاریخچه دستور تولید</button>
+  <button data-page="quality">کنترل کیفیت و WIP</button>
+  <button data-page="oee">توقفات و OEE مقدماتی</button>
  </nav>
  <div class="sidebar-foot">نسخه ۰٫۴ آزمایشی<br>اطلاعات عملکرد تولید صرفاً داخل IPPCS ذخیره می‌شود.</div>
 </aside>
@@ -67,6 +70,49 @@
   <div class="panel form-grid"><label>دستور تولید<select id="history-order" data-order-all></select></label><div class="form-actions"><button type="button" class="btn-main" id="show-history">نمایش تاریخچه</button></div></div>
   <div class="panel"><h3>رویدادها</h3><div id="events-table"></div></div>
   <div class="panel"><h3>توقفات ثبت‌شده</h3><div id="stops-table"></div></div>
+ </section>
+
+ <section class="page" id="quality" hidden>
+  <div class="section-title"><h3>قرنطینه تولید داخل فرآیند</h3><small>مقادیر تحت بررسی، تا زمان تأیید یا اسقاط قابل عبور به مرحله بعد نیستند؛ این عملیات انبار نیست.</small></div>
+  <form id="quality-form" class="panel form-grid">
+   <label>دستور تولید فعال<select name="orderId" id="quality-order" required></select></label>
+   <label>عملیات محل عدم‌انطباق<select name="operationId" id="quality-operation" required></select></label>
+   <label>مقدار قرنطینه<input name="quantity" required type="number" min="0.0001" step="any"></label>
+   <label>علت / شرح عدم‌انطباق<input name="reason" maxlength="500" required></label>
+   <div class="form-actions"><button type="submit" class="btn-main">ثبت عدم‌انطباق و قرنطینه</button></div>
+  </form>
+  <div class="panel form-grid">
+   <label>نمایش وضعیت دستور<select id="quality-view-order" required></select></label>
+   <div class="form-actions"><button id="quality-refresh" type="button" class="btn-outline">نمایش WIP و سوابق کیفیت</button></div>
+  </div>
+  <div class="panel"><h3>مانده بین عملیات (WIP)</h3>
+   <p>«در انتظار مرحله بعد» از تولید سالم قابل استفاده پس از کسر قرنطینه و ضایعات کیفی محاسبه می‌شود؛ موجودی رسمی انبار نیست.</p>
+   <div id="wip-table"></div>
+  </div>
+  <div class="panel"><h3>موارد عدم‌انطباق و تعیین تکلیف</h3>
+   <p>تعیین تکلیف فقط توسط نقش بازرس کیفیت یا مدیر سامانه مجاز است.</p>
+   <div id="quality-table"></div>
+  </div>
+ </section>
+ <section class="page" id="oee" hidden>
+  <div class="section-title"><h3>محاسبه مقدماتی OEE مراکز کاری</h3>
+   <small>مبنای تجمیع زمان کارخانه: Asia/Tehran. در صورت نبود برنامه زمانی معتبر، شاخص نامشخص می‌ماند.</small>
+  </div>
+  <form id="oee-plan-form" class="panel form-grid">
+   <label>مرکز کاری<select name="workCenterId" id="oee-workcenter" required></select></label>
+   <label>تاریخ تولید<span class="jalali-field"><input name="date" data-jalali-date required placeholder="تاریخ شمسی"><button type="button" data-jalali-trigger class="date-trigger">▣</button></span></label>
+   <label>دقایق برنامه تولید در روز<input name="planned" type="number" min="1" max="1440" step="any" required></label>
+   <label>یادداشت<input name="note" maxlength="400"></label>
+   <div class="form-actions"><button type="submit" class="btn-main">ثبت زمان برنامه روزانه</button></div>
+  </form>
+  <div class="panel form-grid">
+   <label>روز گزارش OEE<span class="jalali-field"><input id="oee-date" data-jalali-date required placeholder="تاریخ شمسی"><button type="button" data-jalali-trigger class="date-trigger">▣</button></span></label>
+   <div class="form-actions"><button id="oee-calculate" type="button" class="btn-outline">محاسبه شاخص‌های روز</button></div>
+  </div>
+  <div class="panel"><h3>نتایج OEE مراکز کاری</h3>
+   <p>Availability = زمان عملیاتی ÷ زمان برنامه؛ Performance = زمان سیکل استاندارد تولید ÷ زمان عملیاتی؛ Quality = تعداد سالم ÷ کل گزارش‌شده. ثبت دوباره‌کاری و مغایرت زمان می‌تواند باعث هشدار شود. هنوز اندازه‌گیری مستقیم PLC یا ثبت دقیق بازه توقف فعال نیست.</p>
+   <div id="oee-table"></div>
+  </div>
  </section>
  </main>
  <footer class="footer">IPPCS • اجرای تولید نیمه‌ساخته و مونتاژ<span>Build 0.4.0 • Draft</span></footer>
