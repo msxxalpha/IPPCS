@@ -208,7 +208,7 @@ public static class ManufacturingExecutionEndpoints
             await db.SaveChangesAsync(ct);
             return Results.Created($"/api/v1/manufacturing-orders/{order.Id}",ToDto(order));
         });
-        api.MapPost("/manufacturing-orders/{id:guid}/release",async(Guid id,ProductionDb db,CancellationToken ct)=>{
+        api.MapPost("/manufacturing-orders/{id:guid}/release",async(Guid id,ProductionDb db,ILogger<ManufacturingOrder> logger,CancellationToken ct)=>{
             await using var tx=await db.Database.BeginTransactionAsync(ct);
             var order=await db.ManufacturingOrders.Include(x=>x.Operations).SingleOrDefaultAsync(x=>x.Id==id,ct);
             if(order is null)return Results.NotFound();
@@ -230,7 +230,11 @@ public static class ManufacturingExecutionEndpoints
             order.ReleasedUtc=DateTime.UtcNow;order.UpdatedUtc=DateTime.UtcNow;
             db.ManufacturingOrderAudits.Add(new ManufacturingOrderAudit{OrderId=id,Action="Released"});
             try{await db.SaveChangesAsync(ct);await tx.CommitAsync(ct);}
-            catch(DbUpdateConcurrencyException){return Results.Conflict(new{message="دستور هم‌زمان تغییر یافته است."});}
+            catch(DbUpdateConcurrencyException ex){
+                logger.LogWarning(ex,"IPPCS_CONCURRENCY_RELEASE entity types: {Types}",
+                    string.Join(",",ex.Entries.Select(x=>x.Metadata.Name)));
+                return Results.Conflict(new{message="دستور هم‌زمان تغییر یافته است."});
+            }
             return Results.Ok(ToDto(order));
         });
         api.MapPost("/manufacturing-orders/{id:guid}/operations/{operationId:guid}/confirm",
