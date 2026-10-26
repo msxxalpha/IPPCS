@@ -185,6 +185,70 @@ request(f"/api/v1/manufacturing-orders/{fid}/lot-genealogy", "POST", {
     "sourceConfirmationId": source["id"], "destinationConfirmationId": dest["id"],
     "quantity": 1
 }, 409)
+# Stage seven: independent demand, capacity balancing and finite scheduling.
+from datetime import datetime
+from zoneinfo import ZoneInfo
+day_of_week = (datetime.now(ZoneInfo("Asia/Tehran")).weekday() + 1) % 7
+request("/api/v1/work-shifts", "POST", {
+    "workCenterId": center["id"], "dayOfWeek": day_of_week,
+    "startTime": "08:00", "endTime": "16:00", "effectiveCapacityPercent": 100
+}, 201)
+demand = request("/api/v1/factory-demand", "POST", {
+    "itemId": product["id"], "reference": "CI-Internal-need",
+    "dueOnJalali": JALALI_NOW, "quantity": 10, "category": "Forecast"
+}, 201)
+assert demand["id"]
+sop = request("/api/v1/factory-sop/calculate", "POST", {
+    "code": "CI-SOP-001", "fromJalali": JALALI_NOW, "throughJalali": JALALI_NOW
+})
+assert sop["demandQuantity"] >= 10 and sop["availableMinutes"] >= 480
+mps = request("/api/v1/mps", "POST", {"code": "CI-MPS-STAGE7"}, 201)
+request(f"/api/v1/mps/{mps['id']}/lines", "POST", {
+    "itemId": product["id"], "neededOnJalali": JALALI_NOW,
+    "quantity": 10, "reference": "CI planned shock absorbers"
+}, 201)
+request(f"/api/v1/mps/{mps['id']}/approve", "POST")
+aps = request("/api/v1/factory-aps/calculate", "POST", {
+    "mpsVersionId": mps["id"], "startJalali": JALALI_NOW,
+    "horizonDays": 7, "capacityMultiplier": 1
+})
+assert len(aps["allocations"]) == 2 and len(aps["unscheduled"]) == 0, aps
+assert aps["allocations"][0]["finishTime"] <= aps["allocations"][1]["startTime"]
+assert request(f"/api/v1/factory-aps/runs/{aps['runId']}")["result"]
+whatif = request("/api/v1/factory-whatif/capacity", "POST", {
+    "mpsVersionId": mps["id"], "startJalali": JALALI_NOW,
+    "horizonDays": 7, "baselineCapacity": 1, "scenarioCapacity": 0.75
+})
+assert whatif["baseline"]["scheduled"] == 2
+material_order = request("/api/v1/manufacturing-orders", "POST", {
+    "number": "CI-WIP-MATERIAL-STAGE7", "itemId": product["id"],
+    "plannedQuantity": 10, "plannedStartJalali": JALALI_NOW,
+    "dueOnJalali": JALALI_NOW
+}, 201)
+material_id = material_order["id"]
+request(f"/api/v1/manufacturing-orders/{material_id}/release", "POST")
+consumed = request(f"/api/v1/factory-material/{material_id}/consumption", "POST", {
+    "componentItemId": raw["id"], "quantity": 19, "reference": "CI trial line consumption"
+}, 201)
+assert consumed["id"]
+variance = request(f"/api/v1/factory-material/{material_id}")["rows"]
+assert any(x["componentItemId"] == raw["id"] and x["recordedConsumed"] == 19
+           and x["plannedRequired"] == 20 for x in variance)
+request("/api/v1/factory-cost/rates", "PUT", {
+    "workCenterId": center["id"], "conversionRialsPerMinute": 200,
+    "scrapRialsPerUnit": 15000, "effectiveFromJalali": JALALI_NOW,
+    "note": "Non-financial test-only conversion assumption"
+})
+cost = request(f"/api/v1/factory-cost/orders/{fid}")
+assert cost["totalConversionRials"] >= 0 and cost["missingRates"] == 0, cost
+overview = request("/api/v1/factory-kpis/overview")
+assert overview["completedOrders"] >= 2
+adherence = request(
+    f"/api/v1/factory-kpis/adherence/{mps['id']}?fromJalali={JALALI_NOW}&throughJalali={JALALI_NOW}"
+)
+assert adherence["rows"] and adherence["rows"][0]["mpsRequired"] == 10
+print("PASS: SQL demand, S&OP, approved MPS, finite APS no overlap, what-if, "
+      "line-side consumption variance, conversion cost and production KPI.")
 print("PASS: approved Control Plan snapshots, required inspection gate, auto quarantine, "
       "scrap disposition, reinspection, final quality release, and exact-lot stage genealogy.")
 print("PASS: SQL Server route+BOM approval, work order release, production, quality hold, "
