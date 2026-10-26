@@ -33,6 +33,17 @@ public sealed class ManufacturingExecutionTests
         Assert.True(first.IsComplete);
         Assert.False(ManufacturingExecutionEndpoints.TryApplyConfirmation(order,first.Id,new(1,0,0,null,null),out _));
     }
+    [Fact]
+    public void Fully_scrapped_upstream_order_closes_zero_input_downstream()
+    {
+        var order=Order(20m);
+        Assert.True(ManufacturingExecutionEndpoints.TryApplyConfirmation(order,order.Operations[0].Id,
+            new(0,20,0,null,null),out var error),error);
+        Assert.True(order.Operations[1].IsComplete);
+        Assert.Equal(ManufacturingOrderStatus.Completed,order.Status);
+        Assert.Equal(0m,order.Operations[1].GoodQuantity);
+    }
+
     [Theory]
     [InlineData(-1, 0, 0)]
     [InlineData(0, 0, 0)]
