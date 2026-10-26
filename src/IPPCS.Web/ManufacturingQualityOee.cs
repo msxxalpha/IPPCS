@@ -200,7 +200,7 @@ public static class ManufacturingQualityAndOeeEndpoints
                 Details=$"Hold={holdId};Qty={hold.Quantity}"});
             try{await db.SaveChangesAsync(ct);await tx.CommitAsync(ct);}
             catch(DbUpdateConcurrencyException){return Results.Conflict(new{message="تغییر هم‌زمان؛ لطفاً اطلاعات را بازخوانی کنید."});}
-            return Results.Ok(new{hold.Id,hold.Status,order.Status});
+            return Results.Ok(new{hold.Id,hold.Status,orderStatus=order.Status});
         }).RequireAuthorization("IpQualityApprove");
 
         api.MapGet("/oee/plans",async(ProductionDb db,CancellationToken ct)=>{
