@@ -52,6 +52,7 @@ public static class IpSecuritySetup
         services.AddAuthorization(options=>{
             options.AddPolicy("IpProductionUser",p=>p.RequireRole("Administrator","Planner","ProductionOperator","QualityInspector"));
             options.AddPolicy("IpQualityApprove",p=>p.RequireRole("Administrator","QualityInspector"));
+            options.AddPolicy("IpOeePlanning",p=>p.RequireRole("Administrator","Planner"));
         });
         services.AddAntiforgery(options=>{
             options.Cookie.Name="IPPCS.XSRF";
