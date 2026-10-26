@@ -39,6 +39,9 @@ public sealed class ManufacturingOrderOperation
     public decimal GoodQuantity { get; set; }
     public decimal ScrapQuantity { get; set; }
     public decimal ReworkQuantity { get; set; }
+    // Local factory quality-gate quantities; not inventory balances.
+    public decimal QualityPendingQuantity { get; set; }
+    public decimal QualityRejectedQuantity { get; set; }
     public bool IsComplete { get; set; }
     public List<ManufacturingConfirmation> Confirmations { get; set; } = new();
 }
@@ -92,7 +95,9 @@ public static class ManufacturingExecutionEndpoints
         model.Entity<ManufacturingOrderOperation>().HasIndex(x=>new{x.OrderId,x.Sequence}).IsUnique();
         model.Entity<ManufacturingOrderOperation>().Property(x=>x.Name).HasMaxLength(180);
         foreach(var prop in new[]{nameof(ManufacturingOrderOperation.SetupMinutes),nameof(ManufacturingOrderOperation.RunMinutesPerUnit),
-            nameof(ManufacturingOrderOperation.GoodQuantity),nameof(ManufacturingOrderOperation.ScrapQuantity),nameof(ManufacturingOrderOperation.ReworkQuantity)})
+            nameof(ManufacturingOrderOperation.GoodQuantity),nameof(ManufacturingOrderOperation.ScrapQuantity),
+            nameof(ManufacturingOrderOperation.ReworkQuantity),nameof(ManufacturingOrderOperation.QualityPendingQuantity),
+            nameof(ManufacturingOrderOperation.QualityRejectedQuantity)})
             model.Entity<ManufacturingOrderOperation>().Property<decimal>(prop).HasPrecision(18,4);
         model.Entity<ManufacturingOrderOperation>().HasOne<WorkCenter>().WithMany().HasForeignKey(x=>x.WorkCenterId).OnDelete(DeleteBehavior.Restrict);
         model.Entity<ManufacturingConfirmation>().HasOne(x=>x.Operation).WithMany(x=>x.Confirmations).HasForeignKey(x=>x.OperationId).OnDelete(DeleteBehavior.Cascade);
@@ -127,7 +132,9 @@ public static class ManufacturingExecutionEndpoints
         var op=ordered[ix];
         if(op.IsComplete){error="عملیات تکمیل شده و قابل ثبت دوباره نیست.";return false;}
         if(ix>0 && !ordered[ix-1].IsComplete){error="عملیات قبلی هنوز تکمیل نشده است.";return false;}
-        var allowed=ix==0?order.PlannedQuantity:ordered[ix-1].GoodQuantity;
+        if(ix>0 && ordered[ix-1].QualityPendingQuantity>0){error="عدم‌انطباق عملیات قبلی تعیین تکلیف نشده است.";return false;}
+        var allowed=ix==0?order.PlannedQuantity:ordered[ix-1].GoodQuantity-ordered[ix-1].QualityRejectedQuantity;
+        if(allowed<=0){error="ورودی قابل‌استفاده در عملیات بعدی وجود ندارد.";return false;}
         var total=op.GoodQuantity+op.ScrapQuantity+op.ReworkQuantity+
             input.GoodQuantity+input.ScrapQuantity+input.ReworkQuantity;
         if(total>allowed){error="مجموع خروجی از ورودی مجاز عملیات بیشتر است.";return false;}
@@ -135,24 +142,27 @@ public static class ManufacturingExecutionEndpoints
         op.ScrapQuantity+=input.ScrapQuantity;
         op.ReworkQuantity+=input.ReworkQuantity;
         op.IsComplete=total==allowed;
-        // If an upstream operation yields zero good parts, downstream operations have no input.
-        // Close them as zero-input operations to avoid permanently blocked scrapped orders.
-        if(op.IsComplete)
-        {
-            for(var nextOp=ix+1;nextOp<ordered.Count;nextOp++)
-            {
-                if(!ordered[nextOp-1].IsComplete || ordered[nextOp-1].GoodQuantity!=0)break;
-                ordered[nextOp].IsComplete=true;
-            }
-        }
+        CloseZeroInputOperations(order);
         if(order.Status==ManufacturingOrderStatus.Released)order.Status=ManufacturingOrderStatus.InProgress;
-        if(ordered.All(x=>x.IsComplete))
+        if(ordered.All(x=>x.IsComplete && x.QualityPendingQuantity==0))
         {
             order.Status=ManufacturingOrderStatus.Completed;
             order.CompletedUtc=DateTime.UtcNow;
         }
         order.UpdatedUtc=DateTime.UtcNow;
         return true;
+    }
+    public static void CloseZeroInputOperations(ManufacturingOrder order)
+    {
+        var sorted=order.Operations.OrderBy(x=>x.Sequence).ToArray();
+        for(var i=1;i<sorted.Length;i++)
+        {
+            var source=sorted[i-1];
+            if(source.IsComplete && source.QualityPendingQuantity==0
+               && source.GoodQuantity-source.QualityRejectedQuantity==0
+               && sorted[i].GoodQuantity+sorted[i].ScrapQuantity+sorted[i].ReworkQuantity==0)
+                sorted[i].IsComplete=true;
+        }
     }
     public static IEndpointRouteBuilder MapManufacturingExecution(this IEndpointRouteBuilder routes)
     {
@@ -308,7 +318,7 @@ public static class ManufacturingExecutionEndpoints
         order.RoutingRevisionId,order.BomRevisionId,order.CreatedUtc,order.ReleasedUtc,order.CompletedUtc,order.HoldReason,
         operations=order.Operations.OrderBy(x=>x.Sequence).Select(x=>new{
             x.Id,x.Sequence,x.Name,x.WorkCenterId,x.SetupMinutes,x.RunMinutesPerUnit,
-            x.GoodQuantity,x.ScrapQuantity,x.ReworkQuantity,x.IsComplete
+            x.GoodQuantity,x.ScrapQuantity,x.ReworkQuantity,x.QualityPendingQuantity,x.QualityRejectedQuantity,x.IsComplete
         }).ToArray()
     };
 }
