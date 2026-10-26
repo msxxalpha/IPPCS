@@ -11,12 +11,12 @@ Planning inventory inputs, customer demand inputs, supplier lead times (if neces
 | # | Module | Status |
 |---|---|---|
 | 01 | Production master data (items, BOM, routings, resources) | Partial UI + API: versioned BOM, routings, operations, centers, shifts; revision-approval checks |
-| 02 | Manufacturing demand inputs and forecasts | Partial: independent dated finished-item demand and forecast inputs with deletion and Persian UI; forecasting algorithms pending |
-| 03 | S&OP production balancing | Partial: 90-day rough-cut demand/load vs available shift minutes and saved snapshots; per-center bottleneck balancing and approval pending |
+| 02 | Manufacturing demand inputs and forecasts | Partial: internal dated demand, Jalali-month moving average (confirmed history), duplicate-safe draft-MPS intake and Persian UI; forecast calibration pending |
+| 03 | S&OP production balancing | Partial: 90-day total and per-center demand/load vs shift capacity, stored snapshots and bottleneck warnings; S&OP approval and feasible load leveling pending |
 | 04 | MPS master production schedule | Partial: MPS version, date-specific finished-item lines, approval/locking and Persian forms |
 | 05 | Multilevel net MRP and pegging | Prototype net MRP: manual balance/receipt assumptions, safety, reservations, quarantines, lot sizing, lead time, multilevel BOM, immutable calculation snapshots; pegging not implemented |
 | 06 | CRP finite and infinite capacity | Rough-cut same-day capacity/load preview using approved routings and shifts, no finite allocation yet |
-| 07 | APS constraint-based scheduler | Prototype: finite non-overlapping work-center time slots, routing precedence by MPS line, non-preemptive shift capacity, lateness and unscheduled warnings; material constraints and optimizer pending |
+| 07 | APS constraint-based scheduler | Prototype: finite nonoverlap and precedence per MPS line, shift-capacity calendar, dated work-center Gantt, lateness and unscheduled warnings; material constraints and optimality pending |
 | 08 | Production order lifecycle | Partial: draft/release/hold/resume/cancel/completion, routing and BOM snapshots, order audit |
 | 09 | Semi-finished shop-floor control | Partial: sequential confirmations, good/scrap/rework, quality-adjusted WIP flow; no stock movement |
 | 10 | Final shock absorber assembly execution | Partial: approved finished-item work order + operation progress |
