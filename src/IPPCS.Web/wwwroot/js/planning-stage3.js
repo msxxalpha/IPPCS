@@ -10,7 +10,7 @@ const stateName=value=>value===1?"تأییدشده":"پیش‌نویس";
 function alertText(message,error=false){const el=$("#alert");el.hidden=false;el.className="notice"+(error?" error":"");el.textContent=message;el.scrollIntoView({behavior:"smooth",block:"nearest"});}
 async function call(path,method="GET",body){
  const init={method,headers:{}};if(body!==undefined){init.headers["Content-Type"]="application/json";init.body=JSON.stringify(body);}
- const resp=await fetch("/api/v1"+path,init);
+ const resp=await window.IPPCSSecurity.secureFetch("/api/v1"+path,init);
  const raw=await resp.text();let data;
  try{data=raw?JSON.parse(raw):null;}catch{data=null;}
  if(!resp.ok)throw new Error((data?.message||data?.detail||data?.title||raw||"خطای نامشخص")+" (HTTP "+resp.status+")");
