@@ -22,3 +22,8 @@ jobs:
           node --check src/IPPCS.Web/wwwroot/js/production.js
       - name: Jalali browser calendar tests
         run: node --test tests/jalali.test.cjs
+      - name: Verify EF Core schema is scaffoldable
+        run: |
+          dotnet tool install --global dotnet-ef --version 10.0.0
+          dotnet ef migrations add CiSchemaSmoke --project src/IPPCS.Web/IPPCS.Web.csproj --startup-project src/IPPCS.Web/IPPCS.Web.csproj --output-dir Migrations/CI
+          dotnet build src/IPPCS.Web/IPPCS.Web.csproj -c Release
