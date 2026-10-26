@@ -39,7 +39,7 @@ app.UseAuthorization();
 app.UseIpCsrfProtection();
 app.MapIpAuth();
 app.MapGet("/", () => Results.Redirect("/app.html"));
-app.MapGet("/health", () => Results.Ok(new { service = "IPPCS", status = "ready", version = "0.6.0" }));
+app.MapGet("/health", () => Results.Ok(new { service = "IPPCS", status = "ready", version = "0.7.0" }));
 var api = app.MapGroup("/api/v1").RequireAuthorization("IpProductionUser");
 
 // Items are planning references, NOT warehouse inventory records.
@@ -141,6 +141,7 @@ app.MapPlanningStageThree();
 app.MapManufacturingExecution();
 app.MapQualityAndOee();
 app.MapControlPlanEndpoints();
+app.MapDemandAps();
 app.Run();
 
 public sealed class ProductionDb(DbContextOptions<ProductionDb> options) : IdentityDbContext<IdentityUser>(options)
@@ -171,6 +172,9 @@ public sealed class ProductionDb(DbContextOptions<ProductionDb> options) : Ident
     public DbSet<ManufacturingInspectionRequirement> ManufacturingInspectionRequirements => Set<ManufacturingInspectionRequirement>();
     public DbSet<ManufacturingInspectionResult> ManufacturingInspectionResults => Set<ManufacturingInspectionResult>();
     public DbSet<ManufacturingLotGenealogy> ManufacturingLotGenealogies => Set<ManufacturingLotGenealogy>();
+    public DbSet<FactoryDemand> FactoryDemands => Set<FactoryDemand>();
+    public DbSet<FactorySopReview> FactorySopReviews => Set<FactorySopReview>();
+    public DbSet<FactoryApsRun> FactoryApsRuns => Set<FactoryApsRun>();
     protected override void OnModelCreating(ModelBuilder model)
     {
         base.OnModelCreating(model);
@@ -194,6 +198,7 @@ public sealed class ProductionDb(DbContextOptions<ProductionDb> options) : Ident
         ManufacturingExecutionEndpoints.ConfigureModel(model);
         ManufacturingQualityAndOeeEndpoints.ConfigureModel(model);
         ManufacturingControlPlanEndpoints.ConfigureModel(model);
+        FactoryDemandApsEndpoints.ConfigureModel(model);
     }
 }
 public enum PlanningItemType { RawMaterial, SemiFinished, Finished, Consumable }
