@@ -149,7 +149,7 @@ function boot(){
    table("#calculation-table",[
     ["مرکز کاری",r=>state.centers.find(x=>x.id===r.workCenterId)?.name||r.workCenterId],["روز","neededOnJalali"],
     ["بار دقیقه",r=>fmt(r.requiredMinutes)],["ظرفیت دقیقه",r=>fmt(r.capacityMinutes)],
-    ["اضافه‌بار دقیقه",r=>fmt(r.overloadMinutes)],["درصد بار",r=>fmt(r.utilizationPercent)+"٪"]
+    ["اضافه‌بار دقیقه",r=>fmt(r.overloadMinutes)],["درصد بار",r=>r.utilizationPercent===null?"فاقد ظرفیت تعریف‌شده":fmt(r.utilizationPercent)+"٪"]
    ],result.rows);
    alertText("پیش‌نمایش CRP محاسبه شد. جابه‌جایی زمان‌بندی خودکار هنوز انجام نمی‌شود.");
   }catch(e){alertText(e.message,true);}finally{btn.disabled=false;}
