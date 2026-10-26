@@ -255,6 +255,56 @@ adherence = request(
     f"/api/v1/factory-kpis/adherence/{mps['id']}?fromJalali={JALALI_NOW}&throughJalali={JALALI_NOW}"
 )
 assert adherence["rows"] and adherence["rows"][0]["mpsRequired"] == 10
+# Local IPPCS accounts only; do not read HR or Active Directory.
+operator_login = "ci-production-operator"
+operator_password = "CI_Test_Operator_2026!"
+user = request("/api/v1/system-users", "POST", {
+    "username": operator_login, "password": operator_password,
+    "role": "ProductionOperator"
+}, 201)
+assert user["role"] == "ProductionOperator"
+users = request("/api/v1/system-users")
+assert any(u["userName"] == operator_login for u in users)
+operator_client = urllib.request.build_opener(
+    urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
+
+def operator_request(path, method="GET", payload=None, expected=200, token=None):
+    headers = {"Content-Type": "application/json"} if payload is not None else {}
+    if token:
+        headers["X-IPPCS-CSRF"] = token
+    req = urllib.request.Request(BASE + path, method=method, headers=headers,
+                                 data=json.dumps(payload).encode() if payload is not None else None)
+    try:
+        with operator_client.open(req, timeout=30) as res:
+            status = res.status
+            raw = res.read()
+    except urllib.error.HTTPError as e:
+        status = e.code
+        raw = e.read()
+    assert status == expected, f"{path}: status {status}, expected {expected}, {raw[:300]}"
+    return json.loads(raw) if raw else None
+
+operator_request("/auth/login", "POST", {
+    "username": operator_login, "password": operator_password
+})
+operator_csrf = operator_request("/auth/csrf")["token"]
+operator_request("/api/v1/system-users", expected=403)
+operator_request("/api/v1/factory-demand", "POST", {
+    "itemId": product["id"], "reference": "operator must not plan",
+    "dueOnJalali": JALALI_NOW, "quantity": 10, "category": "Confirmed"
+}, expected=403, token=operator_csrf)
+operator_request(f"/api/v1/factory-material/{material_id}/consumption", "POST", {
+    "componentItemId": raw["id"], "quantity": 1,
+    "reference": "operator role permits shop-floor reporting"
+}, expected=201, token=operator_csrf)
+operator_request("/api/v1/auth/change-password", "POST", {
+    "currentPassword": operator_password,
+    "newPassword": "CI_Test_Operator_New_2026!"
+}, token=operator_csrf)
+request(f"/api/v1/system-users/{user['id']}/lock", "POST", status=204)
+request(f"/api/v1/system-users/{user['id']}/unlock", "POST", status=204)
+print("PASS: isolated local operator account, permission boundary, material reporting, "
+      "password change, administrator lock/unlock.")
 print("PASS: SQL demand, S&OP, approved MPS, finite APS no overlap, what-if, "
       "line-side consumption variance, conversion cost and production KPI.")
 print("PASS: approved Control Plan snapshots, required inspection gate, auto quarantine, "
