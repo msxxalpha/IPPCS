@@ -135,6 +135,16 @@ public static class ManufacturingExecutionEndpoints
         op.ScrapQuantity+=input.ScrapQuantity;
         op.ReworkQuantity+=input.ReworkQuantity;
         op.IsComplete=total==allowed;
+        // If an upstream operation yields zero good parts, downstream operations have no input.
+        // Close them as zero-input operations to avoid permanently blocked scrapped orders.
+        if(op.IsComplete)
+        {
+            for(var nextOp=ix+1;nextOp<ordered.Count;nextOp++)
+            {
+                if(!ordered[nextOp-1].IsComplete || ordered[nextOp-1].GoodQuantity!=0)break;
+                ordered[nextOp].IsComplete=true;
+            }
+        }
         if(order.Status==ManufacturingOrderStatus.Released)order.Status=ManufacturingOrderStatus.InProgress;
         if(ordered.All(x=>x.IsComplete))
         {
