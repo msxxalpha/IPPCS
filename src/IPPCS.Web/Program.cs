@@ -15,6 +15,9 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddProblemDetails();
 
 var app = builder.Build();
+// The prototype has no authentication yet. Deny non-development hosting until security is implemented.
+if (!app.Environment.IsDevelopment())
+    throw new InvalidOperationException("IPPCS prototype cannot run outside Development before authentication and authorization are implemented.");
 app.UseExceptionHandler();
 if (app.Environment.IsDevelopment()) { app.UseSwagger(); app.UseSwaggerUI(); }
 app.UseHttpsRedirection();
