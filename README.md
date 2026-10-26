@@ -15,13 +15,20 @@ Manual planning balances and expected receipts are IPPCS-only assumptions, not w
 - Shared Jalali picker adapted from previous successful user projects. Server uses `PersianCalendar`.
 - xUnit/Node automated checks and GitHub build + EF Core schema scaffolding.
 
+## Stage 5: quality, WIP and daily OEE
+- Production workflow now supports quantity-based quality quarantine and an audited accept/scrap disposition, with quality-inspector/admin approval and blocked downstream progression until quality resolves.
+- Read-only in-process WIP availability is derived from operation results and quality holds; it is **not** inventory or a warehouse movement.
+- Daily OEE preview uses local Tehran factory date, manually entered planned production minutes, captured quantities, reported downtime and standard routing cycle times. Incomplete timestamp validation, late quality dispositions and shift reconciliation can affect accuracy; not approved production KPI.
+- Read-only exact-lot confirmation lookup surfaces in-system operations and work orders, but not a complete source-component genealogy.
+- Incremental SQL migration `StageFiveQualityOee` is committed. Disposable-SQL GitHub integration tests cover quality hold, quality release, WIP and OEE in an authenticated work-order scenario.
+
 ## Implementation and security status
 **Development preview only, not production-ready.**
 - The stage-four shop-floor model tracks quantities and basic lot labels, but does not move physical stock, perform complete genealogy or calculate OEE.
 - CRP is a rough-cut capacity preview, not finite resource scheduling.
 - APS, advanced material pegging and several other promised modules have not been developed yet.
 - Local authentication exists; granular per-module permissions, plant user management and security acceptance tests are still pending.
-- An EF Core-generated baseline migration is now checked into Git and monitored for model drift. Practical SQL Server migration/UAT and IIS deployment acceptance remain prerequisites. Non-Development web hosting is blocked by design.
+- The generated initial migration and incremental stage-five migration are checked into Git and checked for EF model drift. Practical SQL Server migration/UAT and IIS deployment acceptance remain prerequisites. Non-Development web hosting is blocked by design.
 - Authenticated production APIs require CSRF request token for state changes.
 
 ## Local developer setup
