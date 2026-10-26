@@ -70,6 +70,20 @@ public sealed class FactoryPlanningStageSevenTests
         Assert.Equal(-1m,result.Variance);
     }
     [Fact]
+    public void Jalali_monthly_forecast_only_uses_prior_confirmed_manufacturing_needs()
+    {
+        Assert.True(PersianPlanningDates.TryParse("1405/06/15",out var sixth));
+        Assert.True(PersianPlanningDates.TryParse("1405/07/11",out var seventh));
+        Assert.True(PersianPlanningDates.TryParse("1405/08/01",out var eighth));
+        var data=new[]{
+            new FactoryDemand{DueOn=sixth,Quantity=20,Category="Confirmed"},
+            new FactoryDemand{DueOn=seventh,Quantity=60,Category="Confirmed"},
+            new FactoryDemand{DueOn=seventh,Quantity=500,Category="Forecast"}
+        };
+        Assert.Equal(40m,FactoryForecasting.MonthlyMovingAverage(data,eighth,2));
+    }
+
+    [Fact]
     public void Factory_adherence_never_claims_production_in_unfinished_orders()
     {
         var item=Guid.NewGuid();
