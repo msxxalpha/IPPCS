@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#17324d">
+  <title>IPPCS | برنامه‌ریزی و کنترل تولید کمک‌فنر</title>
+  <link rel="stylesheet" href="/css/production.css">
+  <script defer src="/js/jalali-datepicker.js"></script>
+  <script defer src="/js/production.js"></script>
+</head>
+<body>
+<div class="app-shell">
+  <aside class="sidebar" id="side">
+    <div class="brand"><div class="brand-logo">IP</div><div><strong>ایندامین سایپا</strong><small>سامانه جامع برنامه‌ریزی و کنترل تولید</small></div></div>
+    <div class="side-caption">بخش‌های عملیاتی نسخه پایه</div>
+    <nav id="primary-nav" aria-label="بخش‌های سامانه">
+      <button data-page="overview" class="nav-active">نمای کلی سامانه</button>
+      <button data-page="items">اقلام و محصولات تولیدی</button>
+      <button data-page="centers">مراکز کاری</button>
+      <button data-page="bom">ساختار مواد (BOM)</button>
+      <button data-page="routings">مسیر و عملیات ساخت</button>
+      <button data-page="shifts">شیفت‌های کاری</button>
+      <button data-page="plans">برنامه‌های تولید</button>
+    </nav>
+    <div class="sidebar-foot">IPPCS • Foundation 0.2.0<br>نسخه آزمایشی توسعه؛ بدون اتصال به سایر سامانه‌ها</div>
+  </aside>
+  <div class="main">
+    <header class="topbar"><button id="menu-toggle" class="menu-toggle" type="button" aria-label="فهرست">☰</button><div><span class="eyebrow">مدیریت یکپارچه عملیات تولید</span><h1 id="page-title">نمای کلی سامانه</h1></div><span class="environment-pill">محیط توسعه</span></header>
+    <main class="content">
+      <div id="message" class="notice" hidden role="status" aria-live="polite"></div>
+      <section id="overview" class="page">
+        <div class="hero"><div><span class="eyebrow">سامانه تولید تخصصی صنعت کمک‌فنر</span><h2>برنامه‌ریزی دقیق؛ کنترل هوشمند تولید</h2><p>ساختار مبتنی بر ERP، برنامه‌ریزی چندسطحی، مدیریت مسیر ساخت و ظرفیت مراکز کاری. تکمیل ۱۸ ماژول، هدف مصوب محصول است و امکانات در دست توسعه مشخص شده‌اند.</p></div><div class="hero-emblem">IPPCS</div></div>
+        <div class="callout">این نسخه صرفاً نمونه اولیه اجرایی است. تا قبل از تکمیل امنیت، مهاجرت دیتابیس، آزمون‌ها و سایر کنترل‌های ضروری در محیط واقعی کارخانه استفاده نشود.</div>
+        <div class="summary-stats"><div><span>ماژول‌های مصوب</span><strong>۱۸</strong></div><div><span>ماژول‌های کامل و تحویل‌شده</span><strong>۰</strong></div><div><span>بخش‌های پایه قابل آزمایش</span><strong>۶</strong></div></div>
+        <div class="section-title"><h3>نقشه ماژول‌های جامع تولید</h3><small>کارت‌های در دست توسعه صرفاً معرفی محدوده‌اند و فرم عملیاتی ندارند.</small></div>
+        <div class="module-grid" id="module-grid"></div>
+      </section>
+      <section id="items" class="page" hidden>
+        <div class="section-title"><h3>اقلام و محصولات</h3><small>مرجع اقلام برنامه‌ریزی داخلی؛ نه سامانه انبار.</small></div>
+        <form id="item-form" class="panel form-grid">
+          <label>کد کالا <input name="code" required maxlength="64"></label>
+          <label>شرح کالا <input name="name" required maxlength="256"></label>
+          <label>واحد اندازه‌گیری <input name="unit" value="PCS" required maxlength="24"></label>
+          <label>طبقه کالا <select name="type"><option value="0">مواد اولیه</option><option value="1">نیمه‌ساخته</option><option value="2">محصول نهایی</option><option value="3">مواد مصرفی</option></select></label>
+          <div class="form-actions"><button class="btn-main" type="submit">ثبت کالا</button></div>
+        </form>
+        <div class="panel table-panel"><h3>فهرست اقلام</h3><div id="item-list"></div></div>
+      </section>
+      <section id="centers" class="page" hidden>
+        <div class="section-title"><h3>مراکز کاری</h3><small>تعریف خطوط، ماشین‌آلات یا مراکز منابع تولید.</small></div>
+        <form id="center-form" class="panel form-grid">
+          <label>کد مرکز کاری <input name="code" required maxlength="64"></label>
+          <label>نام مرکز کاری <input name="name" required maxlength="256"></label>
+          <label>ظرفیت اسمی (واحد در ساعت) <input name="rate" type="number" min="0.0001" step="any" required></label>
+          <div class="form-actions"><button class="btn-main" type="submit">ثبت مرکز کاری</button></div>
+        </form>
+        <div class="panel table-panel"><h3>فهرست مراکز کاری</h3><div id="center-list"></div></div>
+      </section>
+      <section id="bom" class="page" hidden>
+        <div class="section-title"><h3>ساختار مواد (BOM)</h3><small>تعریف اجزای موردنیاز هر محصول با کنترل حلقه در ساختار چندسطحی.</small></div>
+        <form id="bom-form" class="panel form-grid">
+          <label>کالای والد <select name="parent" data-items required></select></label>
+          <label>قطعه یا ماده زیرمجموعه <select name="component" data-items required></select></label>
+          <label>تعداد مصرف در واحد <input name="quantity" type="number" min="0.000001" step="any" required></label>
+          <label>ضایعات استاندارد (%) <input name="scrap" type="number" min="0" max="99.999" step="any" value="0" required></label>
+          <label>ترتیب <input name="sequence" type="number" min="0" step="1" value="10" required></label>
+          <div class="form-actions"><button class="btn-main" type="submit">ثبت جزء BOM</button></div>
+        </form>
+        <div class="panel"><label>مشاهده ساختار محصول <select id="bom-parent" data-items></select></label><div id="bom-list" class="table-panel"></div></div>
+      </section>
+      <section id="routings" class="page" hidden>
+        <div class="section-title"><h3>مسیر ساخت و نسخه‌های مهندسی</h3><small>تعریف مسیر ساخت با تاریخ اعتبار هجری شمسی و کنترل همپوشانی نسخه‌های تأییدشده.</small></div>
+        <form id="routing-form" class="panel form-grid">
+          <label>محصول <select name="itemId" data-items required></select></label>
+          <label>کد نسخه مسیر <input name="revisionCode" value="A" maxlength="32" required></label>
+          <label>شروع اعتبار <span class="jalali-field"><input name="from" data-jalali-date required placeholder="۱۴۰۵/۰۸/۰۴"><button type="button" data-jalali-trigger class="date-trigger">▣</button></span></label>
+          <label>پایان اعتبار (اختیاری) <span class="jalali-field"><input name="to" data-jalali-date placeholder="انتخاب تاریخ"><button type="button" data-jalali-trigger class="date-trigger">▣</button></span></label>
+          <div class="form-actions"><button class="btn-main" type="submit">ثبت مسیر پیش‌نویس</button></div>
+        </form>
+        <form id="operation-form" class="panel form-grid">
+          <h3 class="wide">افزودن عملیات به مسیر پیش‌نویس</h3>
+          <label>مسیر ساخت <select name="routeId" id="operation-route" required></select></label>
+          <label>مرکز کاری <select name="centerId" data-centers required></select></label>
+          <label>ترتیب عملیات <input name="sequence" type="number" min="1" value="10" required></label>
+          <label>عنوان عملیات <input name="name" required maxlength="180" placeholder="مثلاً جوشکاری بدنه"></label>
+          <label>زمان آماده‌سازی (دقیقه) <input name="setup" type="number" step="any" min="0" value="0" required></label>
+          <label>زمان انجام هر واحد (دقیقه) <input name="run" type="number" step="any" min="0.000001" required></label>
+          <label>بازده عملیات (%) <input name="yield" type="number" step="any" min="0.001" max="100" value="100" required></label>
+          <div class="form-actions"><button class="btn-main" type="submit">افزودن عملیات</button></div>
+        </form>
+        <div class="panel table-panel"><h3>نسخه‌ها و عملیات مسیر ساخت</h3><div id="routing-list"></div></div>
+      </section>
+      <section id="shifts" class="page" hidden>
+        <div class="section-title"><h3>تقویم شیفت مرکز کاری</h3><small>برنامه هفتگی ظرفیت. شیفت‌های عبوری از نیمه‌شب در نسخه بعدی اضافه خواهند شد.</small></div>
+        <form id="shift-form" class="panel form-grid">
+          <label>مرکز کاری <select name="centerId" data-centers required></select></label>
+          <label>روز هفته <select name="day"><option value="6">شنبه</option><option value="0">یکشنبه</option><option value="1">دوشنبه</option><option value="2">سه‌شنبه</option><option value="3">چهارشنبه</option><option value="4">پنجشنبه</option><option value="5">جمعه</option></select></label>
+          <label>شروع شیفت <input name="start" type="time" value="07:00" required></label>
+          <label>پایان شیفت <input name="end" type="time" value="15:00" required></label>
+          <label>ضریب ظرفیت مفید (%) <input name="capacity" type="number" min="0.001" max="100" value="85" step="any" required></label>
+          <div class="form-actions"><button class="btn-main" type="submit">ثبت شیفت</button></div>
+        </form>
+        <div class="panel table-panel"><h3>تقویم مراکز کاری</h3><div id="shift-list"></div></div>
+      </section>
+      <section id="plans" class="page" hidden>
+        <div class="section-title"><h3>برنامه تولید (نمونه اولیه)</h3><small>ثبت مقدار و موعد تولید با تقویم شمسی؛ محاسبه نیاز ناخالص چندسطحی مواد.</small></div>
+        <form id="plan-form" class="panel form-grid">
+          <label>محصول <select name="itemId" data-items required></select></label>
+          <label>مقدار تولید <input name="quantity" type="number" min="0.0001" step="any" required></label>
+          <label>موعد تولید (هجری شمسی) <span class="jalali-field"><input name="due" data-jalali-date required placeholder="انتخاب تاریخ"><button type="button" data-jalali-trigger class="date-trigger">▣</button></span></label>
+          <div class="form-actions"><button class="btn-main" type="submit">ثبت برنامه</button></div>
+        </form>
+        <div class="panel table-panel"><h3>برنامه‌های ثبت‌شده</h3><div id="plan-list"></div></div>
+        <div class="panel" id="requirements-panel" hidden><h3>نیاز ناخالص مواد (پیش‌نمایش)</h3><p>این محاسبه هنوز موجودی، زمان تأمین و ظرفیت را کسر نمی‌کند؛ MRP خالص نیست.</p><div id="requirements-list"></div></div>
+      </section>
+    </main>
+    <footer class="footer">IPPCS • سامانه مستقل برنامه‌ریزی و کنترل تولید <span>Build Prototype 0.2.0</span></footer>
+  </div>
+</div>
+</body>
+</html>
