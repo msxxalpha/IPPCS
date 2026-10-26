@@ -298,6 +298,19 @@ public static class ManufacturingControlPlanEndpoints
             catch(DbUpdateConcurrencyException){return Results.Conflict(new{message="ثبت هم‌زمان بازرسی رخ داد؛ بازخوانی کنید."});}
             return Results.Ok(new{requirementId=req.Id,passed,orderStatus=order.Status});
         }).RequireAuthorization("IpQualityApprove");
+        api.MapGet("/manufacturing-orders/{id:guid}/confirmations",async(Guid id,Guid? operationId,
+            ProductionDb db,CancellationToken ct)=>{
+            if(!await db.ManufacturingOrders.AnyAsync(x=>x.Id==id,ct))return Results.NotFound();
+            var rows=await db.ManufacturingConfirmations.AsNoTracking()
+                .Join(db.ManufacturingOrderOperations.AsNoTracking(),
+                    conf=>conf.OperationId,op=>op.Id,(conf,op)=>new{conf,op})
+                .Where(x=>x.op.OrderId==id && (!operationId.HasValue||x.op.Id==operationId.Value))
+                .OrderBy(x=>x.conf.OccurredUtc).Take(1500).ToListAsync(ct);
+            return Results.Ok(rows.Select(x=>new{
+                x.conf.Id,x.conf.OperationId,operationSequence=x.op.Sequence,x.conf.LotCode,
+                x.conf.GoodQuantity,x.conf.ScrapQuantity,x.conf.ReworkQuantity,x.conf.OccurredUtc
+            }));
+        });
         api.MapGet("/manufacturing-orders/{id:guid}/lot-genealogy",async(Guid id,ProductionDb db,CancellationToken ct)=>{
             if(!await db.ManufacturingOrders.AnyAsync(x=>x.Id==id,ct))return Results.NotFound();
             var links=await db.ManufacturingLotGenealogies.AsNoTracking()
