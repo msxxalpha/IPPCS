@@ -120,6 +120,22 @@ async function oee(){
  message("شاخص‌های مقدماتی OEE بر اساس تاریخ محلی کارخانه محاسبه شدند.");
 }
 function boot(){
+ $("#lot-trace-form").addEventListener("submit",async event=>{
+  event.preventDefault();const form=event.currentTarget;
+  if(!form.reportValidity())return;
+  const button=form.querySelector('button[type="submit"]');button.disabled=true;
+  try{
+   const code=new FormData(form).get("lotCode");
+   const data=await api("/manufacturing-lots/search?lotCode="+encodeURIComponent(code));
+   table("#lot-trace-table",[
+    ["دستور ساخت","orderNumber"],["مرحله","sequence"],["عنوان عملیات","operation"],
+    ["زمان ثبت",x=>new Date(x.occurredUtc).toLocaleString("fa-IR-u-ca-persian",{timeZone:"Asia/Tehran"})],
+    ["سالم",x=>n(x.goodQuantity)],["ضایعات",x=>n(x.scrapQuantity)],
+    ["دوباره‌کاری",x=>n(x.reworkQuantity)],["شرح",x=>x.note||"—"]
+   ],data.records);
+   message("سوابق ثبت‌شده برای این کد بچ نمایش داده شد.");
+  }catch(error){message(error.message,true);}finally{button.disabled=false;}
+ });
  $("#quality-order").addEventListener("change",reloadOps);
  $("#quality-refresh").addEventListener("click",()=>refreshQuality().catch(err=>message(err.message,true)));
  $("#oee-calculate").addEventListener("click",()=>oee().catch(err=>message(err.message,true)));
