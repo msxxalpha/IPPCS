@@ -386,7 +386,12 @@ public static class PlanningStageThreeEndpoints
             catch(Exception ex)when(ex is InvalidOperationException or OverflowException or ArgumentOutOfRangeException)
                 {return Results.UnprocessableEntity(new{message=ex.Message});}
             var snapshot=new PlanningCalculation{
-                MpsVersionId=id,InputSnapshotJson=JsonSerializer.Serialize(new{mps=version,bom,balances,receipts,types}),
+                MpsVersionId=id,InputSnapshotJson=JsonSerializer.Serialize(new{
+                    mps=new{version.Id,version.Code,version.State,lines=version.Lines.Select(l=>new{
+                        l.Id,l.ItemId,l.NeededOn,l.Quantity,l.Reference})},
+                    bom=bom.Select(b=>new{b.Id,b.ParentItemId,b.Revision,b.State,b.ValidFrom,b.ValidUntil,
+                        lines=b.Lines.Select(l=>new{l.ComponentItemId,l.QuantityPer,l.ScrapPercent,l.Sequence})}),
+                    balances,receipts,types}),
                 ResultSnapshotJson=JsonSerializer.Serialize(result)};
             db.PlanningCalculations.Add(snapshot);await db.SaveChangesAsync(ct);
             return Results.Ok(new{runId=snapshot.Id,algorithm=snapshot.AlgorithmVersion,
