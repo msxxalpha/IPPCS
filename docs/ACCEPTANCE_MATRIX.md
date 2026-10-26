@@ -43,7 +43,7 @@ from a specifically user-approved read-only SQL view in future.
    mandatory failed inspection, or double-booked center capacity may be silently accepted.
 4. Preserve user data with reviewed, additive and reversible migration plans and
    verified **backup + restore**. Generate SQL deployment scripts for plant DBA review.
-5. Role-specific application permissions, HTTPS and security testing, concurrency,
+5. App-local administrator/user provisioning and basic role-scoped writes are implemented, but complete endpoint-level role-specific permissions, HTTPS and security testing, concurrency,
    audit trails, pagination and Excel import validation are prerequisites.
 6. Unit and disposable SQL Server integration CI is necessary but **not sufficient**.
    Perform factory UAT for operators, planners, quality and management on realistic data.
