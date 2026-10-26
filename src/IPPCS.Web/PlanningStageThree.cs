@@ -404,6 +404,32 @@ public static class PlanningStageThreeEndpoints
                     suggestedReleaseJalali=x.SuggestedRelease.HasValue?PersianPlanningDates.Format(x.SuggestedRelease.Value):null,
                     x.ClosingAvailable})});
         });
+        // Correct mistaken independent planning assumptions without changing saved MRP snapshots.
+        api.MapDelete("/planning-receipts/{id:guid}",async(Guid id,ProductionDb db,CancellationToken ct)=>{
+            var receipt=await db.PlanningExpectedReceipts.FindAsync([id],ct);
+            if(receipt is null)return Results.NotFound();
+            db.PlanningExpectedReceipts.Remove(receipt);await db.SaveChangesAsync(ct);
+            return Results.NoContent();
+        });
+        api.MapDelete("/mps/{versionId:guid}/lines/{lineId:guid}",async(Guid versionId,Guid lineId,ProductionDb db,CancellationToken ct)=>{
+            var version=await db.MpsVersions.FindAsync([versionId],ct);
+            if(version is null)return Results.NotFound();
+            if(version.State!=PlanningApproval.Draft)return Results.Conflict(new{message="فقط ردیف‌های برنامه پیش‌نویس قابل حذف هستند."});
+            var line=await db.MpsDemandLines.SingleOrDefaultAsync(x=>x.Id==lineId&&x.MpsVersionId==versionId,ct);
+            if(line is null)return Results.NotFound();
+            db.MpsDemandLines.Remove(line);await db.SaveChangesAsync(ct);
+            return Results.NoContent();
+        });
+        api.MapDelete("/bom-revisions/{revisionId:guid}/lines/{lineId:guid}",async(Guid revisionId,Guid lineId,ProductionDb db,CancellationToken ct)=>{
+            var revision=await db.ManufacturingBomRevisions.FindAsync([revisionId],ct);
+            if(revision is null)return Results.NotFound();
+            if(revision.State!=ManufacturingRevisionState.Draft)return Results.Conflict(new{message="فقط اجزای BOM پیش‌نویس قابل حذف هستند."});
+            var line=await db.ManufacturingBomLines.SingleOrDefaultAsync(x=>x.Id==lineId&&x.RevisionId==revisionId,ct);
+            if(line is null)return Results.NotFound();
+            db.ManufacturingBomLines.Remove(line);await db.SaveChangesAsync(ct);
+            return Results.NoContent();
+        });
+
         api.MapGet("/mrp/runs/{runId:guid}",async(Guid runId,ProductionDb db,CancellationToken ct)=>{
             var run=await db.PlanningCalculations.AsNoTracking().SingleOrDefaultAsync(x=>x.Id==runId,ct);
             return run is null?Results.NotFound():Results.Ok(new{run.Id,run.MpsVersionId,run.CalculatedUtc,
