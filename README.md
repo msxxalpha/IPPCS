@@ -1,25 +1,31 @@
 # IPPCS — سامانه مستقل برنامه‌ریزی و کنترل تولید کمک‌فنر
 
-A stand-alone production planning/control system, using ASP.NET Core and SQL Server. The entire 18-module manufacturing scope is tracked in [docs/SCOPE.md](docs/SCOPE.md).
+An independent manufacturing-specific planning and execution system built with .NET 10, SQL Server and Persian RTL user interfaces.
 
-## Strict scope boundary
-No warehouse, procurement, sales, or HR modules and no operational connections with those systems. Only independent planning inputs are supported. A warehouse **read-only item catalog query** may be considered later if the owner provides it; it is **not** connected now.
+## Approved product contract
+All **18 original manufacturing modules** remain in scope, tracked in [the module delivery ledger](docs/SCOPE.md).
+Warehouse, purchasing, sales and HR modules are **excluded**; no live integrations with them exist.
+Manual planning balances and expected receipts are IPPCS-only assumptions, not warehouse or purchasing transactions.
 
-## Stage 3 (development preview)
-- Responsive Persian RTL [foundation dashboard](/src/IPPCS.Web/wwwroot/app.html) for reference items, work centers, original gross BOM, routing versions, weekly shifts and basic production plans.
-- [Stage-three planning console](/src/IPPCS.Web/wwwroot/planning.html) for independently versioned BOM structure with dated approvals and cyclic dependency checks.
-- Approved and locked MPS version, finished-product demand lines and Jalali due dates.
-- Manually managed planning balances (gross, reservations, quarantine, safety) and expected supply dates; **not warehouse or purchasing transactions**.
-- Net MRP **prototype** with available balance, dated expected receipts, lot minimum/multiple, lead-time offsets, BOM explosion on planned quantities, date-effective approved revisions and input/output calculation snapshots.
-- Rough-cut CRP daily load-versus-weekly shift capacity preview based on approved routings; **not finite-capacity APS**.
-- Shared Jalali picker from previous user projects, verified with JavaScript and server-side unit tests.
-- GitHub CI builds, tests date logic and planning calculations, checks browser JavaScript and EF Core migration scaffolding.
+## Delivered development prototypes
+- `/app.html`: items, work centers, simple BOM, routing revisions, shifts, gross requirements
+- `/planning.html`: versioned BOM with Jalali effectivity, approved MPS, independent planning assumptions, net MRP prototype, rough-cut CRP
+- `/execution.html`: semi-finished and final-assembly manufacturing orders, release and controlled lifecycle, operation confirmations, good/scrap/rework, recorded downtime and audit trail
+- `/login.html`: independent local ASP.NET Identity login, account lockout, cookie expiration, CSRF validation and login rate limits
+- Shared Jalali picker adapted from previous successful user projects. Server uses `PersianCalendar`.
+- xUnit/Node automated checks and GitHub build + EF Core schema scaffolding.
 
-## Important restrictions
-**Not production-ready.** Missing: authentication, permission checks, reviewed/committed DB migrations, real SQL Server integration tests, comprehensive MRP pegging, true finite-capacity CRP/APS, MES/order execution and other agreed manufacturing modules. Non-Development hosting is intentionally blocked. No source data from existing systems is accessed.
+## Implementation and security status
+**Development preview only, not production-ready.**
+- The stage-four shop-floor model tracks quantities and basic lot labels, but does not move physical stock, perform complete genealogy or calculate OEE.
+- CRP is a rough-cut capacity preview, not finite resource scheduling.
+- APS, advanced material pegging and several other promised modules have not been developed yet.
+- Local authentication exists; granular per-module permissions, plant user management and security acceptance tests are still pending.
+- Complete reviewed SQL migrations and practical SQL Server/IIS testing remain deployment prerequisites. Non-Development web hosting is blocked by design.
+- Authenticated production APIs require CSRF request token for state changes.
 
-## Developer setup
-See [docs/DEVELOPER_GUIDE.md](docs/DEVELOPER_GUIDE.md) and [docs/JALALI_DATE_STANDARD.md](docs/JALALI_DATE_STANDARD.md).
-Use a dedicated disposable dev database, configure the SQL Server connection via .NET user secrets, generate/review migrations, run `dotnet ef database update`, then run the web host in Development. Open `/app.html`, then follow the link to `/planning.html`.
+## Local developer setup
+Use the [full developer guide](docs/DEVELOPER_GUIDE.md). Never put SQL passwords or bootstrap passwords in committed files. Configure user secrets and a disposable development database, apply a reviewed initial schema migration, then run `IPPCS.sln` with the **IPPCS.Web (HTTPS)** profile. Default landing is `/app.html`.
 
-Working branch: `feature/production-platform-foundation` (Draft PR #1). Do not merge to `main` before security and acceptance review.
+## Change control
+Branch `feature/production-platform-foundation`, Draft PR #1. `main` is not modified until acceptance.
