@@ -223,7 +223,7 @@ public static class ManufacturingQualityAndOeeEndpoints
             plan.PlannedMinutes=input.PlannedMinutes;plan.Note=input.Note?.Trim();plan.UpdatedUtc=DateTime.UtcNow;
             await db.SaveChangesAsync(ct);
             return Results.Ok(new{plan.Id});
-        }).RequireAuthorization("IpQualityApprove");
+        }).RequireAuthorization("IpOeePlanning");
 
         api.MapGet("/oee/daily",async(string dateJalali,ProductionDb db,IConfiguration config,CancellationToken ct)=>{
             if(!PersianPlanningDates.TryParse(dateJalali,out var date))
