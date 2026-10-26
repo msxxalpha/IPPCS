@@ -130,6 +130,16 @@ function register(){
   $("#page-heading").textContent=btn.textContent;$("#flash").hidden=true;
   if(btn.dataset.view==="dashboard")updateOverview().catch(e=>flash(e.message,true));
  });
+ addForm("#forecast-form",async f=>{
+  const id=formval(f,"itemId");
+  const query="/factory-demand/forecast/"+id+"?fromJalali="+encodeURIComponent(formval(f,"from"))+
+   "&lookback="+encodeURIComponent(number(f,"lookback"))+
+   "&months="+encodeURIComponent(number(f,"months"));
+  const result=await api(query);
+  table("#forecast-table",[["سال شمسی","jalaliYear"],["ماه شمسی","jalaliMonth"],
+   ["مقدار پیشنهادی",x=>format(x.forecastQuantity)]],result.rows);
+  flash("پیش‌بینی صرفاً بر اساس میانگین نیازهای قطعی ثبت‌شده است؛ تعداد سوابق: "+result.historySamples);
+ });
  addForm("#demand-form",f=>api("/factory-demand","POST",{
   itemId:formval(f,"itemId"),reference:formval(f,"reference"),category:formval(f,"category"),
   dueOnJalali:formval(f,"due"),quantity:number(f,"quantity")
