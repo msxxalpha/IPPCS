@@ -44,6 +44,7 @@ public sealed class ManufacturingOrderOperation
     public decimal QualityRejectedQuantity { get; set; }
     public bool IsComplete { get; set; }
     public List<ManufacturingConfirmation> Confirmations { get; set; } = new();
+    public List<ManufacturingInspectionRequirement> InspectionRequirements { get; set; } = new();
 }
 public sealed class ManufacturingConfirmation
 {
@@ -133,6 +134,9 @@ public static class ManufacturingExecutionEndpoints
         if(op.IsComplete){error="عملیات تکمیل شده و قابل ثبت دوباره نیست.";return false;}
         if(ix>0 && !ordered[ix-1].IsComplete){error="عملیات قبلی هنوز تکمیل نشده است.";return false;}
         if(ix>0 && ordered[ix-1].QualityPendingQuantity>0){error="عدم‌انطباق عملیات قبلی تعیین تکلیف نشده است.";return false;}
+        if(ix>0 && !ManufacturingInspectionRules.GatePassed(ordered[ix-1])){
+            error="کنترل‌های اجباری عملیات قبلی هنوز تأیید نشده‌اند.";return false;
+        }
         var allowed=ix==0?order.PlannedQuantity:ordered[ix-1].GoodQuantity-ordered[ix-1].QualityRejectedQuantity;
         if(allowed<=0){error="ورودی قابل‌استفاده در عملیات بعدی وجود ندارد.";return false;}
         var total=op.GoodQuantity+op.ScrapQuantity+op.ReworkQuantity+
@@ -144,7 +148,7 @@ public static class ManufacturingExecutionEndpoints
         op.IsComplete=total==allowed;
         CloseZeroInputOperations(order);
         if(order.Status==ManufacturingOrderStatus.Released)order.Status=ManufacturingOrderStatus.InProgress;
-        if(ordered.All(x=>x.IsComplete && x.QualityPendingQuantity==0))
+        if(ManufacturingInspectionRules.CanComplete(order))
         {
             order.Status=ManufacturingOrderStatus.Completed;
             order.CompletedUtc=DateTime.UtcNow;
@@ -216,6 +220,12 @@ public static class ManufacturingExecutionEndpoints
                 return Results.Conflict(new{message="فقط دستور پیش‌نویس قابل آزادسازی است."});
             var route=await db.RoutingRevisions.AsNoTracking().Include(x=>x.Operations).SingleOrDefaultAsync(x=>x.Id==order.RoutingRevisionId,ct);
             var bom=await db.ManufacturingBomRevisions.AsNoTracking().SingleOrDefaultAsync(x=>x.Id==order.BomRevisionId,ct);
+            var controlPlans=await db.ManufacturingControlPlans.AsNoTracking()
+                .Include(x=>x.Characteristics)
+                .Where(x=>x.RoutingRevisionId==order.RoutingRevisionId && x.State==ControlPlanState.Approved
+                    && x.ValidFrom<=order.PlannedStart
+                    && (x.ValidUntil==null || order.PlannedStart<=x.ValidUntil)).ToListAsync(ct);
+            if(controlPlans.Count>1)return Results.Conflict(new{message="برای این دستور چند کنترل پلن مصوب هم‌زمان معتبر است."});
             if(route?.State!=RoutingState.Approved||bom?.State!=ManufacturingRevisionState.Approved
                 ||route.EffectiveFrom>order.PlannedStart||(route.EffectiveTo.HasValue&&route.EffectiveTo.Value<order.PlannedStart)
                 ||bom.ValidFrom>order.PlannedStart||(bom.ValidUntil.HasValue&&bom.ValidUntil.Value<order.PlannedStart)
@@ -225,10 +235,24 @@ public static class ManufacturingExecutionEndpoints
             // with an already-assigned Guid to a tracked collection can make EF infer an
             // existing entity and issue UPDATE instead of INSERT (false concurrency 409).
             foreach(var op in route.Operations.OrderBy(x=>x.Sequence))
-                db.ManufacturingOrderOperations.Add(new ManufacturingOrderOperation{
+            {
+                var releasedOperation=new ManufacturingOrderOperation{
                     OrderId=id,Sequence=op.Sequence,Name=op.Name,WorkCenterId=op.WorkCenterId,
                     SetupMinutes=op.SetupMinutes,RunMinutesPerUnit=op.RunMinutesPerUnit
-                });
+                };
+                db.ManufacturingOrderOperations.Add(releasedOperation);
+                if(controlPlans.Count==1)
+                {
+                    foreach(var characteristic in controlPlans[0].Characteristics
+                        .Where(x=>x.OperationSequence==op.Sequence))
+                        db.ManufacturingInspectionRequirements.Add(new ManufacturingInspectionRequirement{
+                            OrderOperationId=releasedOperation.Id,SourceCharacteristicId=characteristic.Id,
+                            Code=characteristic.Code,Description=characteristic.Description,Unit=characteristic.Unit,
+                            Minimum=characteristic.Minimum,Maximum=characteristic.Maximum,
+                            Mandatory=characteristic.Mandatory
+                        });
+                }
+            }
             order.Status=ManufacturingOrderStatus.Released;
             order.ReleasedUtc=DateTime.UtcNow;order.UpdatedUtc=DateTime.UtcNow;
             db.ManufacturingOrderAudits.Add(new ManufacturingOrderAudit{OrderId=id,Action="Released"});
@@ -245,7 +269,8 @@ public static class ManufacturingExecutionEndpoints
             if((input.LotCode?.Length??0)>100||(input.Note?.Length??0)>500)
                 return Results.BadRequest(new{message="شرح یا شناسه بچ بیش از حد مجاز است."});
             await using var tx=await db.Database.BeginTransactionAsync(ct);
-            var order=await db.ManufacturingOrders.Include(x=>x.Operations).SingleOrDefaultAsync(x=>x.Id==id,ct);
+            var order=await db.ManufacturingOrders.Include(x=>x.Operations)
+                .ThenInclude(x=>x.InspectionRequirements).SingleOrDefaultAsync(x=>x.Id==id,ct);
             if(order is null)return Results.NotFound();
             if(!TryApplyConfirmation(order,operationId,input,out var error))
                 return Results.Conflict(new{message=error});
