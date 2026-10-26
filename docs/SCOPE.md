@@ -31,7 +31,7 @@ Planning inventory inputs, customer demand inputs, supplier lead times (if neces
 
 ## Architecture
 ASP.NET Core web API / EF Core SQL Server. Modular monolith direction; this bootstrap will be split into domain/application/infrastructure modules as implementation expands.
-Initial Persian RTL UI and shared Jalali datepicker implemented. Manufacturing order workbench at /execution.html; local Identity login and CSRF controls added. Dates are stored as Gregorian SQL date/time, with PersianCalendar server checks. Still pending: granular production role authorization, approved production SQL migration and practical database tests, full WIP transfers, WIP material movements, end-to-end traceability, quality gates, OEE, pegging, finite CRP and APS.
+Initial Persian RTL UI and shared Jalali datepicker implemented. Manufacturing order workbench at /execution.html; local Identity login and CSRF controls added. Dates are stored as Gregorian SQL date/time, with PersianCalendar server checks. Still pending: granular production role authorization, incremental production migration review and practical SQL Server runtime acceptance, full WIP transfers, WIP material movements, end-to-end traceability, quality gates, OEE, pegging, finite CRP and APS.
 
 ## Acceptance guardrails
 - No claim of completion until user-visible screens, business rules, persistence, permissions and tests exist.
