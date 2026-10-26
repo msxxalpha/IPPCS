@@ -23,7 +23,7 @@ if (app.Environment.IsDevelopment()) { app.UseSwagger(); app.UseSwaggerUI(); }
 app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.MapGet("/", () => Results.Redirect("/app.html"));
-app.MapGet("/health", () => Results.Ok(new { service = "IPPCS", status = "ready", version = "0.2.0" }));
+app.MapGet("/health", () => Results.Ok(new { service = "IPPCS", status = "ready", version = "0.3.0" }));
 var api = app.MapGroup("/api/v1");
 
 // Items are planning references, NOT warehouse inventory records.
@@ -121,6 +121,7 @@ api.MapGet("/planning/gross-requirements/{planId:guid}", async (Guid planId, Pro
 });
 
 app.MapManufacturingFoundation();
+app.MapPlanningStageThree();
 app.Run();
 
 public sealed class ProductionDb(DbContextOptions<ProductionDb> options) : DbContext(options)
@@ -132,6 +133,13 @@ public sealed class ProductionDb(DbContextOptions<ProductionDb> options) : DbCon
     public DbSet<RoutingRevision> RoutingRevisions => Set<RoutingRevision>();
     public DbSet<RoutingOperation> RoutingOperations => Set<RoutingOperation>();
     public DbSet<WorkShift> WorkShifts => Set<WorkShift>();
+    public DbSet<ManufacturingBomRevision> ManufacturingBomRevisions => Set<ManufacturingBomRevision>();
+    public DbSet<ManufacturingBomLine> ManufacturingBomLines => Set<ManufacturingBomLine>();
+    public DbSet<MpsVersion> MpsVersions => Set<MpsVersion>();
+    public DbSet<MpsDemandLine> MpsDemandLines => Set<MpsDemandLine>();
+    public DbSet<PlanningBalance> PlanningBalances => Set<PlanningBalance>();
+    public DbSet<PlanningExpectedReceipt> PlanningExpectedReceipts => Set<PlanningExpectedReceipt>();
+    public DbSet<PlanningCalculation> PlanningCalculations => Set<PlanningCalculation>();
     protected override void OnModelCreating(ModelBuilder model)
     {
         model.Entity<PlanningItem>().HasIndex(x => x.Code).IsUnique();
@@ -150,6 +158,7 @@ public sealed class ProductionDb(DbContextOptions<ProductionDb> options) : DbCon
         model.Entity<ProductionPlan>().Property(x => x.Quantity).HasPrecision(18, 4);
         model.Entity<ProductionPlan>().HasOne<PlanningItem>().WithMany().HasForeignKey(x => x.ItemId).OnDelete(DeleteBehavior.Restrict);
         ManufacturingFoundationEndpoints.ConfigureManufacturingModel(model);
+        PlanningStageThreeEndpoints.ConfigureModel(model);
     }
 }
 public enum PlanningItemType { RawMaterial, SemiFinished, Finished, Consumable }
