@@ -23,7 +23,7 @@ if (app.Environment.IsDevelopment()) { app.UseSwagger(); app.UseSwaggerUI(); }
 app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.MapGet("/", () => Results.Redirect("/app.html"));
-app.MapGet("/health", () => Results.Ok(new { service = "IPPCS", status = "ready", version = "0.1.0" }));
+app.MapGet("/health", () => Results.Ok(new { service = "IPPCS", status = "ready", version = "0.2.0" }));
 var api = app.MapGroup("/api/v1");
 
 // Items are planning references, NOT warehouse inventory records.
