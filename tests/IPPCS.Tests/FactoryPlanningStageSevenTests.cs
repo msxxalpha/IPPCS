@@ -61,7 +61,7 @@ public sealed class FactoryPlanningStageSevenTests
     public void Factory_material_variances_only_use_internal_confirmations()
     {
         var material=Guid.NewGuid();var product=Guid.NewGuid();
-        var bom=new[]{new ManufacturingBomLine{ParentItemId=product,ComponentItemId=material,
+        var bom=new[]{new ManufacturingBomLine{RevisionId=Guid.NewGuid(),ComponentItemId=material,
             QuantityPer=2m,ScrapPercent=0m}};
         var usage=new[]{new FactoryMaterialUsage{ComponentItemId=material,QuantityConsumed=19}};
         var result=Assert.Single(FactoryOperationalMetrics.MaterialVariances(10,bom,usage));
