@@ -40,7 +40,7 @@ public sealed class FactoryApsRun
 public record FactoryDemandInput(Guid ItemId,string Reference,string DueOnJalali,decimal Quantity,string Category);
 public record FactorySopInput(string Code,string FromJalali,string ThroughJalali);
 public record FactoryApsInput(Guid MpsVersionId,string StartJalali,int HorizonDays,decimal CapacityMultiplier=1m);
-public record ApsTask(Guid ItemId,DateOnly DueOn,decimal Quantity,Guid RoutingRevisionId,
+public record ApsTask(Guid DemandLineId,Guid ItemId,DateOnly DueOn,decimal Quantity,Guid RoutingRevisionId,
     int OperationSequence,Guid WorkCenterId,decimal DurationMinutes,string OperationName);
 public record ApsAllocation(Guid ItemId,Guid WorkCenterId,int Sequence,decimal Quantity,
     DateOnly DueOn,DateOnly StartDate,TimeOnly StartsAt,DateOnly FinishDate,
@@ -64,7 +64,7 @@ public static class FiniteFactoryScheduler
         var result=new List<ApsAllocation>();
         var missing=new List<ApsUnscheduled>();
         var occupied=new Dictionary<(Guid,DateOnly),List<(int start,int end)>>();
-        var sorted=tasks.OrderBy(x=>x.DueOn).ThenBy(x=>x.ItemId).ThenBy(x=>x.OperationSequence).ToList();
+        var sorted=tasks.OrderBy(x=>x.DueOn).ThenBy(x=>x.DemandLineId).ThenBy(x=>x.OperationSequence).ToList();
         var chainReady=new Dictionary<Guid,DateTime>();
         var chainFailed=new HashSet<Guid>();
         foreach(var job in sorted)
@@ -72,13 +72,13 @@ public static class FiniteFactoryScheduler
             if(job.DurationMinutes<=0 || job.DurationMinutes>20000 || job.Quantity<=0)
             {
                 missing.Add(new(job.ItemId,job.OperationSequence,"مقدار یا زمان عملیات نامعتبر است."));
-                chainFailed.Add(job.ItemId);continue;
+                chainFailed.Add(job.DemandLineId);continue;
             }
-            if(chainFailed.Contains(job.ItemId))
+            if(chainFailed.Contains(job.DemandLineId))
             {
                 missing.Add(new(job.ItemId,job.OperationSequence,"عملیات قبلی قابل زمان‌بندی نبود."));continue;
             }
-            var earliest=chainReady.GetValueOrDefault(job.ItemId,start.ToDateTime(TimeOnly.MinValue));
+            var earliest=chainReady.GetValueOrDefault(job.DemandLineId,start.ToDateTime(TimeOnly.MinValue));
             bool allocated=false;
             for(int d=0;d<horizonDays && !allocated;d++)
             {
@@ -110,7 +110,7 @@ public static class FiniteFactoryScheduler
                             intervals.Add((left,end));
                             var from=day.ToDateTime(TimeOnly.FromTimeSpan(TimeSpan.FromMinutes(left)));
                             var until=day.ToDateTime(TimeOnly.FromTimeSpan(TimeSpan.FromMinutes(end)));
-                            chainReady[job.ItemId]=until;
+                            chainReady[job.DemandLineId]=until;
                             result.Add(new ApsAllocation(job.ItemId,job.WorkCenterId,
                                 job.OperationSequence,job.Quantity,job.DueOn,day,
                                 TimeOnly.FromDateTime(from),day,TimeOnly.FromDateTime(until),
@@ -127,7 +127,7 @@ public static class FiniteFactoryScheduler
             {
                 missing.Add(new(job.ItemId,job.OperationSequence,
                     "عملیات با ظرفیت و شیفت مؤثر موجود، بدون تداخل در افق انتخابی جا نمی‌شود."));
-                chainFailed.Add(job.ItemId);
+                chainFailed.Add(job.DemandLineId);
             }
         }
         return new(result,missing,result.Count(x=>x.Late));
@@ -213,6 +213,7 @@ public static class FactoryDemandApsEndpoints
                 var selected=routes.Where(x=>x.ItemId==demand.ItemId&&x.EffectiveFrom<=demand.DueOn
                     && (x.EffectiveTo==null||demand.DueOn<=x.EffectiveTo)).ToList();
                 if(selected.Count!=1){warnings.Add($"مسیر ساخت مصوب برای نیاز {demand.Reference} یکتا نیست.");continue;}
+                if(selected[0].Operations.Any(op=>op.YieldPercent<=0)){warnings.Add($"بازده مسیر {demand.Reference} نامعتبر است.");continue;}
                 load+=selected[0].Operations.Sum(op=>op.SetupMinutes+op.RunMinutesPerUnit*
                     demand.Quantity/(op.YieldPercent/100m));
             }
@@ -268,7 +269,7 @@ public static class FactoryDemandApsEndpoints
                 foreach(var op in active[0].Operations.OrderBy(x=>x.Sequence))
                 {
                     if(op.YieldPercent<=0) {errors.Add($"بازده عملیات {op.Name} نامعتبر است.");continue;}
-                    tasks.Add(new(line.ItemId,line.NeededOn,line.Quantity,active[0].Id,op.Sequence,
+                    tasks.Add(new(line.Id,line.ItemId,line.NeededOn,line.Quantity,active[0].Id,op.Sequence,
                         op.WorkCenterId,op.SetupMinutes+op.RunMinutesPerUnit*line.Quantity*100m/op.YieldPercent,
                         op.Name));
                 }
