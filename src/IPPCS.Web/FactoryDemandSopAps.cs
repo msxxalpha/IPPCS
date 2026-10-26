@@ -102,7 +102,7 @@ public static class FiniteFactoryScheduler
                     var key=(job.WorkCenterId,day);
                     if(!occupied.TryGetValue(key,out var intervals))
                         occupied[key]=intervals=new();
-                    foreach(var block in intervals.OrderBy(x=>x.start).Append((max,max)))
+                    foreach(var block in intervals.OrderBy(x=>x.start).Append((start:max,end:max)))
                     {
                         if(left+duration<=block.start)
                         {
