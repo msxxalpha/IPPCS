@@ -39,6 +39,7 @@ Manual planning balances and expected receipts are IPPCS-only assumptions, not w
 - Side-effect-free capacity what-if (different staffing/availability multiplier) without changing confirmed plans or external systems.
 - Operation-side material consumption records and planned-vs-recorded BOM variances; not warehouse stock or warehouse receipts.
 - Local **assumptions** of conversion cost rates in rials per center and standard-time estimates; not finance module or actual production-cost accounting.
+- App-local `/system-users.html` for Administrator creation of Planner, ProductionOperator and QualityInspector credentials, lock/unlock, and all users' self-service password change, without HR or Active Directory integration. Planner/operator write permissions are separated on new stage-seven endpoints.
 - Initial KPI dashboard and MPS completion variance overview.
 - EF stage-seven migration adds five tables; unit tests exercise finite intervals, precedence, overcapacity, internal material consumption variance and plan fulfillment, and disposable SQL integration checks the endpoints.
 - **All 18 agreed module categories now have at least an initial implemented capability**; none is being represented as factory-accepted or fully implemented.
