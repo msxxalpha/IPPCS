@@ -12,7 +12,7 @@ function flash(msg,error=false){const el=$("#flash");el.hidden=false;el.classNam
 async function request(path,method="GET",data){
  const init={method,headers:{}};
  if(data!==undefined){init.headers["Content-Type"]="application/json";init.body=JSON.stringify(data);}
- const response=await fetch("/api/v1"+path,init);
+ const response=await window.IPPCSSecurity.secureFetch("/api/v1"+path,init);
  const text=await response.text();let value;
  try{value=text?JSON.parse(text):null;}catch{value=null;}
  if(!response.ok)throw new Error(value?.message||value?.title||text||"خطای سرویس");
