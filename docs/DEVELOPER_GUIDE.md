@@ -67,3 +67,12 @@ The MRP engine deliberately refuses to guess unknown item balances/lead-time pol
 - OEE uses a manually entered planned-production-minutes assumption per work center and Persian date, timestamped shop-floor confirmations and downtime events. Its values are provisional until shift calendar, ideal cycle data and event timestamp validation are fully deployed.
 - OEE is calculated by local factory date in timezone `Asia/Tehran` (config key `Production:TimeZoneId`). Persist actual event timestamps as UTC.
 - Granular policies: `IpQualityApprove` for disposition, `IpOeePlanning` for planned production minutes, and `IpProductionUser` for reading shop-floor/quality/OEE. Only administrator bootstrap is currently available; broader role and user administration needs further work.
+
+### Lot code search
+The `/execution.html` lot-history tab searches exact lot identifiers recorded on operation confirmations. It provides order, operation, timestamp, good/scrap/rework and notes **inside IPPCS only**. It is not supplier material lot genealogy or finished serialized shock-absorber traceability.
+
+### Database stage-five migration
+The committed additive migration `20261026190313_StageFiveQualityOee` introduces `ManufacturingQualityHolds`, `ManufacturingOeePlans`, and two quality quantity columns on existing work-order operation records (0 defaults). The initial schema remains untouched; apply using `dotnet ef database update` only after reviewing the incremental changes and backing up persistent data. CI verifies migration application against disposable SQL Server, followed by authenticated shop-floor and quality workflow smoke tests.
+
+### OEE limitations
+The current dashboard uses the UTC confirmation/timestamp converted to plant local day (`Asia/Tehran`). Stoppage duration is assigned to the date it was recorded, not allocated across actual start/end timestamps. Quality scrap decided after a recorded good production confirmation is **not yet retroactively applied to historical OEE quality**. For this reason OEE is a provisional engineering indicator, not yet a controlled corporate KPI. Shift reconciliations, overlap-safe downtime intervals and subsequent quality dispositions need further design.
