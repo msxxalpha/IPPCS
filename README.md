@@ -22,6 +22,15 @@ Manual planning balances and expected receipts are IPPCS-only assumptions, not w
 - Read-only exact-lot confirmation lookup surfaces in-system operations and work orders, but not a complete source-component genealogy.
 - Incremental SQL migration `StageFiveQualityOee` is committed. Disposable-SQL GitHub integration tests cover quality hold, quality release, WIP and OEE in an authenticated work-order scenario.
 
+## Stage 6: versioned Control Plan and manufacturing batch genealogy
+- `/control-plan.html` provides a Persian RTL workspace to create and approve production-specific Control Plans based on a **routing revision** and Jalali effectivity dates.
+- Numeric dimensional/force/process control characteristics include minimum, maximum, unit, stage sequence and mandatory flag.
+- Releasing a new work order snapshots the approved applicable characteristics into immutable-order inspection requirements; approved plans and inspection history cannot be edited via the API.
+- Downstream production and final order completion are blocked when mandatory inspection requirements are unpassed. Out-of-spec measurements create recorded quality holds. Quality disposition and a subsequent passing inspection are separate checks.
+- The lot genealogy facility links **two adjacent within-order operation confirmations** and the quantity attributable to the source; it prevents duplicate or overallocated links. It is not cross-BOM material genealogy and makes no inventory movements.
+- Automated tests now cover quality gates, specification boundaries, lot-link arithmetic and real SQL Server workflows.
+- Incremental migration `20261026193011_StageSixControlPlan` is committed. Existing data and modules are retained.
+
 ## Implementation and security status
 **Development preview only, not production-ready.**
 - The stage-four shop-floor model tracks quantities and basic lot labels, but does not move physical stock, perform complete genealogy or calculate OEE.
