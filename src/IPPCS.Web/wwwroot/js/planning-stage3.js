@@ -53,6 +53,24 @@ function render(){
   ["تاریخ ایجاد",r=>new Date(r.createdUtc).toLocaleDateString("fa-IR-u-ca-persian")],
   ["ردیف‌ها",r=>r.lines.map(x=>name(x.itemId)+" × "+fmt(x.quantity)+" ("+x.neededOnJalali+")").join(" | ")||"—"]
  ],state.mps,{text:r=>r.state===0?"تأیید برنامه":"قفل",disabled:r=>r.state!==0,click:async r=>{await call("/mps/"+r.id+"/approve","POST");alertText("نسخه MPS تأیید شد.");await load();}});
+
+ table("#bom-lines-table",[
+  ["محصول",r=>name(r.parentItemId)],["نسخه","revision"],["جزء",r=>name(r.componentItemId)],
+  ["مقدار",r=>fmt(r.quantityPer)],["ترتیب","sequence"]
+ ],state.bom.filter(x=>x.state===0).flatMap(r=>r.lines.map(l=>({...l,parentItemId:r.parentItemId,revision:r.revision,revisionId:r.id}))),
+ {text:()=>"حذف جزء",click:async r=>{
+  if(!window.confirm("آیا جزء انتخاب‌شده از پیش‌نویس BOM حذف شود؟"))return;
+  await call("/bom-revisions/"+r.revisionId+"/lines/"+r.id,"DELETE");
+  alertText("جزء پیش‌نویس حذف شد.");await load();
+ }});
+ table("#mps-lines-table",[
+  ["برنامه","code"],["محصول",r=>name(r.itemId)],["تاریخ نیاز","neededOnJalali"],["مقدار",r=>fmt(r.quantity)]
+ ],state.mps.filter(x=>x.state===0).flatMap(v=>v.lines.map(l=>({...l,code:v.code,versionId:v.id}))),
+ {text:()=>"حذف ردیف",click:async r=>{
+  if(!window.confirm("آیا ردیف برنامه پیش‌نویس حذف شود؟"))return;
+  await call("/mps/"+r.versionId+"/lines/"+r.id,"DELETE");
+  alertText("ردیف برنامه پیش‌نویس حذف شد.");await load();
+ }});
  table("#balance-table",[
   ["کالا",r=>name(r.itemId)],["موجودی فرضی",r=>fmt(r.physicalQuantity)],
   ["رزرو",r=>fmt(r.reservedQuantity)],["قرنطینه",r=>fmt(r.quarantinedQuantity)],
@@ -62,7 +80,11 @@ function render(){
  table("#receipt-table",[
   ["کالا",r=>name(r.itemId)],["تاریخ","availableOnJalali"],
   ["مقدار",r=>fmt(r.quantity)],["مرجع","reference"]
- ],state.receipts);
+ ],state.receipts,{text:()=>"حذف دریافت",click:async r=>{
+  if(!window.confirm("دریافت فرضی حذف شود؟ سوابق محاسبات قبلی محفوظ می‌مانند."))return;
+  await call("/planning-receipts/"+r.id,"DELETE");
+  alertText("دریافت فرضی حذف شد.");await load();
+ }});
 }
 async function load(){
  const resources=await Promise.all([
