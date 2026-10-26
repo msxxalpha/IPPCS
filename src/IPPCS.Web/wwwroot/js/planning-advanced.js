@@ -47,6 +47,8 @@ function showResources(){
  fill($("#material-order"),state.orders.filter(x=>x.status===1||x.status===2),x=>x.number);
  fill($("#cost-order"),state.orders,x=>x.number);
  fill($("#cost-center"),state.centers,x=>x.code+" | "+x.name);
+ fill($("#demand-mps-target"),state.mps.filter(x=>x.state===0),x=>x.code);
+ fill($("#demand-target"),state.demand,x=>item(x.itemId)+" • "+x.reference+" • "+x.dueOnJalali);
  table("#demand-table",[["محصول",x=>item(x.itemId)],["مرجع","reference"],
   ["نوع",x=>({Forecast:"پیش‌بینی",Confirmed:"نیاز قطعی داخلی",SafetyBuild:"ساخت اطمینان"})[x.category]||x.category],
   ["موعد","dueOnJalali"],["مقدار",x=>format(x.quantity)]],state.demand,{
@@ -76,7 +78,35 @@ function addForm(id,callback){
   catch(error){flash(error.message,true);}finally{submit.disabled=false;}
  });
 }
+function renderGantt(allocations){
+ const host=$("#aps-gantt");host.replaceChildren();
+ if(!allocations.length){host.textContent="عملیاتی در این افق قابل زمان‌بندی نیست.";return;}
+ const days=new Map();
+ for(const row of allocations){
+  const key=row.startJalali+"|"+row.workCenterId;
+  if(!days.has(key))days.set(key,[]);
+  days.get(key).push(row);
+ }
+ const wrap=document.createElement("div");wrap.style.cssText="display:grid;gap:12px;min-width:700px";
+ [...days.entries()].sort((a,b)=>a[0].localeCompare(b[0])).forEach(([key,rows])=>{
+  const container=document.createElement("div");container.style.cssText="display:grid;grid-template-columns:190px 1fr;gap:12px;align-items:center";
+  const title=document.createElement("div");title.textContent=rows[0].startJalali+" • "+center(rows[0].workCenterId);
+  title.style.fontSize="12px";
+  const track=document.createElement("div");track.style.cssText="position:relative;height:43px;border:1px solid #cbd5e1;border-radius:8px;background:repeating-linear-gradient(to left,#f1f5f9 0,#f1f5f9 calc(100% / 24 - 1px),#d5e1ea calc(100% / 24 - 1px),#d5e1ea calc(100% / 24))";
+  rows.forEach(row=>{
+   const minutes=t=>{const [h,m]=t.split(":").map(Number);return h*60+m;};
+   const start=minutes(row.startTime),finish=minutes(row.finishTime);
+   const bar=document.createElement("div");bar.title=row.operationName+" — "+row.startTime+" تا "+row.finishTime;
+   bar.textContent=row.sequence+"";
+   bar.style.cssText="position:absolute;top:5px;height:31px;display:flex;align-items:center;justify-content:center;border-radius:5px;font-size:10px;overflow:hidden;white-space:nowrap;color:#fff;background:"+(row.late?"#b45309":"#1f567e")+";left:"+(start/1440*100)+"%;width:"+Math.max(0,(finish-start)/1440*100)+"%";
+   track.append(bar);
+  });
+  container.append(title,track);wrap.append(container);
+ });
+ host.append(wrap);host.style.overflowX="auto";
+}
 function renderAps(data){
+ renderGantt(data.allocations);
  table("#aps-table",[["کالا",x=>item(x.itemId)],["عملیات","sequence"],["شرح","operationName"],
   ["مرکز کاری",x=>center(x.workCenterId)],["شروع","startJalali"],["ساعت شروع","startTime"],
   ["پایان","finishJalali"],["ساعت پایان","finishTime"],["دقیقه",x=>format(x.durationMinutes)],
@@ -104,10 +134,22 @@ function register(){
   itemId:formval(f,"itemId"),reference:formval(f,"reference"),category:formval(f,"category"),
   dueOnJalali:formval(f,"due"),quantity:number(f,"quantity")
  }));
+ $("#demand-transfer").onclick=async()=>{
+  const id=$("#demand-target").value,version=$("#demand-mps-target").value;
+  if(!id||!version){flash("تقاضا و MPS پیش‌نویس هدف را انتخاب کنید.",true);return;}
+  const btn=$("#demand-transfer");btn.disabled=true;
+  try{await api("/factory-demand/"+id+"/to-mps/"+version,"POST");
+   flash("تقاضای انتخاب‌شده به MPS پیش‌نویس منتقل شد.");await load();
+  }catch(e){flash(e.message,true);}finally{btn.disabled=false;}
+ };
  addForm("#sop-form",async f=>{
   const data=await api("/factory-sop/calculate","POST",{
    code:formval(f,"code"),fromJalali:formval(f,"from"),throughJalali:formval(f,"through")
   });
+  table("#sop-centers",[["مرکز کاری",x=>center(x.workCenterId)],
+   ["بار (دقیقه)",x=>format(x.requiredMinutes)],
+   ["ظرفیت (دقیقه)",x=>format(x.availableMinutes)],
+   ["اضافه‌بار",x=>format(x.overloadMinutes)]],data.byCenter||[]);
   flash("S&OP: بار "+format(data.roughCutMinutes)+" دقیقه و ظرفیت "+
    format(data.availableMinutes)+" دقیقه. "+(data.warnings?.join("؛ ")||""));
  });
