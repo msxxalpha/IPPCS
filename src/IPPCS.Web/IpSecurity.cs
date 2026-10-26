@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.RateLimiting;
 
 // Independent local authentication; no HR, AD, or existing identity service integration.
 public record IpLoginInput(string Username, string Password);
@@ -87,10 +88,8 @@ public static class IpSecuritySetup
     {
         return app.Use(async(context,next)=>{
             if(context.Request.Path.StartsWithSegments("/api/v1")
-                && HttpMethods.IsPost(context.Request.Method)
-                    || context.Request.Path.StartsWithSegments("/api/v1")
-                && (HttpMethods.IsPut(context.Request.Method)||HttpMethods.IsPatch(context.Request.Method)
-                    ||HttpMethods.IsDelete(context.Request.Method)))
+                && (HttpMethods.IsPost(context.Request.Method)||HttpMethods.IsPut(context.Request.Method)
+                    ||HttpMethods.IsPatch(context.Request.Method)||HttpMethods.IsDelete(context.Request.Method)))
             {
                 try { await context.RequestServices.GetRequiredService<IAntiforgery>().ValidateRequestAsync(context); }
                 catch(AntiforgeryValidationException)
