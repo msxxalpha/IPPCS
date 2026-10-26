@@ -22,16 +22,16 @@ Planning inventory inputs, customer demand inputs, supplier lead times (if neces
 | 10 | Final shock absorber assembly execution | Partial: approved finished-item work order + operation progress |
 | 11 | Line-side material planning and consumption | Not started |
 | 12 | Plan adherence and deviation management | Basic planned vs actual quantity in workbench; deviation reason workflows pending |
-| 13 | In-process quality controls / quarantine | Partial: quantity-specific quality holds, authorized release/scrap decisions, next-operation block, audit; formal Control Plan pending |
+| 13 | In-process quality controls / quarantine | Partial: approved dated Control Plan, operation-specific numeric characteristics, frozen work-order checks, mandatory inspection gate, out-of-spec quality hold and immutable measurement history. Sampling rules/SPC pending |
 | 14 | OEE and downtime classification | Preliminary daily OEE from manually planned minutes, reported output and downtime; advanced time/PLC validation pending |
-| 15 | Manufacturing lot/serial traceability | Partial: lot codes on confirmations plus exact-code production history; no cross-BOM component genealogy |
+| 15 | Manufacturing lot/serial traceability | Partial: exact lot history plus auditable quantity-limited links between adjacent operation confirmations of a work order; cross-order component genealogy pending |
 | 16 | What-if simulations and scenarios | Not started |
 | 17 | Conversion cost and productivity analysis | Not started |
 | 18 | Manufacturing KPI dashboards and decision support | Partial: center/day OEE preview and manufacturing WIP visibility; comprehensive dashboards pending |
 
 ## Architecture
 ASP.NET Core web API / EF Core SQL Server. Modular monolith direction; this bootstrap will be split into domain/application/infrastructure modules as implementation expands.
-Initial Persian RTL UI and shared Jalali datepicker implemented. Manufacturing order workbench at /execution.html; local Identity login and CSRF controls added. Dates are stored as Gregorian SQL date/time, with PersianCalendar server checks. Still pending: granular planner/operator role authorization, incremental production migration review and practical SQL Server runtime acceptance, full WIP transfers, WIP material movements, end-to-end traceability, quality gates, OEE, pegging, finite CRP and APS.
+Initial Persian RTL UI and shared Jalali datepicker implemented. Manufacturing order workbench at /execution.html; local Identity login and CSRF controls added. Dates are stored as Gregorian SQL date/time, with PersianCalendar server checks. Still pending: granular planner/operator authorization and user administration, plant-environment UAT, full WIP transfers/material allocations, serialized genealogy, Control Plan sampling and SPC, audited OEE, pegging and finite CRP/APS.
 
 ## Acceptance guardrails
 - No claim of completion until user-visible screens, business rules, persistence, permissions and tests exist.
