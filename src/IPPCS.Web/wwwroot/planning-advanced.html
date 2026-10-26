@@ -34,7 +34,15 @@
 <label>تاریخ نیاز<span class="jalali-field"><input name="due" data-jalali-date required placeholder="انتخاب تاریخ شمسی"><button type="button" data-jalali-trigger class="date-trigger">▣</button></span></label>
 <label>مقدار<input name="quantity" type="number" step="any" min="0.0001" required></label>
 <div class="form-actions"><button type="submit" class="btn-main">ثبت تقاضا</button></div>
-</form><div class="panel"><h3>فهرست تقاضاهای داخلی</h3><div id="demand-table"></div></div>
+</form><form id="forecast-form" class="panel form-grid">
+<h3 class="wide">پیش‌بینی آماری ساده بر اساس نیازهای قطعی داخلی قبلی</h3>
+<label>محصول نهایی<select name="itemId" data-finished required></select></label>
+<label>شروع ماه پیش‌بینی<span class="jalali-field"><input name="from" data-jalali-date required><button type="button" data-jalali-trigger class="date-trigger">▣</button></span></label>
+<label>ماه‌های سابقه<input name="lookback" type="number" min="2" max="12" value="6" required></label>
+<label>ماه‌های آینده<input name="months" type="number" min="1" max="6" value="3" required></label>
+<div class="form-actions"><button class="btn-outline" type="submit">پیش‌نمایش میانگین متحرک</button></div>
+</form>
+<div class="panel"><h3>نتیجه پیش‌بینی (بدون ثبت خودکار تقاضا)</h3><div id="forecast-table"></div></div><div class="panel"><h3>فهرست تقاضاهای داخلی</h3><div id="demand-table"></div></div>
 <div class="panel form-grid">
 <label>نسخه پیش‌نویس هدف MPS<select id="demand-mps-target"></select></label>
 <div class="form-actions"><button id="demand-transfer" class="btn-outline" type="button">انتقال تقاضای انتخاب‌شده به MPS</button></div>
