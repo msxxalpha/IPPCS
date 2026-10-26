@@ -76,7 +76,7 @@ public static class ManufacturingFoundationEndpoints
 {
     public static IEndpointRouteBuilder MapManufacturingFoundation(this IEndpointRouteBuilder routes)
     {
-        var api = routes.MapGroup("/api/v1");
+        var api = routes.MapGroup("/api/v1").RequireAuthorization("IpProductionUser");
 
         api.MapGet("/calendar/convert", (string jalali) =>
             PersianPlanningDates.TryParse(jalali, out var date)
