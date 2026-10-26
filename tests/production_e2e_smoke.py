@@ -185,6 +185,10 @@ request(f"/api/v1/manufacturing-orders/{fid}/lot-genealogy", "POST", {
     "sourceConfirmationId": source["id"], "destinationConfirmationId": dest["id"],
     "quantity": 1
 }, 409)
+# The forecast endpoint is deliberately read-only, requires no external sales data.
+# With no prior confirmed history, its estimated quantity must be zero.
+forecast = request(f"/api/v1/factory-demand/forecast/{product['id']}?fromJalali={JALALI_NOW}&lookback=6&months=2")
+assert len(forecast["rows"]) == 2
 # Stage seven: independent demand, capacity balancing and finite scheduling.
 from datetime import datetime
 from zoneinfo import ZoneInfo
