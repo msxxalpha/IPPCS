@@ -223,7 +223,7 @@ public static class PlanningStageThreeEndpoints
 
     public static IEndpointRouteBuilder MapPlanningStageThree(this IEndpointRouteBuilder routes)
     {
-        var api=routes.MapGroup("/api/v1");
+        var api=routes.MapGroup("/api/v1").RequireAuthorization("IpProductionUser");
         api.MapGet("/bom-revisions",async(ProductionDb db,CancellationToken ct)=>{
             var list=await db.ManufacturingBomRevisions.AsNoTracking().Include(x=>x.Lines)
                 .OrderBy(x=>x.ParentItemId).ThenBy(x=>x.ValidFrom).Take(400).ToListAsync(ct);
