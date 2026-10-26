@@ -34,7 +34,7 @@
   async function api(url,method="GET",payload){
     const options={method,headers:{}};
     if(payload!==undefined){options.headers["Content-Type"]="application/json";options.body=JSON.stringify(payload);}
-    const response=await fetch(url,options);
+    const response=await window.IPPCSSecurity.secureFetch(url,options);
     if(response.ok){const text=await response.text();return text?JSON.parse(text):null;}
     let error;
     try { const raw=await response.text();let data=JSON.parse(raw); error=data.message||data.title||data.detail||raw; } catch {error="پاسخ سرور نامعتبر است.";}
