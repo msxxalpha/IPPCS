@@ -96,3 +96,11 @@ The current dashboard uses the UTC confirmation/timestamp converted to plant loc
 - Enter development-only center conversion cost and scrap assumptions in **rial units**. Cost results are standard-time * assumed rate only, not actual invoices, payroll or finance data.
 - Operational dashboard displays total order, downtime, hold, completed good and MPS-fulfillment signals; filters, user permissions, material-ready pegging, audit data versioning, and production UAT remain incomplete.
 - Additive stage-seven migration `20261026194722_StageSevenFactoryPlanning` creates `FactoryDemands`, `FactorySopReviews`, `FactoryApsRuns`, `FactoryMaterialUsages`, `FactoryCenterCostRates` without destructive table operations. Back up persistent data and review SQL scripts before applying.
+
+### Stage-seven refinements
+- The independent demand page can transfer a selected need to a **draft** MPS version. Repeating the same transfer to that version is rejected; it does not touch the sales module or any external database.
+- The simple Jalali moving-average forecast only uses prior `Confirmed` internal demands; zero-demand months are included. It is an advisory preview, **not** a verified forecasting model.
+- S&OP now displays overload by individual work center, so spare capacity at one center does not hide a bottleneck at another. This remains a coarse aggregated review, not date-scoped optimal schedule.
+- APS has a date- and center-specific Gantt bar view. It remains nonpreemptive and does not reserve materials or account for alternate work centers.
+- Dedicated `IpPlanningWrite` policy limits new demand/S&OP/APS/scenario state changes to Administrator/Planner and `IpShopFloorWrite` limits line-side consumption writes to Administrator/ProductionOperator. Older prototype endpoints still require broader permission refactoring.
+- The complete factory acceptance backlog is in `docs/ACCEPTANCE_MATRIX.md`.
