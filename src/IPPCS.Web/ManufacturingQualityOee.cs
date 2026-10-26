@@ -203,6 +203,24 @@ public static class ManufacturingQualityAndOeeEndpoints
             return Results.Ok(new{hold.Id,hold.Status,orderStatus=order.Status});
         }).RequireAuthorization("IpQualityApprove");
 
+        api.MapGet("/manufacturing-lots/search",async(string lotCode,ProductionDb db,CancellationToken ct)=>{
+            if(string.IsNullOrWhiteSpace(lotCode)||lotCode.Trim().Length>100)
+                return Results.BadRequest(new{message="کد بچ معتبر و حداکثر ۱۰۰ کاراکتر لازم است."});
+            var key=lotCode.Trim();
+            var history=await db.ManufacturingConfirmations.AsNoTracking()
+                .Where(x=>x.LotCode==key)
+                .Include(x=>x.Operation).ThenInclude(x=>x.Order)
+                .OrderBy(x=>x.OccurredUtc).Take(500).ToListAsync(ct);
+            return Results.Ok(new{lotCode=key,count=history.Count,
+                records=history.Select(x=>new{
+                    x.Id,x.OccurredUtc,x.GoodQuantity,x.ScrapQuantity,x.ReworkQuantity,x.Note,
+                    orderId=x.Operation.OrderId,orderNumber=x.Operation.Order.Number,
+                    itemId=x.Operation.Order.ItemId,operationId=x.OperationId,
+                    sequence=x.Operation.Sequence,operation=x.Operation.Name,
+                    x.Operation.WorkCenterId
+                })});
+        });
+
         api.MapGet("/oee/plans",async(ProductionDb db,CancellationToken ct)=>{
             var list=await db.ManufacturingOeePlans.AsNoTracking().OrderByDescending(x=>x.ProductionDate).Take(400).ToListAsync(ct);
             return Results.Ok(list.Select(x=>new{x.Id,x.WorkCenterId,x.PlannedMinutes,x.Note,
