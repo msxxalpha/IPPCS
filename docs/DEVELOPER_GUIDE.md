@@ -10,12 +10,10 @@ cd src/IPPCS.Web
 dotnet user-secrets init
 dotnet user-secrets set "ConnectionStrings:Production" "Server=localhost;Database=IPPCS_Dev;Trusted_Connection=True;TrustServerCertificate=True;"
 dotnet tool install --global dotnet-ef
-dotnet ef migrations add InitialProductionFoundation
 dotnet ef database update
 dotnet run --environment Development
 ```
-Do not run `EnsureCreated` against a persistent DB. Generate, inspect, then commit reviewed EF migrations before non-development deployment.
-Database schema has not been deployed or integration-tested as part of the bootstrap commits.
+Do not run `EnsureCreated` against a persistent DB. The initial EF Core migration was generated in CI and committed under `src/IPPCS.Web/Migrations/CI/`, including ASP.NET Identity tables. Review SQL/database backup strategy before applying to any persistent database. SQL Server integration workflow (`.github/workflows/sql-schema.yml`) exercises applying the migration to a disposable database; it is NOT a substitute for local UAT on the target SQL Server.
 
 ## Browser
 Visit the development URL root. It redirects to `/app.html`. The responsive RTL UI supports item catalog, work centers, multilevel BOM, routing versions, routing operations, work shifts, and simple prototype production plans.
@@ -54,3 +52,10 @@ The MRP engine deliberately refuses to guess unknown item balances/lead-time pol
 - Current shop-floor workflow requires full completion of a preceding operation before confirming a subsequent step. Partial transfers, combined line throughput, scrap disposition approval, NC/rework processing, line material backflush and OEE remain future features.
 - Role-gated APIs do not imply granular role-based privileges for planners versus operators. Only Administrator is bootstrapped currently.
 - All data lives in dedicated IPPCS SQL tables. No existing warehouse/purchasing/sales/HR APIs or SQL views are called.
+
+## Checked-in initial database migration
+- The initial migration currently carries the generated name `20261026184038_CiSchemaSmoke`; it is the baseline schema, not an ephemeral runtime-only migration.
+- Visual Studio users should perform only `dotnet ef database update` against an empty **IPPCS_Dev** database after configuring the development connection string.
+- Every additional entity/model change must ship a reviewed incremental EF migration. The build workflow runs `dotnet ef migrations has-pending-model-changes` to prevent silent DbContext/SQL drift.
+- A separate SQL Server integration workflow starts a disposable SQL Server container with generated test-only credentials and attempts to apply the actual committed schema.
+- If a database already has nontrivial business data, test and back up before running a migration; no destructive rebuild is authorized.
