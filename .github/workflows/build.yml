@@ -1,0 +1,16 @@
+name: IPPCS build
+on:
+  push:
+  pull_request:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Restore
+        run: dotnet restore src/IPPCS.Web/IPPCS.Web.csproj
+      - name: Build
+        run: dotnet build src/IPPCS.Web/IPPCS.Web.csproj -c Release --no-restore
