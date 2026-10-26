@@ -49,7 +49,10 @@ public static class IpSecuritySetup
                 ctx.Response.Redirect(ctx.RedirectUri);return Task.CompletedTask;
             };
         });
-        services.AddAuthorization(options=>options.AddPolicy("IpProductionUser",p=>p.RequireRole("Administrator","Planner","ProductionOperator")));
+        services.AddAuthorization(options=>{
+            options.AddPolicy("IpProductionUser",p=>p.RequireRole("Administrator","Planner","ProductionOperator","QualityInspector"));
+            options.AddPolicy("IpQualityApprove",p=>p.RequireRole("Administrator","QualityInspector"));
+        });
         services.AddAntiforgery(options=>{
             options.Cookie.Name="IPPCS.XSRF";
             options.Cookie.HttpOnly=true;
