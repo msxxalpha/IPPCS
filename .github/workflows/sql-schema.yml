@@ -16,7 +16,7 @@ jobs:
       - name: Start disposable SQL Server with generated credential
         shell: bash
         run: |
-          password=$(openssl rand -base64 36 | tr -dc 'A-Za-z0-9' | head -c 24)
+          password="Ci_Aa1!$(openssl rand -hex 18)"
           echo "::add-mask::$password"
           echo "CI_DB_PASSWORD=$password" >> "$GITHUB_ENV"
           docker run -d --name ippcs-ci-sql \
