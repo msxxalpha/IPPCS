@@ -33,9 +33,9 @@ Manual planning balances and expected receipts are IPPCS-only assumptions, not w
 
 ## Stage seven: demand, rough-cut S&OP, finite scheduling and operational analytics
 - New Persian RTL `/planning-advanced.html` with the reusable Jalali picker.
-- Production-only demand categories (internal confirmed, forecast and safety build) without sales-module integration.
-- Rough-cut 90-day S&OP capacity-load snapshots from approved routings and weekly shifts. It is **not** an optimized multi-center balance.
-- Finite, non-overlapping work-center allocations per approved MPS demand line, preserving routing precedence and effective shifts; no preemption or overlapping slots, and unscheduled/late warnings. This is a **heuristic APS prototype**, not a full optimizer with inventory, alternatives, maintenance, or setup-sequence constraints.
+- Production-only demand categories (internal confirmed, forecast and safety build) without sales integration, a simple Jalali-month moving-average forecast (from previous confirmed internal needs only) and transfer into draft MPS with duplicate detection.
+- Rough-cut 90-day S&OP capacity-load snapshots from approved routings and weekly shifts, including overload **per work center**. It is **not** an optimized time-phased balance.
+- Finite, non-overlapping work-center allocations per approved MPS demand line, preserving routing precedence and effective shifts; no preemption or overlapping slots, and unscheduled/late warnings. A dated per-center Gantt view makes the schedule inspectable. This is a **heuristic APS prototype**, not a full optimizer with inventory, alternatives, maintenance, or setup-sequence constraints.
 - Side-effect-free capacity what-if (different staffing/availability multiplier) without changing confirmed plans or external systems.
 - Operation-side material consumption records and planned-vs-recorded BOM variances; not warehouse stock or warehouse receipts.
 - Local **assumptions** of conversion cost rates in rials per center and standard-time estimates; not finance module or actual production-cost accounting.
@@ -51,6 +51,9 @@ Manual planning balances and expected receipts are IPPCS-only assumptions, not w
 - Local authentication exists; granular per-module permissions, plant user management and security acceptance tests are still pending.
 - The generated initial migration and incremental stage-five migration are checked into Git and checked for EF model drift. Practical SQL Server migration/UAT and IIS deployment acceptance remain prerequisites. Non-Development web hosting is blocked by design.
 - Authenticated production APIs require CSRF request token for state changes.
+
+## Acceptance and readiness
+An explicit [18-module acceptance register](docs/ACCEPTANCE_MATRIX.md) identifies the factory UAT, security and business-process criteria that are **not complete**. Automated CI passing is not approval to deploy.
 
 ## Local developer setup
 Use the [full developer guide](docs/DEVELOPER_GUIDE.md). Never put SQL passwords or bootstrap passwords in committed files. Configure user secrets and a disposable development database, apply a reviewed initial schema migration, then run `IPPCS.sln` with the **IPPCS.Web (HTTPS)** profile. Default landing is `/app.html`.
