@@ -31,6 +31,18 @@ Manual planning balances and expected receipts are IPPCS-only assumptions, not w
 - Automated tests now cover quality gates, specification boundaries, lot-link arithmetic and real SQL Server workflows.
 - Incremental migration `20261026193011_StageSixControlPlan` is committed. Existing data and modules are retained.
 
+## Stage seven: demand, rough-cut S&OP, finite scheduling and operational analytics
+- New Persian RTL `/planning-advanced.html` with the reusable Jalali picker.
+- Production-only demand categories (internal confirmed, forecast and safety build) without sales-module integration.
+- Rough-cut 90-day S&OP capacity-load snapshots from approved routings and weekly shifts. It is **not** an optimized multi-center balance.
+- Finite, non-overlapping work-center allocations per approved MPS demand line, preserving routing precedence and effective shifts; no preemption or overlapping slots, and unscheduled/late warnings. This is a **heuristic APS prototype**, not a full optimizer with inventory, alternatives, maintenance, or setup-sequence constraints.
+- Side-effect-free capacity what-if (different staffing/availability multiplier) without changing confirmed plans or external systems.
+- Operation-side material consumption records and planned-vs-recorded BOM variances; not warehouse stock or warehouse receipts.
+- Local **assumptions** of conversion cost rates in rials per center and standard-time estimates; not finance module or actual production-cost accounting.
+- Initial KPI dashboard and MPS completion variance overview.
+- EF stage-seven migration adds five tables; unit tests exercise finite intervals, precedence, overcapacity, internal material consumption variance and plan fulfillment, and disposable SQL integration checks the endpoints.
+- **All 18 agreed module categories now have at least an initial implemented capability**; none is being represented as factory-accepted or fully implemented.
+
 ## Implementation and security status
 **Development preview only, not production-ready.**
 - The stage-four shop-floor model tracks quantities and basic lot labels, but does not move physical stock, perform complete genealogy or calculate OEE.
