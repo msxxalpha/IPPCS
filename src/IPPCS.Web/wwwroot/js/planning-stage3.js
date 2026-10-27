@@ -1,7 +1,7 @@
 (()=>{
 "use strict";
 const $=s=>document.querySelector(s), $$=s=>Array.from(document.querySelectorAll(s));
-const state={items:[],centers:[],bom:[],mps:[],balances:[],receipts:[]};
+const state={items:[],centers:[],bom:[],routings:[],mps:[],balances:[],receipts:[]};
 const val=(form,k)=>new FormData(form).get(k);
 const number=(form,k)=>Number(IPPCSJalali.toLatin(val(form,k)));
 const fmt=v=>Number(v).toLocaleString("fa-IR",{maximumFractionDigits:4});
@@ -41,6 +41,8 @@ function render(){
  $$("[data-item]").forEach(el=>options(el,state.items,x=>x.code+" | "+x.name));
  $$("[data-finished]").forEach(el=>options(el,state.items.filter(x=>x.type===2),x=>x.code+" | "+x.name));
  options($("#bom-revision-select"),state.bom.filter(x=>x.state===0),x=>name(x.parentItemId)+" / "+x.revision);
+ options($("#revision-bom-check"),state.bom,x=>name(x.parentItemId)+" / "+x.revision);
+ options($("#revision-routing-check"),state.routings,x=>name(x.itemId)+" / "+x.revisionCode);
  options($("#mps-draft-select"),state.mps.filter(x=>x.state===0),x=>x.code);
  options($("#calculate-mps"),state.mps.filter(x=>x.state===1),x=>x.code);
  table("#bom-table",[
@@ -88,9 +90,9 @@ function render(){
 }
 async function load(){
  const resources=await Promise.all([
-  call("/items"),call("/work-centers"),call("/bom-revisions"),call("/mps"),call("/planning-balances"),call("/planning-receipts")
+  call("/items"),call("/work-centers"),call("/bom-revisions"),call("/routings"),call("/mps"),call("/planning-balances"),call("/planning-receipts")
  ]);
- ["items","centers","bom","mps","balances","receipts"].forEach((k,i)=>state[k]=resources[i]);
+ ["items","centers","bom","routings","mps","balances","receipts"].forEach((k,i)=>state[k]=resources[i]);
  render();
 }
 function register(formId,fn){const form=$(formId);form.addEventListener("submit",async e=>{
@@ -105,6 +107,17 @@ function boot(){
   $$("nav [data-section]").forEach(btn=>btn.classList.toggle("nav-active",btn===b));
   $("#title").textContent=b.textContent;$("#alert").hidden=true;
  });
+ async function revisionPreflight(kind){
+  const id=$(kind==="bom"?"#revision-bom-check":"#revision-routing-check").value;
+  if(!id){alertText("یک نسخه برای بررسی انتخاب کنید.",true);return;}
+  const path=kind==="bom"?"/factory-revisions/bom/":"/factory-revisions/routings/";
+  const report=await call(path+id+"/approval-check");
+  table("#revision-preflight-table",[["کد","code"],["شرح","description"]],
+   report.issues.length?report.issues:[{code:"آماده",description:"کنترل‌های نسخه برای تصویب مانعی پیدا نکردند."}]);
+  alertText(report.canApprove?"نسخه برای تصویب آماده است.":"نسخه هنوز برای تصویب معتبر نیست.",!report.canApprove);
+ }
+ $("#revision-check-bom").onclick=()=>revisionPreflight("bom").catch(e=>alertText(e.message,true));
+ $("#revision-check-routing").onclick=()=>revisionPreflight("routing").catch(e=>alertText(e.message,true));
  register("#bom-version-form",f=>call("/bom-revisions","POST",{
   parentItemId:val(f,"parentItemId"),revision:val(f,"revision"),validFromJalali:val(f,"from"),
   validUntilJalali:val(f,"until")||null
