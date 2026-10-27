@@ -9,7 +9,7 @@ public record FactoryEolIssue(string Code,string Description,Guid? LotId=null,Gu
 public record FactoryEolLotCoverage(Guid LotId,string LotCode,Guid ComponentItemId,
     decimal RequiredQuantity,decimal LinkedQuantity,decimal MissingQuantity);
 public record FactoryEolApproval(Guid OrderId,string OrderNumber,bool CanApprove,bool AlreadyApproved,
-    int FinalLotCount,decimal FinalGoodQuantity,int MandatoryFinalChecks,
+    int FinalLotCount,decimal FinalGoodQuantity,int MandatoryFinalChecks,int UntracedStagePairs,
     IReadOnlyList<FactoryEolLotCoverage> Coverage,IReadOnlyList<FactoryEolIssue> Issues,
     string? ApprovedBy,DateTime? ApprovedUtc,string Disclaimer);
 
@@ -21,7 +21,8 @@ public static class FactoryEndOfLineAcceptance
         IReadOnlyList<ManufacturingLotGenealogy> links,
         IReadOnlyDictionary<Guid,Guid> sourceItems,
         IReadOnlySet<Guid> semiItemIds,IReadOnlyList<ManufacturingQualityHold> holds,
-        IReadOnlyList<ManufacturingOrderAudit> audits)
+        IReadOnlyList<ManufacturingOrderAudit> audits,
+        IReadOnlyList<FactoryStageHandoff>? stageHandoffs=null)
     {
         var issues=new List<FactoryEolIssue>();
         var latest=audits.Where(x=>x.Action==ApprovedAction)
@@ -48,6 +49,14 @@ public static class FactoryEndOfLineAcceptance
         foreach(var lot in lots)
             if(string.IsNullOrWhiteSpace(lot.LotCode))
                 issues.Add(new("MissingLotCode","کد بچ مونتاژ برای گواهی نهایی الزامی است.",lot.Id));
+        var stagePairs=stageHandoffs??[];
+        if(order.Operations.Count>1)
+        {
+            if(stagePairs.Count!=order.Operations.Count-1 ||
+                stagePairs.Any(x=>x.UntracedDownstreamGood>0||!x.QualityGatePassed))
+                issues.Add(new("UndocumentedStageHandoff",
+                    "تمام بچ‌های خروجی عملیات بعدی باید پیوند مستند با عملیات قبلی و گیت کیفیت معتبر داشته باشند."));
+        }
         var coverage=new List<FactoryEolLotCoverage>();
         if(bom is not null)
         {
@@ -83,7 +92,8 @@ public static class FactoryEndOfLineAcceptance
         if(latest is not null)
             issues.Add(new("AlreadyApproved","این دستور قبلاً گواهی نهایی ثبت کرده است."));
         return new(order.Id,order.Number,issues.Count==0,latest is not null,lots.Length,
-            lots.Sum(x=>x.GoodQuantity),requiredLast.Length,coverage,issues,
+            lots.Sum(x=>x.GoodQuantity),requiredLast.Length,
+            stagePairs.Count(x=>x.UntracedDownstreamGood>0),coverage,issues,
             latest is null?null:ReadApprovedBy(latest.Details),latest?.AtUtc,
             "تأیید کنترل نهایی صرفاً ثبت داخلی کنترل کیفیت تولید است؛ اجازه ارسال محصول، گواهی مشتری، انتقال موجودی یا ثبت فروش نیست.");
     }
@@ -129,7 +139,16 @@ public static class FactoryEndOfLineAcceptance
             .Where(x=>x.OrderId==id&&x.Status==ManufacturingQualityStatus.Open).ToListAsync(ct);
         var audits=await db.ManufacturingOrderAudits.AsNoTracking()
             .Where(x=>x.OrderId==id&&x.Action==ApprovedAction).ToListAsync(ct);
-        return Evaluate(order,bom,lots,crossLinks,sourceItems,semiItems.ToHashSet(),holds,audits);
+        var operationIds=order.Operations.Select(x=>x.Id).ToArray();
+        var stageConfirmations=await db.ManufacturingConfirmations.AsNoTracking()
+            .Where(x=>operationIds.Contains(x.OperationId)).ToListAsync(ct);
+        var stageIds=stageConfirmations.Select(x=>x.Id).ToArray();
+        var internalLinks=await db.ManufacturingLotGenealogies.AsNoTracking()
+            .Where(x=>x.OrderId==id&&stageIds.Contains(x.SourceConfirmationId)&&
+                stageIds.Contains(x.DestinationConfirmationId)).ToListAsync(ct);
+        var handoffs=FactoryInProcessHandoffs.Analyze(order,stageConfirmations,internalLinks,holds);
+        return Evaluate(order,bom,lots,crossLinks,sourceItems,semiItems.ToHashSet(),holds,
+            audits,handoffs.Pairs);
     }
 
     public static IEndpointRouteBuilder MapEndOfLineAcceptance(this IEndpointRouteBuilder routes)
