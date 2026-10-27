@@ -66,3 +66,15 @@ The production program (04) has a controlled-copy revision path: approved source
 - **07 APS:** nonpreemptive overnight operations and all touched-day occupancy are calculated under versioned `FINITE-GREEDY-V2-NIGHT`; plant scenario owners must verify midnight, boundary blackouts, concurrent machine loads and workcenter downtime calendars.
 - **08 Dispatch:** center reservations and immutable audit can cross midnight, including a displayed ending Jalali date; representative physical multi-shift operator UAT remains uncompleted.
 - **CI:** test files exist but GitHub Actions still terminate in seconds with `steps:null`, `logs_url:null`. Until a successful exact-head Build/xUnit/JS/SQL run appears, Stage19–20 remain **untested in CI** and must not be deployed. No ERP links, schema reset, or main merge.
+
+
+## مراحل ۲۱ و ۲۲ — پیشرفت گیت مهندسی و دستور ساخت (کد ثبت‌شده، CI هنوز نامعتبر)
+- **ماژول‌های ۰۱ و ۰۸:** انتقال گروهی و صریح مرجع BOM/Routing برای حداکثر ۱۰۰ دستور *پیش‌نویس و بدون عملیات* همراه پیش‌نمایش مستقل، علت، ثبت تاریخچه و تراکنش اتمیک با قفل SQL. دستورات آزادشده یا در حال تولید تغییر نمی‌کنند. نسخه جایگزین باید مصوب و از تاریخ شروع هر دستور معتبر باشد.
+- **برش تاریخ اعتبار مهندسی:** پیش‌نمایش و ثبت مرجع تأیید با تاریخ شمسی؛ کوتاه‌سازی زمان اعتبار نسخه قبلی به روز قبل و تصویب نسخه پیشنهادی دقیقاً در تاریخ برش، به‌صورت یک تراکنش همراه با جدول مستقل و افزایشی `FactoryEngineeringCutoverEvents`. فرایند از تصویب عادی نسخه‌های دارای همپوشانی جدا است؛ تداخل با نسخه سوم، چرخه BOM، تاریخ گذشته و وضعیت نسخه نادرست رد می‌شود.
+- **عدم حذف/بازنویسی تاریخ:** تمام دستورات قبلاً آزادشده، حتی اگر شروع برنامه‌ای آنها پس از تاریخ برش باشد، ارجاع قبلی خود را حفظ می‌کنند. دستورات پیش‌نویس با ارجاع قبلی نیازمند بررسی و انتقال مجزا هستند. سوابق و داده ERP دست‌نخورده‌اند.
+- **مجوز:** ایجاد، ویرایش و تصویب BOM/Routing و عملیات MPS/MRP و فرضیات داخلی برنامه‌ریزی به `IpPlanningWrite` (Planner/Administrator) محدود شدند. برنامه‌ریزی و اجرای کارخانه هنوز تفکیک امضای ECO چندنقشی ندارد.
+- **آزمون‌های اضافه‌شده، نه موفق اعلام‌شده:** `FactoryStageTwentyOneDraftRebindTests` و `FactoryStageTwentyTwoCutoverTests`، `stage21_engineering_rebind_checks.py` و `stage22_engineering_cutover_checks.py` در زنجیره CI موقت SQL. سناریوی مثبت مسیر ساخت و BOM و سناریوی منفی انتقال و عدم تغییر دستور آزادشده لحاظ شده‌اند.
+- **مسدودکنندهٔ نهایی:** GitHub Actions پس از مرحلهٔ ۱۸ در مدت چند ثانیه و بدون `steps` و لاگ معتبر قطع می‌شود؛ build/xUnit/EF و SQL برای مراحل ۱۹ تا ۲۲ **تأیید نشده‌اند**. قبل از استقرار باید `dotnet build`، `dotnet test`، `dotnet ef migrations has-pending-model-changes`، مهاجرت در SQL موقت و UAT کارخانه با موفقیت اجرا شوند.
+- **هنوز باقی است:** گردش شماره ECO با هویت صاحب‌امضا و دو امضای مجزا، خط‌مشی اجازه برش، بازبینی برنامه‌های مرتبط و MPS/CRP/APS پس از برش، معیارهای تایید مدل واقعی کمک‌فنر، کنترل مستند بازگشت نسخه و امضای نهایی ۱۸ ماژول.
+
+دروازهٔ انتشار همچنان **بسته** است. صرف درج مرجع تأیید توسط یک برنامه‌ریز به‌معنای امضای نهایی مهندسی یا مجوز تغییر تجهیزات خط نیست.
