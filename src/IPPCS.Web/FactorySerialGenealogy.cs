@@ -83,6 +83,19 @@ public static class FactorySerialGenealogy
         return result;
     }
 
+    public static bool CertificateChronologyValid(
+        IReadOnlyList<ManufacturingOrderAudit> serialEvents,
+        IReadOnlyList<ManufacturingOrderAudit> certificates)
+    {
+        var groups=certificates.GroupBy(x=>x.OrderId)
+            .ToDictionary(x=>x.Key,x=>x.ToArray());
+        return serialEvents.Where(x=>x.Action==AssignmentAction).All(x=>
+            groups.TryGetValue(x.OrderId,out var signatures)&&
+            signatures.Length==1&&
+            signatures[0].Action==FactoryEndOfLineAcceptance.ApprovedAction&&
+            x.AtUtc>=signatures[0].AtUtc);
+    }
+
     internal static async Task LockGlobal(ProductionDb db,CancellationToken ct)
     {
         const string key="IPPCS:FactorySerials:All";
@@ -111,6 +124,8 @@ public static class FactorySerialGenealogy
         var certificates=await db.ManufacturingOrderAudits.AsNoTracking()
             .Where(x=>orderIds.Contains(x.OrderId)&&
                 x.Action==FactoryEndOfLineAcceptance.ApprovedAction).ToListAsync(ct);
+        if(!CertificateChronologyValid(journal,certificates))
+            return ([],"سند سریال قبل از گواهی تأیید پایان خط یا بدون گواهی یکتا ثبت شده است؛ دفتر قابل اعتماد نیست.");
         foreach(var id in orderIds)
         {
             if(!orders.TryGetValue(id,out var order)||
