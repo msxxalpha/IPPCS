@@ -110,6 +110,16 @@
           <div class="form-actions"><button class="btn-main" type="submit">ثبت شیفت</button></div>
         </form>
         <div class="panel table-panel"><h3>تقویم مراکز کاری</h3><div id="shift-list"></div></div>
+        <div class="panel"><h3>تقویم روزانه ظرفیت مؤثر، شامل دقایق شیفت شب</h3>
+          <p>ظرفیت هر روز شمسی از دقیقه‌های شیفت همان روز و بخش باقیمانده شیفت شب روز قبل محاسبه می‌شود. این گزارش مستقل از حضور و غیاب کارکنان است.</p>
+          <div class="form-grid">
+            <label>مرکز کاری<select id="shift-capacity-center" data-centers></select></label>
+            <label>تاریخ شروع<span class="jalali-field"><input id="shift-capacity-from" data-jalali-date placeholder="انتخاب تاریخ شمسی"><button type="button" class="date-trigger" data-jalali-trigger>▣</button></span></label>
+            <label>تعداد روز<input id="shift-capacity-days" type="number" min="1" max="31" value="7"></label>
+            <div class="form-actions"><button id="shift-capacity-review" type="button" class="btn-outline">بررسی ظرفیت روزانه و انتقال شیفت شب</button></div>
+          </div>
+          <div id="shift-capacity-table"></div>
+        </div>
       </section>
       <section id="plans" class="page" hidden>
         <div class="section-title"><h3>برنامه تولید (نمونه اولیه)</h3><small>ثبت مقدار و موعد تولید با تقویم شمسی؛ محاسبه نیاز ناخالص چندسطحی مواد.</small></div>
