@@ -50,6 +50,12 @@ def stage33_acceptance(request, mps_line_id, jalali):
     report=request(f"/api/v1/production-deviations/search?text={term}&category=4&status=1&page=1&pageSize=1")
     assert report["total"]==1 and report["totalPages"]==1 and len(report["rows"])==1,report
     assert report["rows"][0]["id"]==entry["id"],report
+    multi=request(f"/api/v1/production-deviations/search?text={term}&categories=2,4&status=1&page=1&pageSize=10")
+    assert multi["total"]==1 and multi["rows"][0]["id"]==entry["id"],multi
+    request("/api/v1/production-deviations/search?categories=4,99&page=1&pageSize=20",status=400)
+    request("/api/v1/production-deviations/search?categories=4&category=4&page=1&pageSize=20",status=400)
+    direct=request("/api/v1/production-deviations/"+entry["id"])
+    assert direct["id"]==entry["id"] and direct["responsibleCode"]=="SHIFT_LEAD",direct
     request("/api/v1/production-deviations/search?pageSize=101&page=1",status=400)
     request("/api/v1/production-deviations/search?status=99&page=1&pageSize=20",status=400)
     request("/api/v1/production-deviations/search?page=0&pageSize=20",status=400)
