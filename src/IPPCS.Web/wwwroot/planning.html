@@ -74,6 +74,25 @@
   </form>
   <div class="panel"><h3>نسخه‌ها و ردیف‌های برنامه اصلی تولید</h3><div id="mps-table"></div></div>
   <div class="panel"><h3>ردیف‌های برنامه پیش‌نویس (قابل اصلاح)</h3><div id="mps-lines-table"></div></div>
+<form id="mps-controlled-revision-form" class="panel form-grid">
+ <h3 class="wide">بازنگری کنترل‌شده MPS مصوب — ایجاد پیش‌نویس مجزا</h3>
+ <p class="wide">نسخه مصوب و ردیف‌های آن تغییر نمی‌کنند. نسخه پیشنهادی با کد و علت مستقل، تصویر ثابت ردیف‌های مبنا و نام ثبت‌کننده ایجاد می‌شود.</p>
+ <label>نسخه مصوب مبنا<select name="sourceId" id="mps-revision-source" required></select></label>
+ <label>کد نسخه جدید<input name="code" maxlength="64" required placeholder="MPS-1405-W32-R1"></label>
+ <label class="wide">علت بازنگری<textarea name="reason" maxlength="500" required placeholder="مثلاً تغییر اولویت برنامه به تأیید برنامه‌ریزی"></textarea></label>
+ <div class="form-actions"><button class="btn-main" type="submit">ایجاد پیش‌نویس قابل برگشت از برنامه مصوب</button></div>
+</form>
+<form id="mps-change-impact-form" class="panel form-grid">
+ <h3 class="wide">مقایسه تأثیر تغییر MPS بر تقاضا، مواد و ظرفیت</h3>
+ <label>نسخه اصلی مصوب<select name="sourceId" id="mps-comparison-source" required></select></label>
+ <label>نسخه تغییر یافته<select name="candidateId" id="mps-comparison-candidate" required></select></label>
+ <div class="form-actions"><button class="btn-outline" type="submit">تحلیل تغییر برنامه و نمایش شواهد</button></div>
+</form>
+<div class="panel"><h3>شواهد نسخه و امضای تصویب</h3><div id="mps-change-evidence"></div></div>
+<div class="panel"><h3>خلاصه مقدار قبل و بعد برنامه</h3><div id="mps-impact-summary"></div></div>
+<div class="panel"><h3>مغایرت مقدار به تفکیک کالا و موعد</h3><div id="mps-impact-demand"></div></div>
+<div class="panel"><h3>تغییر بار و اضافه‌بار مراکز کاری CRP</h3><div id="mps-impact-capacity"></div></div>
+<div class="panel"><h3>اثر بر ناخالص و دریافت‌های پیشنهادی MRP</h3><div id="mps-impact-material"></div></div>
 </section>
 <section class="page" id="assumptions" hidden>
   <div class="section-title"><h3>فرضیات تأمین و موجودی برنامه‌ریزی</h3><small>بدون ارتباط با پایگاه داده انبار یا خرید.</small></div>
