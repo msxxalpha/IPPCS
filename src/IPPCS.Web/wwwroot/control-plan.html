@@ -12,6 +12,8 @@
 <button class="nav-active" data-section="controlplan">کنترل پلن تولید</button>
 <button data-section="inspection">بازرسی حین تولید</button>
 <button data-section="genealogy">شجره بچ بین عملیات</button>
+<button data-section="assembly">ردیابی نیمه‌ساخته تا مونتاژ نهایی</button>
+<button data-section="readiness">آمادگی عملیات و وضعیت بازرسی</button>
 </nav>
 <div class="sidebar-foot">IPPCS • توسعه ۰٫۶<br>بدون اتصال به انبار، خرید، فروش یا منابع انسانی</div></aside>
 <div class="main">
@@ -65,6 +67,32 @@
 <div class="form-actions"><button class="btn-main" type="submit">ثبت ارتباط بچ‌ها</button></div>
 </form>
 <div class="panel"><h3>پیوندهای ثبت‌شده و قابل رسیدگی</h3><div id="genealogy-table"></div></div>
+</section>
+<section id="assembly" class="page" hidden>
+ <div class="section-title"><h3>پیوند بچ نیمه‌ساخته و مونتاژ نهایی</h3><small>انتساب مستند خروجی آخرین عملیات یک دستور نیمه‌ساخته تکمیل‌شده به بچ آخرین عملیات یک دستور مونتاژ نهایی</small></div>
+ <div class="callout">کالای نیمه‌ساخته باید در BOM مصوب دستور مونتاژ باشد. کنترل‌های کیفی باید پذیرفته شده باشند و مقدار انتساب از تولید سالم یا مصرف برآوردی BOM تجاوز نکند. این ثبت تنها شجره تولید IPPCS است و تغییری در موجودی انبار ندارد.</div>
+ <div class="panel form-grid">
+  <label>دستور مونتاژ نهایی<select id="assembly-order"></select></label>
+  <label>دستور نیمه‌ساخته تکمیل‌شده<select id="semi-source-order"></select></label>
+  <div class="form-actions"><button type="button" id="assembly-refresh" class="btn-outline">بارگذاری بچ‌ها و مانده ردیابی</button></div>
+ </div>
+ <form id="assembly-origin-form" class="panel form-grid">
+  <label>بچ خروجی نیمه‌ساخته<select id="assembly-source-confirmation" name="source" required></select></label>
+  <label>بچ خروجی مونتاژ<select id="assembly-destination-confirmation" name="target" required></select></label>
+  <label>تعداد نیمه‌ساخته قابل انتساب<input name="quantity" type="number" min="0.0001" step="any" required></label>
+  <div class="form-actions"><button class="btn-main" type="submit">ثبت منشأ بچ مونتاژ</button></div>
+ </form>
+ <div class="panel"><h3>پوشش موردانتظار BOM برای نیمه‌ساخته‌ها</h3><div id="assembly-coverage"></div></div>
+ <div class="panel"><h3>ارتباط‌های واقعی بین دستورهای تولید</h3><div id="assembly-links"></div></div>
+</section>
+<section id="readiness" class="page" hidden>
+ <div class="section-title"><h3>آمادگی مراحل ساخت و مونتاژ نهایی</h3><small>دسترسی به وضعیت عملیات، مانده WIP، کنترل‌های اجباری و کیفیت قطعات بدون اتصال به منابع خارجی</small></div>
+ <div class="panel form-grid">
+  <label>دستور ساخت<select id="readiness-order"></select></label>
+  <div class="form-actions"><button type="button" id="readiness-refresh" class="btn-outline">بررسی آمادگی و کنترل کیفیت</button></div>
+ </div>
+ <div class="panel"><h3>آمادگی مرحله به مرحله دستور</h3><div id="readiness-steps"></div></div>
+ <div class="panel"><h3>وضعیت کنترل‌های نسخه ثابت دستور</h3><div id="readiness-inspections"></div></div>
 </section>
 </main><footer class="footer">IPPCS • کنترل پلن، بازرسی و ردیابی داخلی تولید<span>Prototype 0.6</span></footer>
 </div></div></body></html>
