@@ -163,10 +163,31 @@ function register(){
   flash("S&OP: بار "+format(data.roughCutMinutes)+" دقیقه و ظرفیت "+
    format(data.availableMinutes)+" دقیقه. "+(data.warnings?.join("؛ ")||""));
  });
+ const apsBlackouts=[];
+ function renderBlackouts(){
+  const holder=$("#aps-blackout-list");holder.replaceChildren();
+  apsBlackouts.forEach((block,i)=>{
+   const row=document.createElement("div");row.className="row";row.style.padding="6px 0";
+   const text=document.createElement("span");text.textContent=block.dateJalali+" | "+block.reason;
+   const button=document.createElement("button");button.className="btn-outline";button.type="button";button.textContent="حذف";
+   button.onclick=()=>{apsBlackouts.splice(i,1);renderBlackouts();};
+   row.append(text,button);holder.append(row);
+  });
+ }
+ $("#aps-add-blackout").onclick=()=>{
+  const id=$("#aps-blackout-center").value,date=$("#aps-blackout-date").value,reason=$("#aps-blackout-reason").value.trim();
+  if(!id||!IPPCSJalali.parse(date)||!reason){flash("مرکز، تاریخ شمسی و علت روز عدم‌دسترسی اجباری‌اند.",true);return;}
+  if(apsBlackouts.some(x=>x.workCenterId===id&&x.dateJalali===date)){
+   flash("این روز برای مرکز کاری قبلاً ثبت شده است.",true);return;
+  }
+  apsBlackouts.push({workCenterId:id,dateJalali:date,reason});
+  $("#aps-blackout-date").value="";$("#aps-blackout-reason").value="";
+  renderBlackouts();
+ };
  addForm("#aps-form",async f=>{
   const result=await api("/factory-aps/calculate","POST",{
    mpsVersionId:formval(f,"mpsId"),startJalali:formval(f,"start"),
-   horizonDays:number(f,"horizon"),capacityMultiplier:number(f,"capacity")
+   horizonDays:number(f,"horizon"),capacityMultiplier:number(f,"capacity"),unavailableDays:apsBlackouts
   });
   renderAps(result);
   flash("زمان‌بندی محدودیت‌دار ثبت شد. عملیات فاقد ظرفیت به‌صورت جداگانه نمایش داده می‌شوند.");
