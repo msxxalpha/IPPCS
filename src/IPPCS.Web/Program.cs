@@ -161,6 +161,7 @@ app.MapDeviationGovernance();
 app.MapDeviationEffectiveness();
 app.MapOrderPegging();
 app.MapProductionDeviations();
+app.MapFactoryMasterData();
 app.MapDemandTrace();
 app.MapTimePhasedPegging();
 app.MapNetMrpDemandPegging();
@@ -204,6 +205,7 @@ public sealed class ProductionDb(DbContextOptions<ProductionDb> options) : Ident
     public DbSet<ManufacturingLotGenealogy> ManufacturingLotGenealogies => Set<ManufacturingLotGenealogy>();
     public DbSet<ManufacturingOrderPeg> ManufacturingOrderPegs => Set<ManufacturingOrderPeg>();
     public DbSet<ProductionDeviation> ProductionDeviations => Set<ProductionDeviation>();
+    public DbSet<FactoryMasterOption> FactoryMasterOptions => Set<FactoryMasterOption>();
     public DbSet<ProductionDeviationEvent> ProductionDeviationEvents => Set<ProductionDeviationEvent>();
     public DbSet<FactoryDemand> FactoryDemands => Set<FactoryDemand>();
     public DbSet<FactorySopReview> FactorySopReviews => Set<FactorySopReview>();
@@ -237,6 +239,12 @@ public sealed class ProductionDb(DbContextOptions<ProductionDb> options) : Ident
         ManufacturingControlPlanEndpoints.ConfigureModel(model);
         ManufacturingOrderPegging.ConfigureModel(model);
         ProductionDeviationEndpoints.ConfigureModel(model);
+        model.Entity<FactoryMasterOption>().HasKey(x=>x.Id);
+        model.Entity<FactoryMasterOption>().HasIndex(x=>new{x.Kind,x.Code}).IsUnique();
+        model.Entity<FactoryMasterOption>().Property(x=>x.Kind).HasMaxLength(40);
+        model.Entity<FactoryMasterOption>().Property(x=>x.Code).HasMaxLength(40);
+        model.Entity<FactoryMasterOption>().Property(x=>x.Label).HasMaxLength(100);
+
         FactoryDemandApsEndpoints.ConfigureModel(model);
         FactoryOperationsAnalyticsEndpoints.ConfigureModel(model);
         model.Entity<FactoryEngineeringCutoverEvent>().HasKey(x => x.Id);
