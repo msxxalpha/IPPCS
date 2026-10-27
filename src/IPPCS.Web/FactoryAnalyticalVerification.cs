@@ -39,10 +39,10 @@ public static class FactoryAnalyticalVerification
             new(key,title,count,minimum,advice);
         return [
             Create(2,"تقاضا و پیش‌بینی","demand","/planning-advanced.html",
-                "forecast-backtest",confirmedMonths,"ماه‌های دارای تقاضای قطعی ثبت‌شده",
+                "forecast-backtest",0,"بازآزمایی پیش‌بینی بدون ذخیرهٔ Snapshot اجرا می‌شود",
                 "ماه بدون رکورد صفر محاسبه می‌شود؛ قبل از تفسیر WAPE، کامل‌بودن دادهٔ تاریخی باید توسط برنامه‌ریزی تأیید شود.",
                 Ch("confirmed","نیاز قطعی داخلی",confirmedDemand,1,"حداقل یک تقاضای قطعی برای محصول نهایی وارد کنید."),
-                Ch("months","ماه‌های مستقل تقاضا",confirmedMonths,2,"برای ارزیابی ابتدایی، نیاز قطعی در حداقل دو ماه شمسی مستقل ثبت کنید.")),
+                Ch("months","ماه‌های مستقل تقاضا",confirmedMonths,4,"برای Backtest دو ماهه با پنجره دو ماه، حداقل چهار ماه متوالی سابقهٔ معتبر همان محصول را بررسی کنید.")),
             Create(3,"تراز کلان S&OP","sop","/planning-advanced.html",
                 "sop-snapshot",sopRuns,"Snapshotهای S&OP ذخیره‌شده",
                 "Snapshot ثبت‌شده به معنی مصوبهٔ جلسه نیست؛ بار مراکز و ظرفیت باید جدا بررسی شود.",
