@@ -524,13 +524,41 @@ public static class FactoryDemandApsEndpoints
                 }
             }
             if(errors.Count>0)return Results.UnprocessableEntity(new{message=string.Join("؛ ",errors)});
+            var actualEvents=await db.ManufacturingOrderAudits.AsNoTracking()
+                .Where(x=>x.Action==FactoryOperationClock.Started||
+                    x.Action==FactoryOperationClock.Stopped||
+                    x.Action==FactoryCapacityReservations.Reserved||
+                    x.Action==FactoryCapacityReservations.Cancelled).ToListAsync(ct);
+            var activeOrders=await db.ManufacturingOrders.AsNoTracking()
+                .Include(x=>x.Operations)
+                .Where(x=>x.Status==ManufacturingOrderStatus.Released||
+                    x.Status==ManufacturingOrderStatus.InProgress||
+                    x.Status==ManufacturingOrderStatus.OnHold).ToListAsync(ct);
+            FactoryApsCapacityEvidence evidence;
             ApsResult result;
-            try {result=FiniteFactoryScheduler.Schedule(tasks,shifts,start,input.HorizonDays,input.CapacityMultiplier,unavailable);}
-            catch(ArgumentException ex){return Results.BadRequest(new{message=ex.Message});}
+            try
+            {
+                var clocks=FactoryOperationClock.Read(actualEvents);
+                var reservations=FactoryCapacityReservations.Read(actualEvents);
+                evidence=FactoryApsExecutionGuard.Evaluate(activeOrders,clocks,reservations,
+                    start,input.HorizonDays);
+                unavailable.UnionWith(evidence.ReservedDays);
+                result=FiniteFactoryScheduler.Schedule(tasks,shifts,start,
+                    input.HorizonDays,input.CapacityMultiplier,unavailable,
+                    occupiedIntervals:evidence.OccupiedIntervals);
+            }
+            catch(Exception ex)when(ex is ArgumentException or InvalidOperationException
+                or OverflowException)
+            {return Results.UnprocessableEntity(new{message=ex.Message});}
             var snapshot=new FactoryApsRun{MpsVersionId=plan.Id,StartOn=start,HorizonDays=input.HorizonDays,
                 InputJson=JsonSerializer.Serialize(new{mps=plan.Lines.Select(x=>new{x.ItemId,x.Quantity,x.NeededOn}),
                     tasks,materialFeasibility=material,shifts=shifts.Select(x=>new{x.WorkCenterId,x.DayOfWeek,x.StartTime,x.EndTime,
-                        x.EffectiveCapacityPercent}),input.CapacityMultiplier,unavailableDays=unavailable.Select(x=>new{x.WorkCenterId,x.Date})}),
+                        x.EffectiveCapacityPercent}),input.CapacityMultiplier,
+                        executionEvidence=new{evidence.ActiveOrders,evidence.ActiveReservations,
+                            evidence.OpenClocks,evidence.BlockedOperations,
+                            reservedDays=evidence.ReservedDays.Count,
+                            occupiedIntervals=evidence.OccupiedIntervals.Count},
+                        unavailableDays=unavailable.Select(x=>new{x.WorkCenterId,x.Date})}),
                 OutputJson=JsonSerializer.Serialize(result)};
             db.FactoryApsRuns.Add(snapshot);await db.SaveChangesAsync(ct);
             return Results.Ok(new{runId=snapshot.Id,snapshot.Algorithm,
@@ -542,7 +570,11 @@ public static class FactoryDemandApsEndpoints
                     finishTime=x.FinishesAt.ToString("HH:mm")}),
                 unavailableDays=unavailable.Select(x=>new{workCenterId=x.WorkCenterId,dateJalali=PersianPlanningDates.Format(x.Date)}),
                 result.Unscheduled,result.TotalLateOperations,
-                disclaimer="پیش‌نویس زمان‌بندی با ظرفیت محدود؛ مواد، خرابی پیش‌بینی‌نشده، ابزار و بهینه‌سازی سراسری اعمال نشده‌اند."});
+                executionEvidence=new{evidence.ActiveOrders,evidence.ActiveReservations,
+                    evidence.OpenClocks,evidence.BlockedOperations,
+                    reservedDays=evidence.ReservedDays.Count,
+                    occupiedIntervals=evidence.OccupiedIntervals.Count},
+                disclaimer="پیش‌نمایش ظرفیت محدود با فرضیات مواد مستقل IPPCS، رزرو و ساعت‌های عملیاتی ثبت‌شده. ابزار مشترک و خرابی ثبت‌نشده هنوز اعمال نمی‌شوند؛ مجوز آزادسازی نیست."});
         }).RequireAuthorization("IpPlanningWrite");
         return routes;
     }
