@@ -215,13 +215,25 @@ public static class ManufacturingExecutionEndpoints
             return Results.Created($"/api/v1/manufacturing-orders/{order.Id}",ToDto(order));
         });
         api.MapPost("/manufacturing-orders/{id:guid}/release",async(Guid id,ProductionDb db,ILogger<ManufacturingOrder> logger,CancellationToken ct)=>{
-            await using var tx=await db.Database.BeginTransactionAsync(ct);
+            await using var tx=await db.Database.BeginTransactionAsync(IsolationLevel.Serializable,ct);
+            try{await FactoryCapacityReservations.LockOrder(db,id,ct);}
+            catch(SqlException){return Results.Conflict(new{message="قفل دستور ساخت برای آزادسازی در دسترس نیست."});}
             var order=await db.ManufacturingOrders.Include(x=>x.Operations).SingleOrDefaultAsync(x=>x.Id==id,ct);
             if(order is null)return Results.NotFound();
             if(order.Status!=ManufacturingOrderStatus.Draft)
                 return Results.Conflict(new{message="فقط دستور پیش‌نویس قابل آزادسازی است."});
             var route=await db.RoutingRevisions.AsNoTracking().Include(x=>x.Operations).SingleOrDefaultAsync(x=>x.Id==order.RoutingRevisionId,ct);
-            var bom=await db.ManufacturingBomRevisions.AsNoTracking().SingleOrDefaultAsync(x=>x.Id==order.BomRevisionId,ct);
+            var bom=await db.ManufacturingBomRevisions.AsNoTracking().Include(x=>x.Lines)
+                .SingleOrDefaultAsync(x=>x.Id==order.BomRevisionId,ct);
+            var pegs=await db.ManufacturingOrderPegs.AsNoTracking()
+                .Where(x=>x.OrderId==id).ToListAsync(ct);
+            var pegIds=pegs.Select(x=>x.MpsLineId).ToArray();
+            var pegLines=await db.MpsDemandLines.AsNoTracking()
+                .Where(x=>pegIds.Contains(x.Id)).ToListAsync(ct);
+            var releaseIssues=FactoryRevisionGovernance.ReleaseIssues(
+                order,route,bom,pegs,pegLines);
+            if(releaseIssues.Count>0)
+                return Results.Conflict(new{message="پیش‌شرط‌های آزادسازی دستور برقرار نیست.",issues=releaseIssues});
             var controlPlans=await db.ManufacturingControlPlans.AsNoTracking()
                 .Include(x=>x.Characteristics)
                 .Where(x=>x.RoutingRevisionId==order.RoutingRevisionId && x.State==ControlPlanState.Approved
