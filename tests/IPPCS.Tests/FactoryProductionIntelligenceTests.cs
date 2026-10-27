@@ -122,6 +122,60 @@ public sealed class FactoryProductionIntelligenceTests
     }
 
     [Fact]
+    public void Mps_pegs_attribute_only_linked_good_and_classify_completion_local_day()
+    {
+        var item=Guid.NewGuid();var need=new DateOnly(2026,10,26);
+        var line=new MpsDemandLine{Id=Guid.NewGuid(),ItemId=item,Quantity=20,
+            NeededOn=need};
+        var early=new ManufacturingOrder{Id=Guid.NewGuid(),ItemId=item,
+            PlannedQuantity=10,Status=ManufacturingOrderStatus.Completed,
+            CompletedUtc=new DateTime(2026,10,26,18,0,0,DateTimeKind.Utc),
+            Operations=[new ManufacturingOrderOperation{Sequence=10,GoodQuantity=8}]};
+        var late=new ManufacturingOrder{Id=Guid.NewGuid(),ItemId=item,
+            PlannedQuantity=10,Status=ManufacturingOrderStatus.Completed,
+            CompletedUtc=new DateTime(2026,10,27,1,0,0,DateTimeKind.Utc),
+            Operations=[new ManufacturingOrderOperation{Sequence=10,GoodQuantity=10}]};
+        var cancelled=new ManufacturingOrder{Id=Guid.NewGuid(),ItemId=item,
+            PlannedQuantity=10,Status=ManufacturingOrderStatus.Cancelled};
+        var pegs=new[]{
+            new ManufacturingOrderPeg{OrderId=early.Id,MpsLineId=line.Id,LinkedQuantity=10},
+            new ManufacturingOrderPeg{OrderId=late.Id,MpsLineId=line.Id,LinkedQuantity=5},
+            new ManufacturingOrderPeg{OrderId=cancelled.Id,MpsLineId=line.Id,LinkedQuantity=5}
+        };
+        var orders=new Dictionary<Guid,ManufacturingOrder>{
+            [early.Id]=early,[late.Id]=late,[cancelled.Id]=cancelled};
+        var result=Assert.Single(FactoryProductionIntelligence.PeggedAdherence(
+            [line],pegs,orders));
+        Assert.Equal(15m,result.Assigned);
+        Assert.Equal(13m,result.CompletedGood);
+        Assert.Equal(8m,result.OnTimeGood);
+        Assert.Equal(5m,result.LateGood);
+        Assert.Equal(7m,result.Shortage);
+        Assert.Equal(5m,result.Unassigned);
+        Assert.Equal(2m,result.PendingAssigned);
+        Assert.Equal(65m,result.FulfilmentPercent);
+        Assert.Equal(1,result.LateOrderCount);
+    }
+
+    [Fact]
+    public void Completion_without_utc_timestamp_is_not_marked_on_time()
+    {
+        var line=new MpsDemandLine{Id=Guid.NewGuid(),Quantity=4,
+            NeededOn=new DateOnly(2026,10,26)};
+        var order=new ManufacturingOrder{Id=Guid.NewGuid(),
+            Status=ManufacturingOrderStatus.Completed,PlannedQuantity=4,
+            CompletedUtc=null,
+            Operations=[new ManufacturingOrderOperation{Sequence=10,GoodQuantity=3}]};
+        var result=Assert.Single(FactoryProductionIntelligence.PeggedAdherence(
+            [line],[new ManufacturingOrderPeg{OrderId=order.Id,
+                MpsLineId=line.Id,LinkedQuantity=4}],
+            new Dictionary<Guid,ManufacturingOrder>{{order.Id,order}}));
+        Assert.Equal(3m,result.CompletedGood);
+        Assert.Equal(3m,result.UndatedGood);
+        Assert.Equal(0m,result.OnTimeGood);
+    }
+
+    [Fact]
     public void Cross_midnight_clock_is_clipped_to_requested_tehran_day()
     {
         var center=Guid.NewGuid();
