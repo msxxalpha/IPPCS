@@ -145,10 +145,15 @@ public static class FactoryProductionIntelligence
         if(measured>planned.Value)
             return new(null,null,null,null,measured,false,
                 "زمان واقعی ثبت‌شده از زمان برنامه بیشتر است؛ شیفت و ثبت ساعت بررسی شود.");
-        var total=good+scrap+rework;
-        if(total<=0||idealMinutes<0)
+        // Missing standard cycle and negative production observations must
+        // never become a plausible numerical OEE (especially negative quality).
+        if(good<0||scrap<0||rework<0||idealMinutes<0)
             return new(null,null,null,null,measured,false,
-                "برای OEE ثبت مقدار خروجی تولید و زمان سیکل استاندارد لازم است.");
+                "مقادیر تولید سالم، ضایعات، دوباره‌کاری یا زمان سیکل استاندارد نامعتبرند.");
+        var total=good+scrap+rework;
+        if(total<=0||idealMinutes==0)
+            return new(null,null,null,null,measured,false,
+                "برای OEE خروجی تولید و زمان سیکل استاندارد مثبت و واقعی لازم است.");
         var availability=100m*measured/planned.Value;
         var performance=100m*idealMinutes/measured;
         var quality=100m*good/total;
