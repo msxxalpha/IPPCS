@@ -21,10 +21,13 @@ async function api(path,method="GET",body){
  return data;
 }
 function fill(select,rows,view){
- const selected=select.value;select.replaceChildren();
- const placeholder=document.createElement("option");placeholder.value="";placeholder.textContent="انتخاب کنید";select.append(placeholder);
- rows.forEach(row=>{const option=document.createElement("option");option.value=row.id;option.textContent=view(row);select.append(option);});
- if([...select.options].some(x=>x.value===selected))select.value=selected;
+ IPPCSChoices.fill(select,rows,{value:"id",label:view});
+}
+async function loadQualityReasons(){
+ const reasons=await api("/factory-master-options?kind=QualityHoldReason");
+ IPPCSChoices.fill($("#quality-reason-code"),reasons,{
+  value:"code",label:x=>x.code+" — "+x.label,placeholder:"دلیل قرنطینه را انتخاب کنید"});
+ if(!reasons.length)message("مدیر سامانه باید ابتدا دلایل قرنطینه را در اطلاعات پایه تعریف کند.",true);
 }
 function table(target,cols,rows,actions=[]){
  const host=$(target);host.replaceChildren();
@@ -159,7 +162,8 @@ function boot(){
  $("#oee-calculate").addEventListener("click",()=>oee().catch(err=>message(err.message,true)));
  $("#oee-clock-calculate").addEventListener("click",()=>oeeClock().catch(err=>message(err.message,true)));
  register("#quality-form",f=>api("/manufacturing-orders/"+fval(f,"orderId")+"/quality-holds","POST",{
-  operationId:fval(f,"operationId"),quantity:dec(f,"quantity"),reason:fval(f,"reason")
+  operationId:fval(f,"operationId"),quantity:dec(f,"quantity"),
+  reason:fval(f,"reason")||"—",reasonCode:fval(f,"reasonCode")
  }));
  register("#oee-plan-form",f=>api("/oee/plans","PUT",{
   workCenterId:fval(f,"workCenterId"),productionDateJalali:fval(f,"date"),
@@ -167,6 +171,7 @@ function boot(){
  }));
  $$('nav [data-page="quality"], nav [data-page="oee"]').forEach(button=>
   button.addEventListener("click",()=>load().catch(err=>message(err.message,true))));
+ loadQualityReasons().catch(err=>message("اطلاعات پایه کیفیت بارگذاری نشد: "+err.message,true));
  load().catch(err=>message("اطلاعات کیفیت و OEE قابل دریافت نیست: "+err.message,true));
 }
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",boot);else boot();
