@@ -151,6 +151,12 @@ public static class FactoryCapacityReservations
     /// operations cannot leave phantom future slots behind. Every cancellation
     /// is an appended journal entry, never a physical delete.
     /// </summary>
+    public static IReadOnlyList<FactoryCapacityReservation> PendingLifecycleRelease(
+        IEnumerable<ManufacturingOrderAudit> orderEvents,Guid orderId,
+        IReadOnlySet<Guid> operationIds) =>
+        Read(orderEvents).Where(x=>x.OrderId==orderId&&
+            operationIds.Contains(x.OperationId)).ToArray();
+
     internal static async Task<int> ReleaseOperations(
         ProductionDb db,Guid orderId,IReadOnlySet<Guid> completedOperationIds,
         string reason,CancellationToken ct)
@@ -159,8 +165,7 @@ public static class FactoryCapacityReservations
         var history=await db.ManufacturingOrderAudits.AsNoTracking()
             .Where(x=>x.OrderId==orderId&&(x.Action==Reserved||x.Action==Cancelled))
             .ToListAsync(ct);
-        var affected=Read(history).Where(x=>completedOperationIds.Contains(x.OperationId))
-            .ToArray();
+        var affected=PendingLifecycleRelease(history,orderId,completedOperationIds);
         foreach(var center in affected.Select(x=>x.WorkCenterId).Distinct().OrderBy(x=>x))
             await LockCenter(db,center,ct);
         foreach(var slot in affected)
