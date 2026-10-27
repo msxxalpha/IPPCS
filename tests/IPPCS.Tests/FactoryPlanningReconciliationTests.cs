@@ -40,7 +40,7 @@ public sealed class FactoryPlanningReconciliationTests
                 Quantity=4,Reference="Manual"}
         ]};
         var report=FactoryPlanningReconciliation.AuditDemandReferences(mps,[demand,another]);
-        Assert.Equal(10,report.ConfirmedDemandQuantity==13?report.ConfirmedUncoveredQuantity+6m:0m);
+        Assert.Equal(13,report.ConfirmedDemandQuantity);
         Assert.Equal(7,report.ConfirmedUncoveredQuantity);
         Assert.Equal(4,report.OtherMpsQuantity);
         Assert.Empty(report.UnmatchedReferenceLines);
