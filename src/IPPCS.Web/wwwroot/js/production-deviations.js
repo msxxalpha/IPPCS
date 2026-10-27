@@ -67,14 +67,36 @@ async function loadMasters(){
  const noOwner=active("ActionOwner").length===0;
  if(noOwner)notice("برای ثبت اقدام اصلاحی، مدیر سامانه باید ابتدا نقش‌های مسئول پیگیری را در اطلاعات پایه تعریف کند.",true);
 }
-async function renderCases(){
- data.deviations=await api("/production-deviations");
+function fillCaseSelectors(){
  fill($("#action-case"),data.deviations.filter(x=>x.status===0),formatCase);
  fill($("#close-case"),data.deviations.filter(x=>x.status===1),formatCase);
  fill($("#revise-case"),data.deviations.filter(x=>x.status===1),formatCase);
  fill($("#escalate-case"),data.deviations.filter(x=>x.status!==2),formatCase);
  fill($("#effectiveness-case"),data.deviations.filter(x=>
   x.status===2&&!x.effectiveness?.independentlyVerified),formatCase);
+}
+let caseToken=0,caseTimer=null;
+async function loadCaseChoices(){
+ const token=++caseToken,term=$("#case-search").value.trim();
+ const guid=/^[0-9a-f]{8}-[0-9a-f-]{27,36}$/i.test(term);
+ let rows=[],total=0;
+ if(guid){
+  try{rows=[await api("/production-deviations/"+encodeURIComponent(term))];total=rows.length;}
+  catch(e){if(!e.message.includes("404"))throw e;}
+ }else{
+  const url="/production-deviations/search?page=1&pageSize=100"+
+   (term?"&text="+encodeURIComponent(term):"");
+  const result=await api(url);rows=result.rows;total=result.total;
+ }
+ if(token!==caseToken)return;
+ data.deviations=rows;
+ fillCaseSelectors();
+ $("#case-search-count").textContent=total.toLocaleString("fa-IR")+
+  " پرونده یافت شد؛ "+rows.length.toLocaleString("fa-IR")+
+  " گزینه قابل انتخاب است."+(total>rows.length?" عبارت دقیق‌تری وارد کنید.":"");
+}
+async function renderCases(){
+ await loadCaseChoices();
  await loadTable();
 }
 function make(tag,text){const x=document.createElement(tag);if(text!==undefined)x.textContent=String(text);return x;}
@@ -233,6 +255,10 @@ async function boot(){
  $("#line").onchange=refreshOrders;
  refreshLine();
  if($("#version").value)await refreshPegging();
+ $("#case-search").oninput=()=>{
+  clearTimeout(caseTimer);
+  caseTimer=setTimeout(()=>loadCaseChoices().catch(e=>notice(e.message,true)),280);
+ };
  for(const input of ["#deviation-search","#deviation-status","#deviation-category","#deviation-page-size"]){
   $(input).addEventListener(input==="#deviation-search"?"input":"change",filtersChanged);
  }
@@ -292,6 +318,12 @@ async function boot(){
  });
  await renderCases();await refreshPending();
  const selected=new URLSearchParams(window.location.search).get("case");
+ if(selected&&!data.deviations.some(x=>x.id===selected)){
+  try{
+   const old=await api("/production-deviations/"+encodeURIComponent(selected));
+   data.deviations.push(old);fillCaseSelectors();
+  }catch{ /* An invalid or inaccessible deep link does not reveal case data. */ }
+ }
  if(selected&&data.deviations.some(x=>x.id===selected&&x.status!==2)){
   $("#escalate-case").value=selected;
   if(data.deviations.some(x=>x.id===selected&&x.status===1)){
