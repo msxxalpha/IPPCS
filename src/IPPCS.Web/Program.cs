@@ -169,6 +169,7 @@ app.MapOrderPegging();
 app.MapProductionDeviations();
 app.MapFactoryMasterData();
 app.MapFactoryReleaseReadiness();
+app.MapFactoryAnalyticalVerification();
 app.MapDemandTrace();
 app.MapTimePhasedPegging();
 app.MapNetMrpDemandPegging();
