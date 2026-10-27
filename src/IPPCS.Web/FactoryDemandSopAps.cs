@@ -195,7 +195,11 @@ public static class FiniteFactoryScheduler
             {
                 var day=start.AddDays(d);
                 if(unavailableDays?.Contains((job.WorkCenterId,day))==true)continue;
-                if(day.ToDateTime(TimeOnly.MaxValue)<earliest)continue;
+                // A shift beginning on the previous date may still have
+                // usable capacity after midnight. Never skip its start date
+                // merely because the predecessor finished on the next day.
+                // The shift-specific earliestInShift check below safely
+                // rejects windows that actually end before the dependency.
                 foreach(var shift in shifts.Where(x=>x.WorkCenterId==job.WorkCenterId
                     && x.DayOfWeek==(int)day.DayOfWeek).OrderBy(x=>x.StartTime))
                 {
