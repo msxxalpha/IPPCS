@@ -61,6 +61,16 @@ $("#followup-review").onclick=async ()=>{
  }catch(e){notice(e.message,true);}
 };
 $("#close").onsubmit=async ev=>{ev.preventDefault();try{await api("/production-deviations/"+$("#close-case").value+"/close","POST",{verification:$("#verification").value});notice("پرونده مختومه شد.");await render();}catch(e){notice(e.message,true);}};
-await render();}
+await render();
+const selected=new URLSearchParams(window.location.search).get("case");
+if(selected&&deviations.some(x=>x.id===selected&&x.status!==2)){
+ $("#escalate-case").value=selected;
+ if(deviations.some(x=>x.id===selected&&x.status===1)){
+  $("#revise-case").value=selected;
+  prefillRevision();
+ }
+ $("#followup-review").click();
+}
+}
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",()=>boot().catch(e=>notice(e.message,true)));else boot().catch(e=>notice(e.message,true));
 })();
