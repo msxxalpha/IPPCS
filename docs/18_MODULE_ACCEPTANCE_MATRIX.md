@@ -48,3 +48,14 @@ Until all relevant functional, cybersecurity, SQL Server/IIS, backup-restore, pe
 | 18 | Reproducible Jalali-date alert dashboard for QC/order/deviation exceptions | Plant KPI targets, role-specific drilldowns, alerts policy, scheduled exports and UAT |
 
 CI covers unit invariants and separate disposable SQL Server integration scenarios. **No** database or ERP schema exchange was added. Keep PR Draft; do not declare modules complete without factory UAT.
+
+## Stage 13 verified additional development work (not plant acceptance)
+| Module | Increment added | Still outstanding |
+|---|---|---|
+| 03 S&OP | Historic-vs-live in-window demand and approved MPS quantity reconciliation | Product-mix reconciliation, owners, iterative cross-functional approvals |
+| 04 MPS | Exact imported-demand GUID reference audit; manual/unmatched plan quantities reported separately | Approved version lock/revision reason, release calendar, exception workflow |
+| 05 MRP | Planning-source certainty, surplus and release-before-baseline risk | Firm material netting, validated receipt commitments, production workday lead times |
+| 06 CRP | Ranked bottleneck centers; overload/no-shift-day counts and undefined utilization | Operator/tool resource calendars, cross-midnight shifts, actual execution constraint governance |
+| 16 What-if | Capacity multiplier **plus** maintenance blackout day sensitivity and finite allocations | Alternative routing, changeover model, cost/material constrained decision optimization |
+
+All endpoints are local IPPCS-only. No inventory, purchase, sales or employee systems connected. Full 18-module sign-off remains open.
