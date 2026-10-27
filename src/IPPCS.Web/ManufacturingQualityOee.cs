@@ -77,8 +77,14 @@ public static class ManufacturingPerformance
     public static bool CanHold(ManufacturingOrder order, Guid operationId, decimal quantity, out string error)
     {
         error="";
-        if(!ManufacturingExecutionEndpoints.IsActive(order.Status))
-        {error="دستور تولید در وضعیت فعال نیست.";return false;}
+        // An operator may stop the line BEFORE quality arrives. The inspector
+        // must still be able to place the already-reported good units on hold,
+        // while a planner must not resume past the resulting open quarantine.
+        var productionActive=ManufacturingExecutionEndpoints.IsActive(order.Status)||
+            order.Status==ManufacturingOrderStatus.OnHold&&
+                ManufacturingExecutionEndpoints.IsActive(order.ResumeStatus);
+        if(!productionActive)
+        {error="دستور تولید نه فعال است و نه از وضعیت فعال به شکل ایمن معلق شده است.";return false;}
         if(quantity<=0){error="مقدار قرنطینه باید بزرگ‌تر از صفر باشد.";return false;}
         var ops=order.Operations.OrderBy(x=>x.Sequence).ToList();
         var index=ops.FindIndex(x=>x.Id==operationId);
