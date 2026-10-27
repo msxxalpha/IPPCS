@@ -182,7 +182,7 @@ public static class FactoryEngineeringCutover
                 if(affected.Count>500)return Results.Conflict(new{
                     message="بیش از ۵۰۰ دستور به نسخه قبلی ارجاع دارند؛ برش بدون بررسی جامع مجاز نیست."});
                 var drafts=affected.Where(x=>x.Status==ManufacturingOrderStatus.Draft).ToArray();
-                var frozen=affected.Length-drafts.Length;
+                var frozen=affected.Count-drafts.Length;
                 var impacted=drafts.Select(x=>new{
                     x.Id,x.Number,x.Status,
                     plannedStartJalali=PersianPlanningDates.Format(x.PlannedStart)
