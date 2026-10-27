@@ -345,23 +345,37 @@ public static class ManufacturingExecutionEndpoints
         holdApi.MapPost("/manufacturing-orders/{id:guid}/hold",async(Guid id,ManufacturingHoldInput input,ProductionDb db,CancellationToken ct)=>{
             if(string.IsNullOrWhiteSpace(input.Reason)||input.Reason.Trim().Length>500)
                 return Results.BadRequest(new{message="علت توقف معتبر نیست."});
+            // All lifecycle mutations share the SAME transaction-owned order app lock
+            // as release/cancel, shop-floor clock and capacity reservations.
+            await using var tx=await db.Database.BeginTransactionAsync(IsolationLevel.Serializable,ct);
+            try{await FactoryCapacityReservations.LockOrder(db,id,ct);}
+            catch(SqlException){return Results.Conflict(new{message="قفل دستور برای تعلیق در دسترس نیست."});}
             var order=await db.ManufacturingOrders.FindAsync([id],ct);
             if(order is null)return Results.NotFound();
             if(!IsActive(order.Status))return Results.Conflict(new{message="وضعیت دستور اجازه تعلیق ندارد."});
             order.ResumeStatus=order.Status;order.Status=ManufacturingOrderStatus.OnHold;
             order.HoldReason=input.Reason.Trim();order.UpdatedUtc=DateTime.UtcNow;
             db.ManufacturingOrderAudits.Add(new ManufacturingOrderAudit{OrderId=id,Action="Held",Details=order.HoldReason});
-            try{await db.SaveChangesAsync(ct);}
+            try{await db.SaveChangesAsync(ct);await tx.CommitAsync(ct);}
             catch(DbUpdateConcurrencyException){return Results.Conflict(new{message="وضعیت دستور هم‌زمان تغییر کرده است."});}
             return Results.Ok(new{order.Id,order.Status});
         });
         planningApi.MapPost("/manufacturing-orders/{id:guid}/resume",async(Guid id,ProductionDb db,CancellationToken ct)=>{
+            await using var tx=await db.Database.BeginTransactionAsync(IsolationLevel.Serializable,ct);
+            try{await FactoryCapacityReservations.LockOrder(db,id,ct);}
+            catch(SqlException){return Results.Conflict(new{message="قفل دستور برای ازسرگیری در دسترس نیست."});}
             var order=await db.ManufacturingOrders.FindAsync([id],ct);
             if(order is null)return Results.NotFound();
             if(order.Status!=ManufacturingOrderStatus.OnHold)return Results.Conflict(new{message="دستور معلق نیست."});
+            if(order.ResumeStatus is not (ManufacturingOrderStatus.Released or ManufacturingOrderStatus.InProgress))
+                return Results.Conflict(new{message="وضعیت پیشین دستور برای ازسرگیری معتبر نیست."});
+            // Active quality holds may not be overridden by a planning resume.
+            if(await db.ManufacturingQualityHolds.AsNoTracking()
+                .AnyAsync(x=>x.OrderId==id&&x.Status==ManufacturingQualityStatus.Open,ct))
+                return Results.Conflict(new{message="تا تعیین‌تکلیف قرنطینه باز، ازسرگیری دستور مجاز نیست."});
             order.Status=order.ResumeStatus;order.HoldReason=null;order.UpdatedUtc=DateTime.UtcNow;
             db.ManufacturingOrderAudits.Add(new ManufacturingOrderAudit{OrderId=id,Action="Resumed"});
-            try{await db.SaveChangesAsync(ct);}
+            try{await db.SaveChangesAsync(ct);await tx.CommitAsync(ct);}
             catch(DbUpdateConcurrencyException){return Results.Conflict(new{message="وضعیت دستور هم‌زمان تغییر کرده است."});}
             return Results.Ok(new{order.Id,order.Status});
         });
