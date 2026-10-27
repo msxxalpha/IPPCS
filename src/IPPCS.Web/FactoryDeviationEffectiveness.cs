@@ -56,7 +56,19 @@ public static class FactoryDeviationEffectiveness
         var proof = latest is null ? null : Decode(latest.Details);
         var broken = evidence.Any(x=>Decode(x.Details) is null);
         // Never certify an incomplete or contradictory history.
-        var verified = !broken && row.Status==ProductionDeviationStatus.Closed &&
+        var hasDocumentedClosure=row.Events.Any(x=>
+            x.Status==ProductionDeviationStatus.Closed &&
+            !x.Details.StartsWith(EventPrefix,StringComparison.Ordinal));
+        var independent=proof is not null &&
+            !string.Equals(proof.ReviewedBy,row.CreatedBy,StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(proof.ReviewedBy,row.Responsible,StringComparison.OrdinalIgnoreCase) &&
+            !row.Events.Any(x=>
+                !x.Details.StartsWith(EventPrefix,StringComparison.Ordinal) &&
+                (x.Status==ProductionDeviationStatus.ActionAssigned ||
+                 x.Status==ProductionDeviationStatus.Closed) &&
+                string.Equals(x.Username,proof.ReviewedBy,StringComparison.OrdinalIgnoreCase));
+        var verified = !broken && hasDocumentedClosure && independent &&
+            row.Status==ProductionDeviationStatus.Closed &&
             proof is { Effective:true } &&
             evidence.Count(x=>Decode(x.Details)?.Effective==true)==1;
         // A new closure after a rejection still requires fresh evidence.
