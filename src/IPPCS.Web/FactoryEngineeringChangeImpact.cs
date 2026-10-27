@@ -22,6 +22,11 @@ public static class FactoryEngineeringChangeImpact
     public static IReadOnlyList<FactoryEngineeringPartDelta> CompareBom(
         ManufacturingBomRevision baseline,ManufacturingBomRevision proposal)
     {
+        if(baseline.Lines.Any(x=>x.ComponentItemId==Guid.Empty)||
+           proposal.Lines.Any(x=>x.ComponentItemId==Guid.Empty)||
+           baseline.Lines.GroupBy(x=>x.ComponentItemId).Any(x=>x.Count()>1)||
+           proposal.Lines.GroupBy(x=>x.ComponentItemId).Any(x=>x.Count()>1))
+            throw new InvalidOperationException("BOM دارای جزء تکراری یا نامعتبر است؛ مقایسه قابل اتکا نیست.");
         var left=baseline.Lines.ToDictionary(x=>x.ComponentItemId);
         var right=proposal.Lines.ToDictionary(x=>x.ComponentItemId);
         return left.Keys.Concat(right.Keys).Distinct().Select(key=>{
@@ -37,6 +42,11 @@ public static class FactoryEngineeringChangeImpact
     public static IReadOnlyList<FactoryEngineeringStepDelta> CompareRouting(
         RoutingRevision baseline,RoutingRevision proposal)
     {
+        if(baseline.Operations.Any(x=>x.Sequence<=0)||
+           proposal.Operations.Any(x=>x.Sequence<=0)||
+           baseline.Operations.GroupBy(x=>x.Sequence).Any(x=>x.Count()>1)||
+           proposal.Operations.GroupBy(x=>x.Sequence).Any(x=>x.Count()>1))
+            throw new InvalidOperationException("مسیر ساخت دارای شماره عملیات تکراری یا نامعتبر است.");
         var left=baseline.Operations.ToDictionary(x=>x.Sequence);
         var right=proposal.Operations.ToDictionary(x=>x.Sequence);
         return left.Keys.Concat(right.Keys).Distinct().Select(seq=>{
@@ -65,7 +75,8 @@ public static class FactoryEngineeringChangeImpact
             candidateFrom,candidateTo);
         var impacted=frozenOrders.Where(x=>x.PlannedStart>=candidateFrom||
             x.Status is ManufacturingOrderStatus.Released or
-                ManufacturingOrderStatus.InProgress or ManufacturingOrderStatus.OnHold)
+                ManufacturingOrderStatus.InProgress or ManufacturingOrderStatus.OnHold or
+                ManufacturingOrderStatus.Completed)
             .OrderBy(x=>x.PlannedStart).Take(501).Select(x=>
                 new FactoryEngineeringAffectedOrder(x.Id,x.Number,x.Status,
                     x.PlannedStart,kind=="BOM"?x.BomRevisionId:x.RoutingRevisionId,
