@@ -141,7 +141,15 @@
       const badge=document.createElement("span");badge.className="tag";badge.textContent=status;
       const link=document.createElement("a");link.href=page;
       link.className="factory-module-link";link.textContent="ورود به فرم آزمایشی";
-      card.append(h,p,document.createElement("br"),badge,link);grid.append(card);
+      card.append(h,p,document.createElement("br"),badge,link);
+      if([2,3,5,6,7,14,16,17].includes(i+1)){
+        const trial=document.createElement("a");
+        trial.href="/factory-analytical-verification.html#analytics-module-"+(i+1);
+        trial.className="factory-module-link";
+        trial.textContent="آزمون محاسبات و داده‌های واقعی";
+        card.append(trial);
+      }
+      grid.append(card);
     });
     $$("#primary-nav button").forEach(b=>b.addEventListener("click",()=>{
       const page=b.dataset.page;
