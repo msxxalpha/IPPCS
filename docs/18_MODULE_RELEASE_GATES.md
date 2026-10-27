@@ -53,3 +53,10 @@ The production program (04) has a controlled-copy revision path: approved source
 **Module 01** now offers an explicit engineering impact preflight (BOM part ratios/alternatives not yet authorized, routing center/cycle time and affected frozen work orders), but a signed change order/ECO release authority and controlled retirement/cutover are **still required** before final signoff.
 
 **Module 15** now supports local, globally unique serial registration per *whole good finished unit* after internal EOL QA, with bounded reverse batch genealogy and no hidden stock/shipment assertion. Actual label issuance, scanning/serialization policy, customer fitment identifiers and recall drill remain unapproved/untested in a physical factory. The presence of the code and a green SQL CI is not permission to call serial recall ready.
+
+## Stage 19: OEE and conversion rate gate update
+**14 — OEE:** time-stamped manual start/end center downtime now shares locks with actual operation clocks; reconciliation includes closed operating time and independently timed stoppage with no double subtraction, and flags ambiguous legacy duration-only stops. Missing: real operator/shift confirmation, machine-time source verification, downtime taxonomy and plant-wide trial.
+
+**17 — internal conversion cost:** factory standard rate is now captured per operation on release as immutable evidence, and subsequent center rate updates cannot silently change past orders; legacy orders without frozen evidence are explicitly marked historically unverified. Missing: history and authorization for finance-approved standard rate setting, depreciation/overhead policy, plant cost controller signoff and trial.
+
+**Testing:** GitHub Actions runs associated with Stage19 failed immediately before normal build/test execution and the GitHub logs download reported BlobNotFound. Until exact-head build, unit/JS and authenticated disposable SQL E2E all succeed, this stage's code must not be deployed.
