@@ -80,7 +80,7 @@ public sealed class ManufacturingOrderAudit
 public record ManufacturingOrderInput(string Number, Guid ItemId, decimal PlannedQuantity, string PlannedStartJalali, string DueOnJalali);
 public record ManufacturingConfirmationInput(decimal GoodQuantity, decimal ScrapQuantity, decimal ReworkQuantity, string? LotCode, string? Note);
 public record ManufacturingHoldInput(string Reason);
-public record ManufacturingDowntimeInput(Guid OperationId, string Reason, int DurationMinutes);
+public record ManufacturingDowntimeInput(Guid OperationId, string Reason, int DurationMinutes,string? ReasonCode=null);
 
 public static class ManufacturingExecutionEndpoints
 {
@@ -408,13 +408,17 @@ public static class ManufacturingExecutionEndpoints
         floorApi.MapPost("/manufacturing-orders/{id:guid}/downtime",async(Guid id,ManufacturingDowntimeInput input,ProductionDb db,CancellationToken ct)=>{
             if(input.DurationMinutes is <=0 or >1440||string.IsNullOrWhiteSpace(input.Reason)||input.Reason.Trim().Length>180)
                 return Results.BadRequest(new{message="مدت توقف (۱ تا ۱۴۴۰ دقیقه) و علت معتبر لازم است."});
+            var categorized=await FactoryMasterData.ResolveReason(db,
+                FactoryMasterData.DowntimeReason,input.ReasonCode,input.Reason,180,ct);
+            if(categorized is null)return Results.Conflict(new{
+                message="علت توقف در اطلاعات پایه معتبر یا فعال نیست."});
             var order=await db.ManufacturingOrders.AsNoTracking().SingleOrDefaultAsync(x=>x.Id==id,ct);
             if(order is null)return Results.NotFound();
             if(!IsActive(order.Status))return Results.Conflict(new{message="دستور فعال نیست."});
             if(!await db.ManufacturingOrderOperations.AnyAsync(x=>x.OrderId==id&&x.Id==input.OperationId,ct))
                 return Results.BadRequest(new{message="عملیات انتخابی متعلق به این دستور نیست."});
             var stop=new ManufacturingDowntime{
-                OrderId=id,OperationId=input.OperationId,Reason=input.Reason.Trim(),DurationMinutes=input.DurationMinutes};
+                OrderId=id,OperationId=input.OperationId,Reason=categorized,DurationMinutes=input.DurationMinutes};
             db.ManufacturingDowntimes.Add(stop);
             db.ManufacturingOrderAudits.Add(new ManufacturingOrderAudit{OrderId=id,Action="Downtime",Details=$"{stop.Reason};{stop.DurationMinutes}m"});
             await db.SaveChangesAsync(ct);
