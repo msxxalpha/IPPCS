@@ -155,7 +155,9 @@ public static class FactoryEngineeringDraftRebind
                 value.Replace("\r", " ").Replace("\n", " ").Replace(";", "،")
                     .Replace("|", " ").Trim();
             var actor = Sanitize(context.User.Identity?.Name ?? "unknown");
-            if (actor.Length > 100) actor = actor[..100];
+            // ManufacturingOrderAudit.Details is nvarchar(500). Keep the entire
+            // approved 300-character reason while bounding the account name.
+            if (actor.Length > 40) actor = actor[..40];
             var reason = Sanitize(input.Reason);
             foreach (var order in orders)
             {
