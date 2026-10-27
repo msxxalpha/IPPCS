@@ -51,5 +51,50 @@ function render(select,chosen){
  select.setAttribute("aria-label",select.getAttribute("aria-label")||"انتخاب از فهرست");
  select.dataset.matchCount=String(displayed.length);
 }
-window.IPPCSChoices={fill};
+function multiple(container,rows,{
+ value="code",label="label",onChange=()=>{}
+}={}){
+ const old=new Set(container._factoryMulti?.values()||[]);
+ const entries=rows.map(row=>({
+  value:String(typeof value==="function"?value(row):row[value]),
+  label:String(typeof label==="function"?label(row):row[label])
+ }));
+ const known=new Set(entries.map(x=>x.value));
+ const selected=new Set([...old].filter(x=>known.has(x)));
+ container.replaceChildren();
+ const search=document.createElement("input");search.type="search";
+ search.className="factory-choice-search";search.placeholder="جست‌وجوی گزینه‌ها…";
+ search.setAttribute("aria-label","جست‌وجوی گزینه‌های چندانتخابی");
+ const count=document.createElement("p");count.className="factory-choice-count";
+ const list=document.createElement("div");list.className="factory-checkbox-list";
+ container.append(search,count,list);
+ function draw(){
+  const q=search.value.trim().toLocaleLowerCase("fa");
+  list.replaceChildren();
+  for(const entry of entries.filter(x=>
+   !q||(x.label+" "+x.value).toLocaleLowerCase("fa").includes(q))){
+   const labelEl=document.createElement("label");
+   labelEl.className="factory-inline-check";
+   const box=document.createElement("input");box.type="checkbox";box.value=entry.value;
+   box.checked=selected.has(entry.value);
+   box.addEventListener("change",()=>{
+    if(box.checked)selected.add(entry.value);else selected.delete(entry.value);
+    count.textContent=selected.size?
+     selected.size.toLocaleString("fa-IR")+" گزینه انتخاب شده است.":"همه گزینه‌ها";
+    onChange([...selected]);
+   });
+   const caption=document.createElement("span");caption.textContent=entry.label;
+   labelEl.append(box,caption);list.append(labelEl);
+  }
+  count.textContent=selected.size?
+   selected.size.toLocaleString("fa-IR")+" گزینه انتخاب شده است.":"همه گزینه‌ها";
+ }
+ search.addEventListener("input",draw);draw();
+ const instance={values:()=>[...selected],clear:()=>{
+  selected.clear();search.value="";draw();onChange([]);
+ }};
+ container._factoryMulti=instance;
+ return instance;
+}
+window.IPPCSChoices={fill,multiple};
 })();
