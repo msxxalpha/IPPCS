@@ -84,7 +84,9 @@ public static class IpSecuritySetup
             var tokens=af.GetAndStoreTokens(context);
             return Results.Ok(new{token=tokens.RequestToken});
         }).RequireAuthorization("IpProductionUser");
-        routes.MapGet("/auth/me",(HttpContext ctx)=>Results.Ok(new{username=ctx.User.Identity?.Name}))
+        routes.MapGet("/auth/me",(HttpContext ctx)=>Results.Ok(new{username=ctx.User.Identity?.Name,
+            roles=ctx.User.FindAll(System.Security.Claims.ClaimTypes.Role)
+                .Select(x=>x.Value).Distinct(StringComparer.Ordinal).OrderBy(x=>x).ToArray()}))
             .RequireAuthorization("IpProductionUser");
         routes.MapPost("/api/v1/auth/logout",async(SignInManager<IdentityUser> signIn)=>{
             await signIn.SignOutAsync();return Results.NoContent();
