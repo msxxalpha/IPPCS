@@ -332,8 +332,20 @@ function register(){
     ["نرخ تعریف‌شده",x=>x.hasCostRate?"بله":"خیر"],
     ["هزینه تبدیل (ریال)",x=>format(x.conversionRials)],
     ["هزینه ضایعات (ریال)",x=>format(x.scrapRials)]],data.rows);
-   const measured=await api("/factory-cost/orders/"+id+"/actual-variance");
+   const [measured,rateHistory]=await Promise.all([
+     api("/factory-cost/orders/"+id+"/actual-variance"),
+     api("/factory-cost/orders/"+id+"/rate-snapshot")
+   ]);
    const money=x=>x===null||x===undefined?"نامشخص":format(x);
+   table("#cost-rate-snapshots",[
+      ["عملیات",x=>x.operationId.slice(0,8)],
+      ["مرکز",x=>center(x.workCenterId)],
+      ["نرخ منجمد (ریال/دقیقه)",x=>money(x.conversionRialsPerMinute)],
+      ["ضایعات (ریال/واحد)",x=>money(x.scrapRialsPerUnit)],
+      ["تاریخ مبنای نرخ",x=>x.effectiveFrom?
+        new Date(x.effectiveFrom+"T12:00:00Z").toLocaleDateString("fa-IR-u-ca-persian",{timeZone:"Asia/Tehran"}):"نامشخص"]
+   ],rateHistory.rates);
+
    table("#cost-variance-summary",[["شاخص","name"],["مقدار","value"]],[
      {name:"هزینه استاندارد (ریال)",value:money(measured.totals.standardConversionRials)},
      {name:"هزینه زمان واقعی (ریال)",value:money(measured.totals.actualConversionRials)},
@@ -350,8 +362,17 @@ function register(){
      ["هزینه واقعی (ریال)",x=>money(x.actualConversionRials)],
      ["انحراف هزینه (ریال)",x=>money(x.conversionVarianceRials)],
      ["ساعت باز",x=>x.hasOpenClock?"بله":"خیر"]],measured.rows);
+   if(!rateHistory.isHistoricalSnapshot)
+     flash("این دستور سند نرخ منجمد ندارد؛ نرخ جاری، هزینه تاریخی قطعی نیست.",true);
+   else if(rateHistory.missingRates>0)
+     flash("بعضی نرخ‌ها هنگام آزادسازی نامشخص بوده‌اند؛ نباید با نرخ جدید تکمیل شوند.",true);
+   else flash("مبنای هزینه تبدیل هنگام آزادسازی دستور منجمد شده است.");
+   // Standard-only display remains a live planning estimate, unlike the
+   // immutable release-time evidence shown immediately above.
+   /* 
    flash("برآورد تبدیل: "+format(data.totalConversionRials)+" ریال، برآورد ضایعات: "+
     format(data.totalScrapRials)+" ریال. مراکز بدون نرخ: "+data.missingRates);
+   */
   }catch(e){flash(e.message,true);}
  };
  addForm("#production-alert-form",async f=>{
