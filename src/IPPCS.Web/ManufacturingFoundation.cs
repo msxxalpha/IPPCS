@@ -183,16 +183,22 @@ public static class ManufacturingFoundationEndpoints
             if (input.DayOfWeek is < 0 or > 6 ||
                 !TimeOnly.TryParseExact(PersianPlanningDates.NormalizeDigits(input.StartTime), "HH:mm", CultureInfo.InvariantCulture, DateTimeStyles.None, out var start) ||
                 !TimeOnly.TryParseExact(PersianPlanningDates.NormalizeDigits(input.EndTime), "HH:mm", CultureInfo.InvariantCulture, DateTimeStyles.None, out var end) ||
-                end <= start || input.EffectiveCapacityPercent is <= 0 or > 100)
-                return Results.BadRequest(new { message = "شیفت معتبر نیست؛ فعلاً شیفت عبوری از نیمه‌شب پشتیبانی نمی‌شود." });
+                end == start || input.EffectiveCapacityPercent is <= 0 or > 100)
+                return Results.BadRequest(new { message = "زمان شروع و پایان شیفت نباید یکسان باشند و ظرفیت مؤثر باید معتبر باشد." });
+            await using var tx=await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable,ct);
+            try{await FactoryCapacityReservations.LockCenter(db,input.WorkCenterId,ct);}
+            catch(Microsoft.Data.SqlClient.SqlException)
+                {return Results.Conflict(new{message="قفل تقویم مرکز کاری در دسترس نیست."});}
             if (!await db.WorkCenters.AnyAsync(x => x.Id == input.WorkCenterId, ct))
                 return Results.BadRequest(new { message = "مرکز کاری وجود ندارد." });
             var shift = new WorkShift { WorkCenterId = input.WorkCenterId, DayOfWeek = input.DayOfWeek, StartTime = start, EndTime = end, EffectiveCapacityPercent = input.EffectiveCapacityPercent };
-            var overlapping = await db.WorkShifts.AnyAsync(x => x.WorkCenterId == input.WorkCenterId &&
-                x.DayOfWeek == input.DayOfWeek && x.StartTime < end && start < x.EndTime, ct);
-            if (overlapping) return Results.Conflict(new { message = "ساعات شیفت با شیفت دیگری همپوشانی دارد." });
+            var allShifts=await db.WorkShifts.AsNoTracking()
+                .Where(x=>x.WorkCenterId==input.WorkCenterId).ToListAsync(ct);
+            if (FactoryShiftCalendar.ConflictsWeekly(shift,allShifts))
+                return Results.Conflict(new { message = "شیفت با شیفت روز قبل یا بعد، از جمله عبور از نیمه‌شب، همپوشانی دارد." });
             db.WorkShifts.Add(shift);
             await db.SaveChangesAsync(ct);
+            await tx.CommitAsync(ct);
             return Results.Created("/api/v1/work-shifts", shift);
         });
 
