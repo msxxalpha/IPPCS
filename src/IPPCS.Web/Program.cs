@@ -148,6 +148,7 @@ app.MapFactoryExecutionInsights();
 app.MapPlanningReconciliation();
 app.MapFactoryRevisionGovernance();
 app.MapLineSideCorrections();
+app.MapDeviationGovernance();
 app.MapOrderPegging();
 app.MapProductionDeviations();
 app.MapDemandTrace();
