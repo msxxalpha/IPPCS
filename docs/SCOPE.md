@@ -84,3 +84,8 @@ Modules **04, 05 and 06** now share a governed planning version lifecycle: an ap
 - **01**: read-only BOM/Routing engineering delta vs approved baseline, effective-date conflict, component ratio/center/cycle-time changes and frozen affected orders, including currently active old-version work orders regardless of their original start date. No ECO approval mutation, no rewriting old revision dates.
 - UI: new serial trace screen on control-plan page and ECO comparison panel on BOM planning page, Persian RTL.
 No schema migration; all work remains on `feature/production-platform-foundation` Draft PR and is still subject to UAT of all 18 modules.
+
+### Stage 19 — time-stamped downtime + per-order cost-rate provenance
+- **14 OEE**: separate timestamped operator stop start/end journals protected by the same work-center locks as production clocks; real interval and historical duration-only sources shown side-by-side and never double-counted. Factory Tehran local day/midnight reconciliation fails explicitly on open/overlapping sessions or missing time source. No PLC/maintenance integration.
+- **17 Conversion cost**: rates and missing rates are frozen per operation during SQL work-order release, with cost-rate edits sharing a global serializable lock. Actual conversion variance uses immutable release-time evidence; legacy orders are explicitly flagged unverified for historic pricing.
+All changes internal-only, use existing audit table (no new migration or DB reset). Stage19 workflows await GitHub Actions runner execution; plant UAT remains open.
