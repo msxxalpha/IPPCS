@@ -36,7 +36,7 @@ function option(value,text){
 function renderBaseline(){
  const el=$("engineering-baseline"),current=el.value;
  el.replaceChildren(option("","انتخاب نسخه مبدأ"));
- for(const r of revisionList().filter(x=>x.state===1))
+ for(const r of revisionList().filter(x=>x.state===1||x.state===2))
   el.append(option(r.id,title(r)));
  if([...el.options].some(x=>x.value===current))el.value=current;
  renderCandidate();renderOrders();
