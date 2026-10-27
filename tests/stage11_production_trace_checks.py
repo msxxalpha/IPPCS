@@ -84,3 +84,6 @@ def stage11_acceptance(request, component_id, center_id, jalali):
 
     from stage16_manufacturing_eol_checks import stage16_acceptance
     stage16_acceptance(request,jalali,center_id,semi["id"])
+
+    from stage17_mps_change_checks import stage17_acceptance
+    stage17_acceptance(request,version["id"])
