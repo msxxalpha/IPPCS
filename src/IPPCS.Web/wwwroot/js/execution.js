@@ -50,6 +50,8 @@ async function reload(){
  select($("#order-item"),S.items.filter(x=>x.type===1||x.type===2),x=>x.code+" • "+x.name);
  $$("[data-order-active]").forEach(el=>select(el,S.orders.filter(x=>x.status===1||x.status===2),x=>x.number+" • "+status(x.status)));
  select($("#history-order"),S.orders,x=>x.number+" • "+status(x.status));
+ select($("#slot-order"),S.orders.filter(x=>[1,2].includes(x.status)),
+  x=>x.number+" • "+status(x.status));
  select($("#clock-order"),S.orders.filter(x=>[1,2,3].includes(x.status)),
   x=>x.number+" • "+status(x.status));
  render();
@@ -84,6 +86,7 @@ function render(){
  refreshOperations("confirm-form","confirm-operation");
  refreshOperations("stop-form","stop-operation");
  refreshOperations("clock-form","clock-operation");
+ refreshOperations("slot-form","slot-operation");
 }
 function refreshOperations(form,field){
  const host=$("#"+form),id=fval(host,"orderId");
@@ -121,6 +124,49 @@ function boot(){
   goodQuantity:numeric(f,"good"),scrapQuantity:numeric(f,"scrap"),reworkQuantity:numeric(f,"rework"),
   lotCode:fval(f,"lot")||null,note:fval(f,"note")||null
  }));
+ const slotForm=$("#slot-form");
+ $("#slot-order").addEventListener("change",()=>{
+   refreshOperations("slot-form","slot-operation");
+   $("#slot-table").replaceChildren();
+ });
+ async function reloadSlots(){
+  const id=fval(slotForm,"orderId");
+  if(!id){flash("ابتدا دستور ساخت را انتخاب کنید.",true);return;}
+  const data=await request("/manufacturing-orders/"+id+"/capacity-reservations");
+  const order=S.orders.find(x=>x.id===id);
+  table("#slot-table",[
+   ["مرحله",x=>order?.operations.find(y=>y.id===x.operationId)?.name||x.operationId.slice(0,8)],
+   ["تاریخ رزرو","dayJalali"],
+   ["شروع برنامه","startTime"],["پایان برنامه","endTime"],
+   ["دقایق برنامه",x=>num(x.plannedMinutes)],
+   ["دقایق واقعی",x=>x.actualMinutes==null?"—":num(x.actualMinutes)],
+   ["اختلاف مدت (دقیقه)",x=>x.durationVarianceMinutes==null?"—":num(x.durationVarianceMinutes)],
+   ["اختلاف شروع (دقیقه)",x=>x.startVarianceMinutes==null?"—":num(x.startVarianceMinutes)],
+   ["شروع واقعی",x=>x.actualStartJalali?(x.actualStartJalali+" "+x.actualStartTime):"—"],
+   ["پایان واقعی",x=>x.actualEndTime||"—"],
+   ["توضیحات",x=>x.note||"—"]
+  ],data.rows,[{label:"لغو رزرو",run:async x=>{
+    if(!window.confirm("رزرو انتخاب‌شده لغو شود؟ سابقه حذف نخواهد شد."))return;
+    await request("/manufacturing-orders/"+id+"/capacity-reservations/"+x.id+"/cancel","POST");
+    flash("رزرو لغو شد و سابقه حفظ گردید.");await reloadSlots();
+  }}]);
+ }
+ $("#slot-refresh").onclick=()=>reloadSlots().catch(ex=>flash(ex.message,true));
+ slotForm.addEventListener("submit",async event=>{
+   event.preventDefault();
+   if(!slotForm.reportValidity())return;
+   const id=fval(slotForm,"orderId"),button=slotForm.querySelector('button[type="submit"]');
+   button.disabled=true;
+   try{
+     await request("/manufacturing-orders/"+id+"/capacity-reservations","POST",{
+       operationId:fval(slotForm,"operationId"),dateJalali:fval(slotForm,"date"),
+       startTime:fval(slotForm,"startTime"),endTime:fval(slotForm,"endTime"),
+       note:fval(slotForm,"note")
+     });
+     flash("بازه زمانی مرکز کاری رزرو شد.");
+     await reloadSlots();
+   }catch(ex){flash(ex.message,true);}finally{button.disabled=false;}
+ });
  const clockForm=$("#clock-form");
  $("#clock-order").addEventListener("change",()=>{
    refreshOperations("clock-form","clock-operation");
