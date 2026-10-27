@@ -44,6 +44,9 @@ function render(){
  options($("#revision-bom-check"),state.bom,x=>name(x.parentItemId)+" / "+x.revision);
  options($("#revision-routing-check"),state.routings,x=>name(x.itemId)+" / "+x.revisionCode);
  options($("#mps-draft-select"),state.mps.filter(x=>x.state===0),x=>x.code);
+ options($("#mps-revision-source"),state.mps.filter(x=>x.state===1),x=>x.code);
+ options($("#mps-comparison-source"),state.mps.filter(x=>x.state===1),x=>x.code);
+ options($("#mps-comparison-candidate"),state.mps,x=>x.code+" / "+(x.state===1?"مصوب":"پیش‌نویس"));
  options($("#calculate-mps"),state.mps.filter(x=>x.state===1),x=>x.code);
  table("#bom-table",[
   ["محصول",r=>name(r.parentItemId)],["نسخه","revision"],["از","validFromJalali"],
@@ -127,6 +130,67 @@ function boot(){
   scrapPercent:number(f,"scrapPercent"),sequence:number(f,"sequence")
  }));
  register("#mps-form",f=>call("/mps","POST",{code:val(f,"code")}));
+ register("#mps-controlled-revision-form",async f=>{
+  const base=val(f,"sourceId");
+  const created=await call("/mps/"+base+"/controlled-revision","POST",{
+   code:val(f,"code"),reason:val(f,"reason")
+  });
+  alertText("نسخه "+created.code+" با "+created.clonedLines+
+   " ردیف و سابقه علت بازنگری ساخته شد. نسخه اصلی همچنان مصوب است.");
+  await load();
+  $("#mps-comparison-source").value=base;
+  $("#mps-comparison-candidate").value=created.id;
+ });
+ register("#mps-change-impact-form",async f=>{
+  const source=val(f,"sourceId"),candidate=val(f,"candidateId");
+  if(source===candidate)throw Error("دو نسخه مستقل انتخاب کنید.");
+  const [report,evidence]=await Promise.all([
+   call("/mps/compare-change-impact?sourceId="+encodeURIComponent(source)+
+    "&candidateId="+encodeURIComponent(candidate)),
+   call("/mps/"+candidate+"/change-evidence")
+  ]);
+  table("#mps-impact-summary",[["شاخص","name"],["مقدار","value"]],[
+    {name:"مقدار مبنای مصوب",value:fmt(report.beforeQuantity)},
+    {name:"مقدار نسخه تغییر یافته",value:fmt(report.afterQuantity)},
+    {name:"خالص تغییر مقدار",value:fmt(report.deltaQuantity)},
+    {name:"تعداد اقلام/موعدهای تغییر یافته",value:report.demand.length}
+  ]);
+  table("#mps-impact-demand",[
+   ["کالا",x=>name(x.itemId)],
+   ["موعد",x=>new Date(x.neededOn+"T12:00:00Z").toLocaleDateString("fa-IR-u-ca-persian",{timeZone:"Asia/Tehran"})],
+   ["قبل",x=>fmt(x.beforeQuantity)],["بعد",x=>fmt(x.afterQuantity)],
+   ["تغییر",x=>fmt(x.difference)]
+  ],report.demand);
+  table("#mps-impact-capacity",[
+   ["مرکز",x=>state.centers.find(y=>y.id===x.workCenterId)?.name||x.workCenterId.slice(0,8)],
+   ["موعد",x=>new Date(x.neededOn+"T12:00:00Z").toLocaleDateString("fa-IR-u-ca-persian",{timeZone:"Asia/Tehran"})],
+   ["بار قبل (دقیقه)",x=>fmt(x.beforeMinutes)],
+   ["بار بعد",x=>fmt(x.afterMinutes)],["تغییر بار",x=>fmt(x.deltaMinutes)],
+   ["اضافه‌بار قبل",x=>fmt(x.beforeOverloadMinutes)],
+   ["اضافه‌بار بعد",x=>fmt(x.afterOverloadMinutes)]
+  ],report.capacity);
+  table("#mps-impact-material",[
+   ["کالا",x=>name(x.itemId)],
+   ["موعد",x=>new Date(x.neededOn+"T12:00:00Z").toLocaleDateString("fa-IR-u-ca-persian",{timeZone:"Asia/Tehran"})],
+   ["نیاز ناخالص قبل",x=>fmt(x.beforeGross)],["نیاز بعد",x=>fmt(x.afterGross)],
+   ["اختلاف ناخالص",x=>fmt(x.grossDifference)],
+   ["دریافت پیشنهادی قبل",x=>fmt(x.beforeSuggested)],
+   ["دریافت پیشنهادی بعد",x=>fmt(x.afterSuggested)],
+   ["اختلاف پیشنهادی",x=>fmt(x.suggestedDifference)]
+  ],report.materials);
+  const summaries=evidence.events.map(x=>{
+    const source=x.original||{};
+    return {type:x.algorithmVersion,created:x.calculatedUtc,
+     actor:source.actor||source.approvedBy||"نامشخص",
+     reason:source.reason||"امضای برنامه مصوب",
+     count:source.originalLines?.length||source.lines?.length||0};
+  });
+  table("#mps-change-evidence",[
+    ["سند","type"],["تاریخ",x=>new Date(x.created).toLocaleString("fa-IR-u-ca-persian",{timeZone:"Asia/Tehran"})],
+    ["ثبت‌کننده","actor"],["علت","reason"],["تعداد ردیف مبنا","count"]
+  ],summaries);
+  alertText(report.disclaimer);
+ });
  register("#mps-line-form",f=>call("/mps/"+val(f,"mpsId")+"/lines","POST",{
   itemId:val(f,"itemId"),neededOnJalali:val(f,"due"),quantity:number(f,"quantity"),reference:val(f,"reference")||null
  }));
