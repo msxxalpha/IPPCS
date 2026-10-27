@@ -99,8 +99,13 @@ public static class ManufacturingOrderPegging
                 return Results.Conflict(new{message="این ارتباط قبلاً ثبت شده است."});
             var orderAssigned=await db.ManufacturingOrderPegs
                 .Where(x=>x.OrderId==orderId).SumAsync(x=>(decimal?)x.LinkedQuantity,ct)??0;
+            // Cancelled orders no longer occupy MPS demand capacity; retain their
+            // historical links for audit, but exclude their quantities from live netting.
             var lineAssigned=await db.ManufacturingOrderPegs
-                .Where(x=>x.MpsLineId==line.Id).SumAsync(x=>(decimal?)x.LinkedQuantity,ct)??0;
+                .Where(x=>x.MpsLineId==line.Id)
+                .Join(db.ManufacturingOrders,x=>x.OrderId,o=>o.Id,(x,o)=>new{x.LinkedQuantity,o.Status})
+                .Where(x=>x.Status!=ManufacturingOrderStatus.Cancelled)
+                .SumAsync(x=>(decimal?)x.LinkedQuantity,ct)??0;
             if(!IsEligible(order,line,input.LinkedQuantity,orderAssigned,lineAssigned,out var error))
                 return Results.Conflict(new{message=error});
             var peg=new ManufacturingOrderPeg{OrderId=orderId,MpsLineId=line.Id,
