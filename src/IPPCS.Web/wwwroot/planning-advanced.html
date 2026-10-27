@@ -68,6 +68,13 @@
 <div class="form-actions"><button type="submit" class="btn-main">محاسبه و ثبت Snapshot S&OP</button></div></form>
 <div class="panel"><h3>نتایج ثبت‌شده تراز تولید</h3><div id="sop-table"></div></div>
 <div class="panel"><h3>آخرین تراز به تفکیک مرکز کاری</h3><div id="sop-centers"></div></div>
+<form id="sop-mps-bridge-form" class="panel form-grid">
+<h3 class="wide">مقایسه تصویر تاریخی S&OP با نسخه مصوب MPS</h3>
+<label>ارزیابی S&OP ثبت‌شده<select id="sop-bridge-sop" name="sopId" required></select></label>
+<label>نسخه مصوب MPS<select name="mpsId" data-mps required></select></label>
+<div class="form-actions"><button type="submit" class="btn-outline">بررسی فاصله S&OP و برنامه مصوب</button></div>
+</form>
+<div class="panel"><h3>مقدار S&OP، نیازهای فعلی و برنامه MPS</h3><div id="sop-mps-bridge-table"></div></div>
 </section>
 <section id="aps" class="page" hidden>
 <div class="section-title"><h3>زمان‌بندی ظرفیت محدود در شیفت</h3><small>بدون همپوشانی مرکز کاری و با ترتیب عملیات. محدودیت مواد و زمان‌بندی بین شیفتی هنوز در حال توسعه است.</small></div>
@@ -104,6 +111,19 @@
 <label>ضریب سناریو<input name="scenario" type="number" min="0.1" max="2" step="any" value="1.25" required></label>
 <div class="form-actions"><button type="submit" class="btn-main">مقایسه سناریوها</button></div></form>
 <div class="panel"><h3>مقایسه نتایج</h3><div id="whatif-table"></div></div>
+<form id="maintenance-whatif-form" class="panel form-grid">
+<h3 class="wide">سناریوی هم‌زمان ظرفیت و عدم‌دسترسی مرکز کاری</h3>
+<label>نسخه مصوب MPS<select name="mpsId" data-mps required></select></label>
+<label>شروع افق<span class="jalali-field"><input name="start" data-jalali-date required><button type="button" data-jalali-trigger class="date-trigger">▣</button></span></label>
+<label>افق (روز)<input name="horizon" type="number" min="1" max="90" value="7" required></label>
+<label>ضریب پایه<input name="baseline" type="number" min="0.1" max="2" step="any" value="1" required></label>
+<label>ضریب سناریو<input name="scenario" type="number" min="0.1" max="2" step="any" value="0.75" required></label>
+<label>مرکز کاری غیرفعال در سناریو (اختیاری)<select id="maintenance-center" name="center"></select></label>
+<label>تاریخ عدم‌دسترسی (اختیاری)<span class="jalali-field"><input name="blackout" data-jalali-date><button type="button" data-jalali-trigger class="date-trigger">▣</button></span></label>
+<label>علت عدم‌دسترسی (اختیاری)<input name="reason" maxlength="180" placeholder="تعمیرات برنامه‌ای"></label>
+<div class="form-actions"><button type="submit" class="btn-main">محاسبه سناریوی ترکیبی</button></div>
+</form>
+<div class="panel"><h3>اثر ظرفیت و تعمیرات بر برنامه</h3><div id="maintenance-whatif-table"></div><div id="maintenance-whatif-errors"></div></div>
 </section>
 <section id="materials" class="page" hidden>
 <div class="section-title"><h3>ثبت مصرف تولیدی پای خط و انحراف BOM</h3><small>فقط مصرف عملیاتی است؛ هیچ حواله یا تغییر موجودی در انبار ایجاد نمی‌کند.</small></div>
@@ -160,6 +180,24 @@
   <label>نسخه MPS مصوب<select name="mpsId" data-mps required></select></label>
   <div class="form-actions"><button class="btn-outline" type="submit">بررسی تحقق، دیرکرد و کسری ردیف‌ها</button></div>
 </form>
+<form id="mps-audit-form" class="panel form-grid">
+<h3 class="wide">ممیزی پوشش تقاضای قطعی در برنامه اصلی تولید</h3>
+<label>نسخه مصوب MPS<select name="mpsId" data-mps required></select></label>
+<div class="form-actions"><button type="submit" class="btn-outline">بررسی مراجع ثبت تقاضا</button></div>
+</form>
+<div class="panel"><h3>نیاز قطعی، ردیف‌های مرجع‌دار و کسری مستند</h3><div id="mps-audit-summary"></div><div id="mps-audit-lines"></div></div>
+<form id="mrp-risk-form" class="panel form-grid">
+<h3 class="wide">ممیزی فرضیات عرضه در MRP خالص</h3>
+<label>نسخه مصوب MPS<select name="mpsId" data-mps required></select></label>
+<div class="form-actions"><button type="submit" class="btn-outline">تحلیل پوشش فرضی مواد و بچ‌ها</button></div>
+</form>
+<div class="panel"><h3>منشأ تأمین فرضی، کمبود زمان و آزادسازی‌های قبل از مبنا</h3><div id="mrp-risk-summary"></div><div id="mrp-risk-lines"></div></div>
+<form id="crp-stress-form" class="panel form-grid">
+<h3 class="wide">گلوگاه‌های مراکز کاری بر اساس CRP</h3>
+<label>نسخه مصوب MPS<select name="mpsId" data-mps required></select></label>
+<div class="form-actions"><button type="submit" class="btn-outline">نمایش اشباع و اضافه‌بار مراکز</button></div>
+</form>
+<div class="panel"><h3>بار موردنیاز، دقایق شیفت و روزهای دارای کمبود ظرفیت</h3><div id="crp-stress-table"></div></div>
 <div class="panel"><h3>تخصیص، تولید سالم به‌موقع، دیرکرد و کسری برنامه</h3>
   <div id="peg-adherence-summary"></div><div id="peg-adherence-table"></div>
 </div>
