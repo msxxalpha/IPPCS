@@ -156,6 +156,7 @@ app.MapMpsChangeControl();
 app.MapFactoryRevisionGovernance();
 app.MapLineSideCorrections();
 app.MapDeviationGovernance();
+app.MapDeviationEffectiveness();
 app.MapOrderPegging();
 app.MapProductionDeviations();
 app.MapDemandTrace();
