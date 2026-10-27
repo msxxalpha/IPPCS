@@ -26,7 +26,10 @@ public static class FactoryOperationClock
         var sessions=new List<FactoryClockSession>();
         var open=new Dictionary<Guid,FactoryClockSession>();
         foreach(var e in history.Where(x=>x.Action is Started or Stopped)
-            .OrderBy(x=>x.AtUtc).ThenBy(x=>x.Id))
+            .OrderBy(x=>x.AtUtc)
+            // At a shared timestamp, a closed [start,end) interval frees the center
+            // before another operation starts; random event IDs must not reverse that.
+            .ThenBy(x=>x.Action==Stopped?0:1).ThenBy(x=>x.Id))
         {
             var parts=(e.Details??"").Split('|');
             if(parts.Length!=3 ||
