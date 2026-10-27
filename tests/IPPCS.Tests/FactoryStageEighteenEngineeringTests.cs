@@ -66,4 +66,42 @@ public sealed class FactoryStageEighteenEngineeringTests
         Assert.Throws<InvalidOperationException>(()=>
             FactoryEngineeringChangeImpact.Routing(draft,baseline,[baseline],[]));
     }
+
+    [Fact]
+    public void Impact_includes_old_completed_frozen_orders_for_trace_review()
+    {
+        var item=Guid.NewGuid();
+        var baseline=new RoutingRevision{ItemId=item,State=RoutingState.Approved,
+            EffectiveFrom=new DateOnly(2026,10,1),EffectiveTo=new DateOnly(2026,10,30),
+            Operations=[new RoutingOperation{Sequence=10,Name="old",
+                WorkCenterId=Guid.NewGuid(),RunMinutesPerUnit=2,YieldPercent=100}]};
+        var next=new RoutingRevision{ItemId=item,State=RoutingState.Draft,
+            EffectiveFrom=new DateOnly(2026,10,31),
+            Operations=[new RoutingOperation{Sequence=10,Name="new",
+                WorkCenterId=Guid.NewGuid(),RunMinutesPerUnit=1,YieldPercent=100}]};
+        var historical=new ManufacturingOrder{ItemId=item,RoutingRevisionId=baseline.Id,
+            PlannedStart=new DateOnly(2026,10,10),Status=ManufacturingOrderStatus.Completed};
+        var result=FactoryEngineeringChangeImpact.Routing(baseline,next,[baseline],[historical]);
+        Assert.Equal(historical.Id,Assert.Single(result.Orders).OrderId);
+        Assert.Equal(1,result.ActiveOrCompletedOrders);
+    }
+
+    [Fact]
+    public void Engineering_comparison_reports_malformed_duplicate_structure_not_runtime_key_error()
+    {
+        var item=Guid.NewGuid();var component=Guid.NewGuid();
+        var oldBom=new ManufacturingBomRevision{ParentItemId=item,
+            Lines=[new ManufacturingBomLine{ComponentItemId=component,Sequence=10},
+                new ManufacturingBomLine{ComponentItemId=component,Sequence=20}]};
+        var candidate=new ManufacturingBomRevision{ParentItemId=item,
+            Lines=[new ManufacturingBomLine{ComponentItemId=component,Sequence=10}]};
+        Assert.Throws<InvalidOperationException>(()=>
+            FactoryEngineeringChangeImpact.CompareBom(oldBom,candidate));
+        var route=new RoutingRevision{ItemId=item,Operations=[
+            new RoutingOperation{Sequence=10},new RoutingOperation{Sequence=10}]};
+        var proposal=new RoutingRevision{ItemId=item,Operations=[
+            new RoutingOperation{Sequence=10}]};
+        Assert.Throws<InvalidOperationException>(()=>
+            FactoryEngineeringChangeImpact.CompareRouting(route,proposal));
+    }
 }
