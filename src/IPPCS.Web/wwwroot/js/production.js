@@ -163,6 +163,28 @@
       workCenterId:fval(f,"centerId"),dayOfWeek:decimal(f,"day"),
       startTime:fval(f,"start"),endTime:fval(f,"end"),effectiveCapacityPercent:decimal(f,"capacity")
     }));
+    $("#shift-capacity-review").onclick=async()=>{
+      const center=$("#shift-capacity-center").value;
+      const date=$("#shift-capacity-from").value.trim();
+      const days=Number(IPPCSJalali.toLatin($("#shift-capacity-days").value));
+      if(!center||!date||!Number.isInteger(days)||days<1||days>31){
+        notice("مرکز، تاریخ شمسی و افق ۱ تا ۳۱ روز معتبر لازم است.",true);
+        return;
+      }
+      try{
+        const d=await api("/api/v1/work-shifts/capacity?workCenterId="+
+          encodeURIComponent(center)+"&startJalali="+encodeURIComponent(date)+
+          "&days="+days);
+        table($("#shift-capacity-table"),[
+          ["تاریخ شمسی","dateJalali"],
+          ["روز",x=>dayNames[x.weekday]],
+          ["ظرفیت مفید (دقیقه)",x=>num(x.effectiveMinutes)],
+          ["شیفت‌های آغازشده در روز",x=>num(x.shiftCountStartingToday)],
+          ["انتقال زمان از شیفت شب قبل",x=>x.hasPreviousNight?"دارد":"ندارد"]
+        ],d.rows);
+        notice(d.disclaimer);
+      }catch(e){notice(e.message,true);}
+    };
     formHandler("#plan-form",f=>api("/api/v1/production-plans/jalali","POST",{
       itemId:fval(f,"itemId"),quantity:decimal(f,"quantity"),dueDateJalali:fval(f,"due")
     }));
