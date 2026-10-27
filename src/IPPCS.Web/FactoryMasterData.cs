@@ -46,7 +46,8 @@ public static class FactoryMasterData
         return CodePattern.IsMatch(code);
     }
     public static bool ValidLabel(string? label)=>
-        !string.IsNullOrWhiteSpace(label)&&label.Trim().Length is >=2 and <=100;
+        !string.IsNullOrWhiteSpace(label)&&label.Trim().Length is >=2 and <=100&&
+        !label.Contains('|')&&!label.Contains('\\r')&&!label.Contains('\\n');
     public static bool ValidSort(int sort)=>sort is >=0 and <=10000;
 
     public static async Task<FactoryMasterOption?> Active(
@@ -69,7 +70,9 @@ public static class FactoryMasterData
             return explanation.Length is >0 and <=500&&explanation.Length<=maxLength?
                 explanation:null;
         var option=await Active(db,kind,code,ct);
-        if(option is null||explanation.Contains('|'))return null;
+        if(option is null||!ValidLabel(option.Label)||
+            explanation.Contains('|')||explanation.Contains('\\r')||
+            explanation.Contains('\\n'))return null;
         var value="["+option.Code+"] "+option.Label+
             (explanation.Length>0?" — "+explanation:"");
         return value.Length<=maxLength?value:null;
