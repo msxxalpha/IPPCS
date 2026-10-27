@@ -23,8 +23,8 @@ def stage20_acceptance(request, jalali, tomorrow, component_id):
     print("PASS: SQL approved weekly midnight shift plus cross-weekday collision denied; next-day back-to-back allowed.")
 
     item=request("/api/v1/items","POST",{
-      "code":"CI-ST20-NIGHT-ITEM","name":"Overnight batch for finite slot",
-      "unit":"PCS","type":1},201)
+      "code":"CI-ST20-NIGHT-ITEM","name":"Finished shock absorber for overnight MPS and finite slot",
+      "unit":"PCS","type":2},201)
     route=request("/api/v1/routings","POST",{
       "itemId":item["id"],"revisionCode":"CI-ST20-ROUTE",
       "effectiveFromJalali":jalali,"effectiveToJalali":None},201)
