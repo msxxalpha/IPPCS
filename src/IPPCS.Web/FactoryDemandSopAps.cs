@@ -97,6 +97,49 @@ public static class FiniteFactoryScheduler
         }
         // Topological lot order precedes due-date order: a manufactured component must finish
         // before its parent lot consumes it. Every lot remains non-preemptive per operation.
+        // Every allocation, including a shift that runs across midnight, owns
+        // its occupied minutes in each local calendar day. This prevents a
+        // next-day operation from silently reusing the overnight center.
+        DateTime? FindFree(Guid center,DateTime from,DateTime latest,int length)
+        {
+            var current=from;
+            for(var guard=0;guard<1442&&current.AddMinutes(length)<=latest;guard++)
+            {
+                var finish=current.AddMinutes(length);
+                DateTime? next=null;
+                for(var localDay=DateOnly.FromDateTime(current);
+                    localDay<=DateOnly.FromDateTime(finish);localDay=localDay.AddDays(1))
+                {
+                    if(!occupied.TryGetValue((center,localDay),out var blocks))continue;
+                    var midnight=localDay.ToDateTime(TimeOnly.MinValue);
+                    foreach(var block in blocks)
+                    {
+                        var a=midnight.AddMinutes(block.start);
+                        var b=midnight.AddMinutes(block.end);
+                        if(current<b&&a<finish&&(next is null||b<next))next=b;
+                    }
+                }
+                if(next is null)return current;
+                if(next<=current)throw new InvalidOperationException("تاریخچه رزرو زمانی مرکز کاری نامعتبر است.");
+                current=next.Value;
+            }
+            return null;
+        }
+        void Occupy(Guid center,DateTime from,DateTime until)
+        {
+            for(var localDay=DateOnly.FromDateTime(from);
+                localDay<=DateOnly.FromDateTime(until);localDay=localDay.AddDays(1))
+            {
+                var midnight=localDay.ToDateTime(TimeOnly.MinValue);
+                var a=(int)Math.Floor(Math.Max(0,(from-midnight).TotalMinutes));
+                var b=(int)Math.Ceiling(Math.Min(1440,(until-midnight).TotalMinutes));
+                if(b<=a)continue;
+                var key=(center,localDay);
+                if(!occupied.TryGetValue(key,out var entries))
+                    occupied[key]=entries=new();
+                entries.Add((a,b));
+            }
+        }
         var byChain=tasks.GroupBy(x=>x.DemandLineId)
             .ToDictionary(g=>g.Key,g=>g.OrderBy(t=>t.OperationSequence).ToArray());
         var remaining=byChain.Keys.ToHashSet();
@@ -154,44 +197,34 @@ public static class FiniteFactoryScheduler
                 foreach(var shift in shifts.Where(x=>x.WorkCenterId==job.WorkCenterId
                     && x.DayOfWeek==(int)day.DayOfWeek).OrderBy(x=>x.StartTime))
                 {
-                    if(shift.EndTime<=shift.StartTime || shift.EffectiveCapacityPercent<=0)continue;
-                    int left=(int)shift.StartTime.ToTimeSpan().TotalMinutes;
-                    int max=(int)shift.EndTime.ToTimeSpan().TotalMinutes;
-                    // Reduced calendar utilization is treated as a shorter effective shift.
-                    int effective=(int)Math.Floor((max-left)*shift.EffectiveCapacityPercent*multiplier/100m);
-                    max=Math.Min(max,left+effective);
-                    if(max<=left)continue;
+                    if(!FactoryShiftCalendar.Valid(shift))continue;
+                    var (shiftFrom,physicalEnd)=FactoryShiftCalendar.Window(shift,day);
+                    var shiftEnd=FactoryShiftCalendar.EffectiveEnd(shift,day,multiplier);
+                    if(shiftEnd>physicalEnd)shiftEnd=physicalEnd;
+                    if(shiftEnd>horizonEnd.ToDateTime(TimeOnly.MinValue))
+                        shiftEnd=horizonEnd.ToDateTime(TimeOnly.MinValue);
                     var duration=(int)Math.Ceiling(job.DurationMinutes);
-                    if(duration>max-left)continue; // non-preemptive operation cannot cross a shift
-                    if(day==DateOnly.FromDateTime(earliest))
-                        left=Math.Max(left,(int)Math.Ceiling(earliest.TimeOfDay.TotalMinutes));
-                    if(max-left<duration)continue;
-                    var key=(job.WorkCenterId,day);
-                    if(!occupied.TryGetValue(key,out var intervals))
-                        occupied[key]=intervals=new();
-                    foreach(var block in intervals.OrderBy(x=>x.start).Append((start:max,end:max)))
-                    {
-                        if(left+duration<=block.start)
-                        {
-                            var end=left+duration;
-                            intervals.Add((left,end));
-                            var from=day.ToDateTime(TimeOnly.FromTimeSpan(TimeSpan.FromMinutes(left)));
-                            // DateTime handles end-of-day 24:00; TimeOnly itself cannot represent 24:00.
-                            var until=day.ToDateTime(TimeOnly.MinValue).AddMinutes(end);
-                            chainReady[job.DemandLineId]=until;
-                            result.Add(new ApsAllocation(job.ItemId,job.WorkCenterId,
-                                job.OperationSequence,job.Quantity,job.DueOn,day,
-                                TimeOnly.FromDateTime(from),DateOnly.FromDateTime(until),TimeOnly.FromDateTime(until),
-                                job.DurationMinutes,job.OperationName,DateOnly.FromDateTime(until)>job.DueOn,
-                                job.DemandLineId));
-                            if(job.OperationSequence==lastSequence[job.DemandLineId])
-                                completedChains.Add(job.DemandLineId);
-                            allocated=true;break;
-                        }
-                        left=Math.Max(left,block.end);
-                        if(left+duration>max)break;
-                    }
-                    if(allocated)break;
+                    var earliestInShift=earliest>shiftFrom?earliest:shiftFrom;
+                    if(shiftEnd<=earliestInShift||
+                        duration>(shiftEnd-earliestInShift).TotalMinutes)continue;
+                    // A blackout in tomorrow's local day also blocks the
+                    // overnight section, not only a shift whose start is today.
+                    if(shiftEnd.Date>day.ToDateTime(TimeOnly.MinValue).Date&&
+                        unavailableDays?.Contains((job.WorkCenterId,day.AddDays(1)))==true)
+                        shiftEnd=day.AddDays(1).ToDateTime(TimeOnly.MinValue);
+                    var position=FindFree(job.WorkCenterId,earliestInShift,shiftEnd,duration);
+                    if(position is null)continue;
+                    var from=position.Value;var until=from.AddMinutes(duration);
+                    Occupy(job.WorkCenterId,from,until);
+                    chainReady[job.DemandLineId]=until;
+                    result.Add(new ApsAllocation(job.ItemId,job.WorkCenterId,
+                        job.OperationSequence,job.Quantity,job.DueOn,DateOnly.FromDateTime(from),
+                        TimeOnly.FromDateTime(from),DateOnly.FromDateTime(until),TimeOnly.FromDateTime(until),
+                        job.DurationMinutes,job.OperationName,DateOnly.FromDateTime(until)>job.DueOn,
+                        job.DemandLineId));
+                    if(job.OperationSequence==lastSequence[job.DemandLineId])
+                        completedChains.Add(job.DemandLineId);
+                    allocated=true;break;
                 }
             }
             if(!allocated)
