@@ -165,7 +165,9 @@ function boot(){
    summary.textContent="مبنای شمسی: "+result.baselineJalali+
     " | در موعد: "+fmt(result.onTimeLots)+" بچ | دیرکرد: "+fmt(result.lateLots)+
     " بچ | مسدود یا قابل زمان‌بندی نیست: "+fmt(result.blockedLots)+
-    " بچ | دستورهای فعال با اشغال محافظه‌کارانه: "+fmt(result.conservativelyBlockedActiveOrders||0);
+    " بچ | دستورهای فعال با اشغال محافظه‌کارانه: "+fmt(result.conservativelyBlockedActiveOrders||0)+
+    " | بازه‌های واقعی ثبت‌شده: "+fmt(result.recordedOperationClockSessions||0)+
+    " | ساعت‌های در حال اجرا: "+fmt(result.runningOperationClockSessions||0);
    table("#lot-capacity-lots",[
     ["شناسه بچ","lotKey"],["کالا",x=>name(x.itemId)],["تعداد",x=>fmt(x.quantity)],
     ["شروع پیشنهادی","proposedReleaseJalali"],["موعد ساخت","receiptDueJalali"],
