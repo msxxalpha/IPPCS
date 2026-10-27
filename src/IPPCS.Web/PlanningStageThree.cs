@@ -252,6 +252,12 @@ public static class PlanningStageThreeEndpoints
             return Results.Created($"/api/v1/bom-revisions/{rev.Id}",new{rev.Id,rev.Revision});
         });
         api.MapPost("/bom-revisions/{id:guid}/lines",async(Guid id,BomLineInput input,ProductionDb db,CancellationToken ct)=>{
+            var owner=await db.ManufacturingBomRevisions.AsNoTracking().Where(x=>x.Id==id)
+                .Select(x=>(Guid?)x.ParentItemId).SingleOrDefaultAsync(ct);
+            if(owner is null)return Results.NotFound();
+            await using var tx=await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable,ct);
+            try{await FactoryRevisionGovernance.LockRevisionItem(db,"BOM",owner.Value,ct);}
+            catch(Microsoft.Data.SqlClient.SqlException){return Results.Conflict(new{message="قفل اصلاح BOM در دسترس نیست."});}
             var rev=await db.ManufacturingBomRevisions.SingleOrDefaultAsync(x=>x.Id==id,ct);
             if(rev is null)return Results.NotFound();
             if(rev.State!=ManufacturingRevisionState.Draft)return Results.Conflict(new{message="نسخه قفل است."});
@@ -266,6 +272,7 @@ public static class PlanningStageThreeEndpoints
             var part=new ManufacturingBomLine{RevisionId=id,ComponentItemId=input.ComponentItemId,
                 Sequence=input.Sequence,QuantityPer=input.QuantityPer,ScrapPercent=input.ScrapPercent};
             db.ManufacturingBomLines.Add(part);await db.SaveChangesAsync(ct);
+            await tx.CommitAsync(ct);
             return Results.Created($"/api/v1/bom-revisions/{id}",new{part.Id});
         });
         api.MapPost("/bom-revisions/{id:guid}/approve",async(Guid id,ProductionDb db,CancellationToken ct)=>{
@@ -434,12 +441,19 @@ public static class PlanningStageThreeEndpoints
             return Results.NoContent();
         });
         api.MapDelete("/bom-revisions/{revisionId:guid}/lines/{lineId:guid}",async(Guid revisionId,Guid lineId,ProductionDb db,CancellationToken ct)=>{
+            var owner=await db.ManufacturingBomRevisions.AsNoTracking().Where(x=>x.Id==revisionId)
+                .Select(x=>(Guid?)x.ParentItemId).SingleOrDefaultAsync(ct);
+            if(owner is null)return Results.NotFound();
+            await using var tx=await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable,ct);
+            try{await FactoryRevisionGovernance.LockRevisionItem(db,"BOM",owner.Value,ct);}
+            catch(Microsoft.Data.SqlClient.SqlException){return Results.Conflict(new{message="قفل اصلاح BOM در دسترس نیست."});}
             var revision=await db.ManufacturingBomRevisions.FindAsync([revisionId],ct);
             if(revision is null)return Results.NotFound();
             if(revision.State!=ManufacturingRevisionState.Draft)return Results.Conflict(new{message="فقط اجزای BOM پیش‌نویس قابل حذف هستند."});
             var line=await db.ManufacturingBomLines.SingleOrDefaultAsync(x=>x.Id==lineId&&x.RevisionId==revisionId,ct);
             if(line is null)return Results.NotFound();
             db.ManufacturingBomLines.Remove(line);await db.SaveChangesAsync(ct);
+            await tx.CommitAsync(ct);
             return Results.NoContent();
         });
 
