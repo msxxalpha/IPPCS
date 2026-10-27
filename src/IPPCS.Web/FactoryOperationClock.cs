@@ -118,6 +118,9 @@ public static class FactoryOperationClock
         api.MapPost("/manufacturing-orders/{id:guid}/operations/{operationId:guid}/clock-start",
             async(Guid id,Guid operationId,ProductionDb db,HttpContext ctx,CancellationToken ct)=>{
             await using var tx=await db.Database.BeginTransactionAsync(IsolationLevel.Serializable,ct);
+            try{await FactoryCapacityReservations.LockOrder(db,id,ct);}
+            catch(Microsoft.Data.SqlClient.SqlException)
+            {return Results.Conflict(new{message="قفل دستور تولید در دسترس نیست."});}
             var order=await db.ManufacturingOrders.Include(x=>x.Operations)
                 .ThenInclude(x=>x.InspectionRequirements)
                 .SingleOrDefaultAsync(x=>x.Id==id,ct);
@@ -169,6 +172,9 @@ public static class FactoryOperationClock
         api.MapPost("/manufacturing-orders/{id:guid}/operations/{operationId:guid}/clock-stop",
             async(Guid id,Guid operationId,ProductionDb db,HttpContext ctx,CancellationToken ct)=>{
             await using var tx=await db.Database.BeginTransactionAsync(IsolationLevel.Serializable,ct);
+            try{await FactoryCapacityReservations.LockOrder(db,id,ct);}
+            catch(Microsoft.Data.SqlClient.SqlException)
+            {return Results.Conflict(new{message="قفل دستور تولید در دسترس نیست."});}
             var order=await db.ManufacturingOrders.Include(x=>x.Operations)
                 .SingleOrDefaultAsync(x=>x.Id==id,ct);
             if(order is null)return Results.NotFound();
