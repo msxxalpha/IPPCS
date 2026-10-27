@@ -105,6 +105,26 @@ public static class FactoryDeviationEffectiveness
             reason="تأیید اثربخشی این پرونده قبلاً ثبت شده است.";
             return false;
         }
+        // After an ineffective trial, a second closure is not enough by
+        // itself: a governed corrective-action revision must be recorded
+        // between the failed review and the latest closure.
+        var ordered=row.Events.OrderBy(x=>x.AtUtc).ThenBy(x=>x.Id).ToArray();
+        var lastRejection=ordered.LastOrDefault(x=>
+            Decode(x.Details) is { Effective:false });
+        if(lastRejection is not null)
+        {
+            var latestClosure=ordered.LastOrDefault(x=>
+                x.Status==ProductionDeviationStatus.Closed &&
+                !x.Details.StartsWith(EventPrefix,StringComparison.Ordinal));
+            if(latestClosure is null || latestClosure.AtUtc<=lastRejection.AtUtc ||
+               !ordered.Any(x=>
+                   x.Details.StartsWith("REVISION:Updated:",StringComparison.Ordinal) &&
+                   x.AtUtc>lastRejection.AtUtc&&x.AtUtc<latestClosure.AtUtc))
+            {
+                reason="پس از رد اثربخشی باید بازنگری کنترل‌شده اقدام و اختتام مجدد با مدرک ثبت شود.";
+                return false;
+            }
+        }
         if(!row.Events.Any(x=>x.Status==ProductionDeviationStatus.Closed &&
             !x.Details.StartsWith(EventPrefix,StringComparison.Ordinal)))
         {
