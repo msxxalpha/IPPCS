@@ -1,14 +1,14 @@
 (()=>{
 "use strict";
 const $=id=>document.getElementById(id);
-const state={routings:[],boms:[],orders:[],selected:new Set(),previewSignature:null};
+const state={routings:[],boms:[],orders:[],selected:new Set(),previewSignature:null,cutoverSignature:null};
 const revisionList=()=> $("engineering-kind").value==="BOM"?state.boms:state.routings;
 const ownerOf=rev=>$("engineering-kind").value==="BOM"?rev?.parentItemId:rev?.itemId;
 function title(rev){
  const first=rev.validFromJalali||rev.effectiveFromJalali||"";
  const last=rev.validUntilJalali||rev.effectiveToJalali||"باز";
  const code=rev.revision||rev.revisionCode||"";
- return code+" · "+first+" تا "+last+(rev.state===1?" · مصوب":" · پیش‌نویس");
+ return code+" · "+first+" تا "+last+(rev.state===1?" · مصوب":rev.state===2?" · منسوخ":" · پیش‌نویس");
 }
 function notice(text,isError=false){
  const n=$("engineering-message");n.hidden=false;
@@ -49,6 +49,7 @@ function renderCandidate(){
     x.id!==b.id&&ownerOf(x)===ownerOf(b)))
    el.append(option(r.id,title(r)));
  if([...el.options].some(x=>x.value===current))el.value=current;
+ renderCutoverCandidates(b);
  clearPreview();
 }
 function renderOrders(){
@@ -118,12 +119,12 @@ function renderResult(data){
  }
  const wrap=document.createElement("div");wrap.className="table-wrap";wrap.append(table);host.append(wrap);
 }
-async function refresh(){
+async function refresh(preserveBaseline=false){
  const [routings,boms,orders]=await Promise.all([
   api("/routings"),api("/bom-revisions"),api("/manufacturing-orders")
  ]);
  state.routings=routings;state.boms=boms;state.orders=orders;
- state.selected.clear();$("engineering-baseline").value="";
+ state.selected.clear();if(!preserveBaseline)$("engineering-baseline").value="";
  renderBaseline();
 }
 async function preview(){
