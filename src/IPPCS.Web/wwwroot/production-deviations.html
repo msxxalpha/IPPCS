@@ -6,7 +6,8 @@
 <div class="factory-filter-bar">
 <label>جست‌وجوی شرح، علت، اقدام یا مسئول<input id="deviation-search" type="search" placeholder="کد یا عبارت موردنظر"></label>
 <label>وضعیت پرونده<select id="deviation-status"><option value="">همه وضعیت‌ها</option><option value="0">باز</option><option value="1">دارای اقدام</option><option value="2">مختومه</option></select></label>
-<label>نوع انحراف<select id="deviation-category"><option value="">همه انواع</option></select></label>
+<fieldset class="factory-multi-field"><legend>نوع انحراف (انتخاب چند مورد)</legend>
+<div id="deviation-categories"></div></fieldset>
 <label>اندازه صفحه<select id="deviation-page-size"><option value="20">۲۰ ردیف</option><option value="50">۵۰ ردیف</option><option value="100">۱۰۰ ردیف</option></select></label>
 </div>
 <div id="deviation-table"></div>
