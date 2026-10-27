@@ -28,9 +28,10 @@ git rev-parse --short HEAD
 
 ```powershell
 dotnet --version
-dotnet user-secrets init --project .\src\IPPCS.Web\IPPCS.Web.csproj
 dotnet user-secrets set "ConnectionStrings:Production" "Server=localhost;Database=IPPCS_Dev;Trusted_Connection=True;TrustServerCertificate=True;" --project .\src\IPPCS.Web\IPPCS.Web.csproj
 ```
+
+شناسهٔ غیرمحرمانهٔ User Secrets از پیش در فایل پروژه ثبت شده است؛ بنابراین به اجرای `dotnet user-secrets init` یا ویرایش فایل پروژه نیازی ندارید و پس از Pull، پروژه وضعیت تغییر محلی غیرضروری نخواهد داشت.
 
 اگر از SQL Server Express استفاده می‌کنید، مقدار `Server=localhost\SQLEXPRESS` را متناسب با اینستنس واقعی تغییر دهید. این دستورها تنها **تنظیمات محلی User Secrets** پروژه را می‌نویسند؛ رمز SQL را در Git یا `appsettings.json` قرار ندهید. نام `Production` در کلید اتصال، نام داخلی تنظیمات است و **به معنای دیتابیس عملیاتی شرکت نیست**.
 
