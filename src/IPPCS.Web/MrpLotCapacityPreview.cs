@@ -27,7 +27,8 @@ public static class MrpLotCapacityPreview
         DateOnly baseline,
         int horizonDays=30,
         decimal capacityMultiplier=1m,
-        IReadOnlyList<ManufacturingOrder>? activeOrders=null)
+        IReadOnlyList<ManufacturingOrder>? activeOrders=null,
+        IReadOnlyList<FactoryClockSession>? clockSessions=null)
     {
         if(horizonDays is <1 or >90 || capacityMultiplier<=0m || capacityMultiplier>2m)
             throw new ArgumentException("افق ۱ تا ۹۰ روز و ضریب ظرفیت مثبت تا ۲ لازم است.");
@@ -61,6 +62,9 @@ public static class MrpLotCapacityPreview
         // operation of an active work order conservatively reserves its center
         // from its planned start through the end of the simulated horizon.
         var reservedDays=new HashSet<(Guid WorkCenterId,DateOnly Date)>();
+        var clocks=clockSessions??[];
+        var measured=FactoryOperationClock.BusyIntervals(clocks,
+            end.ToDateTime(TimeOnly.MinValue));
         foreach(var order in activeOrders??[])
         {
             if(order.Status is not (ManufacturingOrderStatus.Released or
@@ -73,6 +77,11 @@ public static class MrpLotCapacityPreview
             {
                 if(operation.WorkCenterId==Guid.Empty)
                     throw new InvalidOperationException("دستور فعال دارای مرکز کاری نامعتبر است.");
+                // A running clock supplies a measured start. Its as-yet unknown stop
+                // is conservatively treated as horizon end. Missing clock: full-day guard.
+                if(clocks.Any(x=>x.OrderId==order.Id&&x.OperationId==operation.Id
+                    &&x.WorkCenterId==operation.WorkCenterId&&x.StoppedUtc is null))
+                    continue;
                 for(var date=blockStart;date<end;date=date.AddDays(1))
                     reservedDays.Add((operation.WorkCenterId,date));
             }
@@ -132,7 +141,8 @@ public static class MrpLotCapacityPreview
             x=>(IReadOnlyCollection<Guid>)x.Value.ToArray());
         var planned=FiniteFactoryScheduler.Schedule(tasks,shifts,baseline,horizonDays,
             capacityMultiplier,unavailableDays:reservedDays,
-            earliestStartDates:earliest,prerequisites:prereqs);
+            earliestStartDates:earliest,prerequisites:prereqs,
+            occupiedIntervals:measured);
         var finished=initial.Select(lot=>{
             if(lot.Status=="Blocked")return lot;
             var allocations=planned.Allocations.Where(x=>x.DemandLineId==TaskId(lot.LotKey)).ToArray();
@@ -181,6 +191,9 @@ public static class MrpLotCapacityPreview
             var routings=await db.RoutingRevisions.AsNoTracking().Include(x=>x.Operations)
                 .Where(x=>x.State==RoutingState.Approved).ToListAsync(ct);
             var shifts=await db.WorkShifts.AsNoTracking().ToListAsync(ct);
+            var auditClocks=await db.ManufacturingOrderAudits.AsNoTracking()
+                .Where(x=>x.Action==FactoryOperationClock.Started ||
+                    x.Action==FactoryOperationClock.Stopped).ToListAsync(ct);
             var existing=await db.ManufacturingOrders.AsNoTracking()
                 .Include(x=>x.Operations)
                 .Where(x=>x.Status==ManufacturingOrderStatus.Released ||
@@ -190,12 +203,13 @@ public static class MrpLotCapacityPreview
             {
                 var mrp=PlanningCalculators.RunMrp(mps.Lines,boms,balances,receipts,types);
                 var graph=NetMrpDemandPegging.Build(mps.Lines,boms,balances,receipts,types,mrp);
-                var report=Evaluate(graph,routings,shifts,start,days,factor,existing);
+                var sessions=FactoryOperationClock.Read(auditClocks);
+                var report=Evaluate(graph,routings,shifts,start,days,factor,existing,sessions);
                 return Results.Ok(new{
-                    kind="UnconfirmedNetMrpBatchCapacityPreview",algorithm="MRP-CRP-PREVIEW-2",
+                    kind="UnconfirmedNetMrpBatchCapacityPreview",algorithm="MRP-CRP-PREVIEW-3",
                     baselineJalali=PersianPlanningDates.Format(start),horizonDays=days,
                     capacityMultiplier=factor,report.OnTimeLots,report.LateLots,report.BlockedLots,
-                    disclaimer="پیش‌نمایش صرفاً فرضی: تاریخ آزادسازی، تقدم بچ‌های نیمه‌ساخته وابسته، توالی عملیات و عدم تداخل مرکز کاری رعایت می‌شود. مراکز دستورهای ساخت فعال بدون زمان‌بندی دقیق به صورت محافظه‌کارانه تا پایان افق مسدود می‌شوند. موجودی و دریافت‌ها قطعی نیستند؛ ابزار، تعمیرات، اپراتور و زمان‌های اجرایی واقعی لحاظ نشده‌اند؛ هیچ دستور یا رزروی ثبت نمی‌شود.",
+                    disclaimer="پیش‌نمایش ظرفیت: بازه‌های واقعی ثبت‌شده شروع/پایان عملیات لحاظ می‌شوند؛ ساعت باز تا پایان افق مشغول فرض می‌شود، عملیات فعال بدون ساعت به‌صورت محافظه‌کارانه تمام روز مسدود است. نتیجه قطعی یا مجوز آزادسازی تولید نیست؛ مواد، ابزار، نیروی انسانی و مدت آینده عملیات ممکن است نامشخص باشد.",
                     lots=report.Lots.Select(x=>new{x.LotKey,x.ItemId,x.Quantity,
                         proposedReleaseJalali=PersianPlanningDates.Format(x.ProposedRelease),
                         receiptDueJalali=PersianPlanningDates.Format(x.ReceiptDue),
@@ -208,7 +222,9 @@ public static class MrpLotCapacityPreview
                         startTime=x.StartsAt.ToString("HH:mm"),
                         finishJalali=PersianPlanningDates.Format(x.FinishDate),
                         finishTime=x.FinishesAt.ToString("HH:mm")}),
-                    report.Unscheduled,conservativelyBlockedActiveOrders=existing.Count(x=>
+                    report.Unscheduled,recordedOperationClockSessions=sessions.Count,
+                    runningOperationClockSessions=sessions.Count(x=>x.StoppedUtc is null),
+                    conservativelyBlockedActiveOrders=existing.Count(x=>
                         x.Operations.Any(op=>!op.IsComplete))
                 });
             }
