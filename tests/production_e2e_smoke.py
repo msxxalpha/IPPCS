@@ -469,6 +469,19 @@ assert any(x["action"]=="CapacityLifecycle" for x in cancel_events)
 
 
 
+# Stage 10: measured operations cost report preserves missing data.
+real_cost=request(f"/api/v1/factory-cost/orders/{clock_order_id}/actual-variance")
+assert real_cost["orderId"]==clock_order_id
+assert len(real_cost["rows"])==2
+assert real_cost["rows"][0]["actualMinutes"] is not None
+assert real_cost["rows"][1]["actualMinutes"] is None
+assert real_cost["totals"]["actualConversionRials"] is None
+clock_oee=request("/api/v1/oee/clock-verified?dateJalali="+JALALI_NOW)
+assert clock_oee["timeZone"]=="Asia/Tehran"
+assert any(row["centerId"]==center["id"] for row in clock_oee["rows"])
+assert request("/api/v1/oee/clock-verified?dateJalali=1405/13/40",status=400)
+print("PASS: SQL measured conversion cost/OEE preserve missing observations and validate Jalali dates.")
+
 print("PASS: isolated local operator account, permission boundary, material reporting, "
       "password change, administrator lock/unlock.")
 print("PASS: SQL demand, S&OP, approved MPS, finite APS no overlap, what-if, "
