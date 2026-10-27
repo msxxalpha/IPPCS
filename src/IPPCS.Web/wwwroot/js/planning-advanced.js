@@ -68,6 +68,10 @@ async function load(){
   api("/items"),api("/mps"),api("/work-centers"),api("/manufacturing-orders"),
   api("/factory-demand"),api("/factory-sop"),api("/factory-aps/runs")]);
  showResources();
+ const reasons=await api("/factory-master-options?kind=CapacityBlackoutReason");
+ IPPCSChoices.fill($("#aps-blackout-reason-code"),reasons,{
+  value:"code",label:x=>x.code+" — "+x.label,
+  placeholder:"دلیل عدم‌دسترسی را انتخاب کنید"});
 }
 function addForm(id,callback){
  const form=$(id);
@@ -238,20 +242,25 @@ function register(){
   const holder=$("#aps-blackout-list");holder.replaceChildren();
   apsBlackouts.forEach((block,i)=>{
    const row=document.createElement("div");row.className="row";row.style.padding="6px 0";
-   const text=document.createElement("span");text.textContent=block.dateJalali+" | "+block.reason;
+   const text=document.createElement("span");text.textContent=block.dateJalali+" | "+(block.reasonCode||"")+" — "+block.reason;
    const button=document.createElement("button");button.className="btn-outline";button.type="button";button.textContent="حذف";
    button.onclick=()=>{apsBlackouts.splice(i,1);renderBlackouts();};
    row.append(text,button);holder.append(row);
   });
  }
  $("#aps-add-blackout").onclick=()=>{
-  const id=$("#aps-blackout-center").value,date=$("#aps-blackout-date").value,reason=$("#aps-blackout-reason").value.trim();
-  if(!id||!IPPCSJalali.parse(date)||!reason){flash("مرکز، تاریخ شمسی و علت روز عدم‌دسترسی اجباری‌اند.",true);return;}
+  const id=$("#aps-blackout-center").value,date=$("#aps-blackout-date").value;
+  const reasonCode=$("#aps-blackout-reason-code").value;
+  const selected=[...$("#aps-blackout-reason-code").options].find(x=>x.value===reasonCode);
+  const reason=selected?.textContent?.split(" — ").slice(1).join(" — ")||"";
+  if(!id||!IPPCSJalali.parse(date)||!reasonCode||!reason){
+   flash("مرکز، تاریخ شمسی و دلیل فعال از اطلاعات پایه اجباری‌اند.",true);return;
+  }
   if(apsBlackouts.some(x=>x.workCenterId===id&&x.dateJalali===date)){
    flash("این روز برای مرکز کاری قبلاً ثبت شده است.",true);return;
   }
-  apsBlackouts.push({workCenterId:id,dateJalali:date,reason});
-  $("#aps-blackout-date").value="";$("#aps-blackout-reason").value="";
+  apsBlackouts.push({workCenterId:id,dateJalali:date,reason,reasonCode});
+  $("#aps-blackout-date").value="";$("#aps-blackout-reason-code").value="";
   renderBlackouts();
  };
  addForm("#aps-form",async f=>{
