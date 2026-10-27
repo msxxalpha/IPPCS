@@ -148,6 +148,7 @@ app.MapInProcessHandoffs();
 app.MapGenealogyExplorer();
 app.MapFactoryExecutionInsights();
 app.MapPlanningReconciliation();
+app.MapMpsChangeControl();
 app.MapFactoryRevisionGovernance();
 app.MapLineSideCorrections();
 app.MapDeviationGovernance();
