@@ -141,6 +141,14 @@
 <label>تا تاریخ<span class="jalali-field"><input name="through" data-jalali-date required><button type="button" data-jalali-trigger class="date-trigger">▣</button></span></label>
 <div class="form-actions"><button type="submit" class="btn-main">محاسبه تحقق MPS</button></div></form>
 <div class="panel"><h3>انحراف برنامه</h3><div id="adherence-table"></div></div>
+<form id="mps-peg-adherence-form" class="panel form-grid">
+  <h3 class="wide">تحقق هر ردیف برنامه مصوب براساس دستورهای تولید تخصیص‌یافته</h3>
+  <label>نسخه MPS مصوب<select name="mpsId" data-mps required></select></label>
+  <div class="form-actions"><button class="btn-outline" type="submit">بررسی تحقق، دیرکرد و کسری ردیف‌ها</button></div>
+</form>
+<div class="panel"><h3>تخصیص، تولید سالم به‌موقع، دیرکرد و کسری برنامه</h3>
+  <div id="peg-adherence-summary"></div><div id="peg-adherence-table"></div>
+</div>
 </section>
 </main><footer class="footer">IPPCS • مستقل از انبار، فروش، خرید و منابع انسانی<span>نسخه توسعه 0.7</span></footer>
 </div></div></body></html>
