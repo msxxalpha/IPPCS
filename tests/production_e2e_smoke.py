@@ -356,6 +356,26 @@ assert closed["status"] == 2
 deviations = request(f"/api/v1/production-deviations?mpsLineId={peg_line['id']}")
 assert any(x["id"] == deviation_id and len(x["events"]) == 3 for x in deviations)
 print("PASS: approved MPS deviation root cause, assigned action, auditable closure and state validation.")
+# Stage 9.4: real SQL authenticated net MRP graph; no warehouse transaction.
+request(f"/api/v1/planning-balances/{product['id']}", "PUT", {
+    "itemId": product["id"], "physicalQuantity": 0, "reservedQuantity": 0,
+    "quarantinedQuantity": 0, "safetyQuantity": 0, "leadDays": 0,
+    "minimumBatch": 1, "batchMultiple": 1, "snapshotDateJalali": JALALI_NOW
+})
+net_trace = request(f"/api/v1/mrp/{mps['id']}/net-demand-pegging")
+assert net_trace["kind"] == "TimePhasedNetMrpProposalGraph"
+parent_lots = [x for x in net_trace["plannedLots"] if x["itemId"] == product["id"]]
+assert len(parent_lots) == 1 and parent_lots[0]["quantity"] == 10
+component_needs = [x for x in net_trace["demands"] if x["parentLotKey"] == parent_lots[0]["lotKey"]]
+assert len(component_needs) == 1 and component_needs[0]["quantity"] == 20
+component_allocations = [x for x in net_trace["allocations"]
+                         if x["demandKey"] == component_needs[0]["demandKey"]]
+assert sum(x["quantity"] for x in component_allocations) == 20
+assert all(x["sourceType"] == "PlanningOpeningBalance" for x in component_allocations)
+assert all(x["availableOnJalali"] <= x["neededOnJalali"] for x in component_allocations)
+assert not [x for x in net_trace["plannedLots"] if x["itemId"] == raw["id"]]
+print("PASS: SQL net MRP proposal lots, generated component needs and bounded dated allocations.")
+
 print("PASS: isolated local operator account, permission boundary, material reporting, "
       "password change, administrator lock/unlock.")
 print("PASS: SQL demand, S&OP, approved MPS, finite APS no overlap, what-if, "
