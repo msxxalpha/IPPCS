@@ -27,11 +27,12 @@ public static class FactoryMasterData
     public const string DowntimeReason = "DowntimeReason";
     public const string QualityHoldReason = "QualityHoldReason";
     public const string UnitOfMeasure = "UnitOfMeasure";
+    public const string CapacityBlackoutReason = "CapacityBlackoutReason";
 
     private static readonly HashSet<string> Kinds = new(StringComparer.Ordinal)
     {
         DeviationCategory,ActionOwner,RootCauseCategory,DowntimeReason,QualityHoldReason,
-        UnitOfMeasure
+        UnitOfMeasure,CapacityBlackoutReason
     };
     private static readonly Regex CodePattern=new(
         "^[A-Z0-9][A-Z0-9_-]{1,39}$",
