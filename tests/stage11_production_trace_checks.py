@@ -101,7 +101,7 @@ def stage11_acceptance(request, component_id, center_id, jalali):
     stage22_acceptance(request,jalali,tomorrow,component_id)
 
     from stage23_deviation_effectiveness_checks import stage23_acceptance
-    stage23_acceptance(request,"http://127.0.0.1:5295",mps_line)
+    stage23_acceptance(request,"http://127.0.0.1:5295",mps_line,jalali)
 
     from stage25_order_hold_interlock_checks import stage25_acceptance
     stage25_acceptance(request,jalali,component_id)
