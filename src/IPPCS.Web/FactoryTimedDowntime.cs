@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 
 // Separate, immutable timestamps for clock-safe production center downtime.
 // These are manual observations only, not PLC or maintenance system data.
-public record FactoryStopStartInput(Guid OperationId,string Reason);
+public record FactoryStopStartInput(Guid OperationId,string Reason,string? ReasonCode=null);
 public record FactoryTimedStop(Guid OrderId,Guid OperationId,Guid WorkCenterId,
     DateTime StartedUtc,DateTime? StoppedUtc,string Reason,string RecordedBy);
 public record FactoryDowntimeBalance(Guid WorkCenterId,DateOnly ProductionDate,
@@ -149,6 +149,10 @@ public static class FactoryTimedDowntime
                 if(input.OperationId==Guid.Empty||string.IsNullOrWhiteSpace(input.Reason)||
                     input.Reason.Trim().Length>150||input.Reason.Contains('|'))
                     return Results.BadRequest(new{message="عملیات و علت توقف (بدون |) الزامی است."});
+                var categorized=await FactoryMasterData.ResolveReason(db,
+                    FactoryMasterData.DowntimeReason,input.ReasonCode,input.Reason,150,ct);
+                if(categorized is null)return Results.Conflict(new{
+                    message="دلیل توقف انتخاب‌شده در اطلاعات پایه معتبر یا فعال نیست."});
                 await using var tx=await db.Database.BeginTransactionAsync(IsolationLevel.Serializable,ct);
                 try{await FactoryCapacityReservations.LockOrder(db,id,ct);}
                 catch(SqlException){return Results.Conflict(new{message="قفل دستور در دسترس نیست."});}
@@ -179,7 +183,7 @@ public static class FactoryTimedDowntime
                 var now=DateTime.UtcNow;
                 db.ManufacturingOrderAudits.Add(new ManufacturingOrderAudit{
                     OrderId=id,Action=StartAction,AtUtc=now,
-                    Details=StartDetail(op.Id,op.WorkCenterId,input.Reason.Trim(),actor)});
+                    Details=StartDetail(op.Id,op.WorkCenterId,categorized,actor)});
                 await db.SaveChangesAsync(ct);await tx.CommitAsync(ct);
                 return Results.Ok(new{orderId=id,operationId=op.Id,startedUtc=now,isOpen=true});
             }).RequireAuthorization("IpShopFloorWrite");
