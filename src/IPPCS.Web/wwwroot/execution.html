@@ -20,6 +20,7 @@
   <button data-page="confirmations">ثبت عملکرد عملیات</button>
   <button data-page="clock">ساعت واقعی کارکرد مرکز</button>
   <button data-page="slots">رزرو برنامه‌ای ظرفیت مراکز</button>
+  <button data-page="dispatch">تابلوی آمادگی اجرای عملیات APS</button>
   <button data-page="stops">توقفات تولید</button>
   <button data-page="history">تاریخچه دستور تولید</button>
   <button data-page="quality">کنترل کیفیت و WIP</button>
@@ -44,6 +45,17 @@
    <div class="form-actions"><button type="submit" class="btn-main">ثبت دستور پیش‌نویس</button></div>
   </form>
   <div class="panel"><h3>فهرست دستورات و وضعیت اجرا</h3><div id="orders-table"></div></div>
+  <form class="panel form-grid" id="draft-replan-form">
+   <h3 class="wide">اصلاح کنترل‌شده دستور پیش‌نویس و نسخه‌های مؤثر BOM/Routing</h3>
+   <p class="wide">فقط پیش از آزادسازی مجاز است. مسیر و BOM برای تاریخ جدید دوباره انتخاب و شناسه‌های قبلی همراه علت در تاریخچه محفوظ می‌مانند؛ انتساب‌های MPS نباید نامعتبر شوند.</p>
+   <label>دستور پیش‌نویس<select name="orderId" id="draft-replan-order" required></select></label>
+   <label>مقدار برنامه اصلاح‌شده<input name="quantity" type="number" step="any" min="0.0001" required></label>
+   <label>شروع جدید<span class="jalali-field"><input name="start" data-jalali-date required><button type="button" data-jalali-trigger class="date-trigger">▣</button></span></label>
+   <label>موعد جدید<span class="jalali-field"><input name="due" data-jalali-date required><button type="button" data-jalali-trigger class="date-trigger">▣</button></span></label>
+   <label>علت اصلاح<input name="reason" maxlength="250" required placeholder="علت و مرجع تصمیم برنامه‌ریزی"></label>
+   <div class="form-actions"><button type="button" class="btn-outline" id="release-check">بررسی پیش‌شرط آزادسازی</button><button type="submit" class="btn-main">ذخیره اصلاح دستور پیش‌نویس</button></div>
+  </form>
+  <div class="panel"><h3>نتیجه کنترل آزادسازی</h3><div id="release-issues"></div></div>
  </section>
  <section class="page" id="confirmations" hidden>
   <div class="section-title"><h3>ثبت تولید سالم، ضایعات و دوباره‌کاری</h3><small>ثبت عملکرد تنها در عملیات باز و با رعایت ترتیب عملیات مجاز است.</small></div>
@@ -86,6 +98,17 @@
   </form>
   <div class="callout">رزرو فقط توسط برنامه‌ریز یا مدیر سامانه انجام می‌شود. بازه‌های یک مرکز کاری نباید همپوشانی داشته باشند. رزروهای لغوشده در تاریخچه ثبت باقی می‌مانند؛ ساعت واقعی را اپراتور جداگانه ثبت می‌کند. این بخش هیچ حواله یا گردش موجودی انبار ایجاد نمی‌کند.</div>
   <div class="panel"><h3>رزروهای فعال و مقایسه برنامه با اجرای واقعی</h3><div id="slot-table"></div></div>
+ </section>
+ <section class="page" id="dispatch" hidden>
+ <div class="section-title"><h3>تابلوی آمادگی اجرای عملیات، مرحله‌به‌مرحله</h3><small>بررسی ترتیب عملیات، کنترل کیفیت، قرنطینه، ساعت واقعی و رزروهای برنامه‌ای مراکز کاری؛ بدون دستور اجرایی به تجهیزات</small></div>
+ <div class="callout">«قابل شروع» فقط نشان‌دهنده گذر از گیت عملیات/کیفیت IPPCS است. رزرو ماشین در افق انتخابی لزوماً به معنی آماده بودن همین لحظه، موجودی مواد یا مجوز قطعی اپراتور نیست.</div>
+ <form id="dispatch-form" class="panel form-grid">
+ <label>تاریخ مرجع<span class="jalali-field"><input name="from" data-jalali-date required placeholder="انتخاب روز شمسی"><button data-jalali-trigger type="button" class="date-trigger">▣</button></span></label>
+ <label>افق بررسی (روز)<input name="horizon" type="number" min="1" max="30" value="7" required></label>
+ <div class="form-actions"><button type="submit" class="btn-main">کنترل آمادگی عملیات و ظرفیت</button></div>
+ </form>
+ <div class="panel"><h3>شاخص‌های اعزام</h3><div id="dispatch-summary"></div></div>
+ <div class="panel"><h3>صف برنامه عملیاتی و موانع</h3><div id="dispatch-table"></div></div>
  </section>
  <section class="page" id="stops" hidden>
   <div class="section-title"><h3>مدیریت توقفات تولید</h3><small>توقفات عملیاتی ثبت می‌شوند؛ OEE واقعی هنوز محاسبه نمی‌شود.</small></div>
