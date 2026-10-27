@@ -60,3 +60,9 @@ The production program (04) has a controlled-copy revision path: approved source
 **17 — internal conversion cost:** factory standard rate is now captured per operation on release as immutable evidence, and subsequent center rate updates cannot silently change past orders; legacy orders without frozen evidence are explicitly marked historically unverified. Missing: history and authorization for finance-approved standard rate setting, depreciation/overhead policy, plant cost controller signoff and trial.
 
 **Testing:** GitHub Actions runs associated with Stage19 failed immediately before normal build/test execution and the GitHub logs download reported BlobNotFound. Until exact-head build, unit/JS and authenticated disposable SQL E2E all succeed, this stage's code must not be deployed.
+
+## Stage 20 addendum — night shift signoff
+- **03 / 06 S&OP / CRP:** local-date center capacity includes carryover from the preceding night's shift and correct Saturday/Sunday boundary; production planner must certify weekly resource availability, exceptions and proposed breaks.
+- **07 APS:** nonpreemptive overnight operations and all touched-day occupancy are calculated under versioned `FINITE-GREEDY-V2-NIGHT`; plant scenario owners must verify midnight, boundary blackouts, concurrent machine loads and workcenter downtime calendars.
+- **08 Dispatch:** center reservations and immutable audit can cross midnight, including a displayed ending Jalali date; representative physical multi-shift operator UAT remains uncompleted.
+- **CI:** test files exist but GitHub Actions still terminate in seconds with `steps:null`, `logs_url:null`. Until a successful exact-head Build/xUnit/JS/SQL run appears, Stage19–20 remain **untested in CI** and must not be deployed. No ERP links, schema reset, or main merge.
