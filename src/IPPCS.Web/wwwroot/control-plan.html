@@ -14,6 +14,8 @@
 <button data-section="genealogy">شجره بچ بین عملیات</button>
 <button data-section="assembly">ردیابی نیمه‌ساخته تا مونتاژ نهایی</button>
 <button data-section="readiness">آمادگی عملیات و وضعیت بازرسی</button>
+<button data-section="spc">پایش آماری اندازه‌گیری‌ها SPC</button>
+<button data-section="tracegraph">ردیابی چندمرحله‌ای بچ</button>
 </nav>
 <div class="sidebar-foot">IPPCS • توسعه ۰٫۶<br>بدون اتصال به انبار، خرید، فروش یا منابع انسانی</div></aside>
 <div class="main">
@@ -93,6 +95,31 @@
  </div>
  <div class="panel"><h3>آمادگی مرحله به مرحله دستور</h3><div id="readiness-steps"></div></div>
  <div class="panel"><h3>وضعیت کنترل‌های نسخه ثابت دستور</h3><div id="readiness-inspections"></div></div>
+</section>
+<section id="spc" class="page" hidden>
+ <div class="section-title"><h3>پایش آماری مشخصه‌های تولید</h3><small>نمودار افراد و دامنه متحرک بر اساس اندازه‌گیری‌های واقعی ثبت‌شده؛ مقادیر نمونه‌برداری‌شده قابل ویرایش نیستند</small></div>
+ <div class="callout">حدود کنترل آماری از نمونه‌های همان دستور تخمین زده می‌شوند و حد مجاز محصول نیستند. برای پذیرش SPC، MSA، کالیبراسیون و برنامه نمونه‌برداری معتبر نیاز به تأیید کارخانه است.</div>
+ <div class="panel form-grid">
+  <label>دستور تولید<select id="spc-order"></select></label>
+  <label>مشخصه کنترل پلن<select id="spc-requirement"></select></label>
+  <div class="form-actions"><button id="spc-refresh" class="btn-outline" type="button">محاسبه پایش آماری</button></div>
+ </div>
+ <div class="panel"><h3>شاخص‌های اندازه‌گیری</h3><div id="spc-summary"></div></div>
+ <div class="panel"><h3>تاریخچه اندازه‌ها و حدود کنترل محاسباتی</h3><div id="spc-samples"></div></div>
+</section>
+<section id="tracegraph" class="page" hidden>
+ <div class="section-title"><h3>ردیابی پیشرو و پسرو بچ در چند مرحله ساخت</h3><small>پیگیری تمام پیوندهای مستند از عملیات قبلی تا مونتاژ نهایی یا برعکس، در محدوده عمق انتخابی</small></div>
+ <div class="callout">این گزارش فقط رابطه‌های ثبت‌شده ساخت را دنبال می‌کند و جایگزین ردیابی انبار یا فراخوان رسمی محصول نیست. بدون پیوند مستند، رابطه حدس زده نمی‌شود.</div>
+ <div class="panel form-grid">
+  <label>دستور مرجع<select id="trace-order"></select></label>
+  <label>بچ گزارش عملیات<select id="trace-confirmation"></select></label>
+  <label>جهت ردیابی<select id="trace-direction"><option value="ancestors">پسرو: منشأ تولید</option><option value="descendants">پیشرو: مصرف در مراحل بعد</option></select></label>
+  <label>حداکثر عمق پیوند<input id="trace-depth" type="number" min="1" max="16" value="8"></label>
+  <div class="form-actions"><button id="trace-refresh" type="button" class="btn-outline">نمایش شجره مستند</button></div>
+ </div>
+ <div class="panel"><h3>گزارش بچ‌ها و دستورهای مرتبط</h3><div id="trace-summary"></div></div>
+ <div class="panel"><h3>گره‌های شجره ساخت</h3><div id="trace-nodes"></div></div>
+ <div class="panel"><h3>پیوندهای مستند و مقادیر آنها</h3><div id="trace-edges"></div></div>
 </section>
 </main><footer class="footer">IPPCS • کنترل پلن، بازرسی و ردیابی داخلی تولید<span>Prototype 0.6</span></footer>
 </div></div></body></html>
