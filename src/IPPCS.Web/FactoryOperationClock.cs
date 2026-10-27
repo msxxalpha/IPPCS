@@ -133,14 +133,27 @@ public static class FactoryOperationClock
                     operations[index-1].QualityPendingQuantity>0 ||
                     !ManufacturingInspectionRules.GatePassed(operations[index-1]))))
                 return Results.Conflict(new{message="عملیات قابل شروع نیست یا پیش‌نیاز آن تکمیل نشده است."});
+            try{await FactoryCapacityReservations.LockCenter(db,op.WorkCenterId,ct);}
+            catch(Microsoft.Data.SqlClient.SqlException)
+            {return Results.Conflict(new{message="قفل مرکز کاری در دسترس نیست."});}
             var history=await db.ManufacturingOrderAudits.AsNoTracking()
-                .Where(x=>x.Action==Started||x.Action==Stopped).ToListAsync(ct);
+                .Where(x=>x.Action==Started||x.Action==Stopped||
+                    x.Action==FactoryCapacityReservations.Reserved ||
+                    x.Action==FactoryCapacityReservations.Cancelled).ToListAsync(ct);
             IReadOnlyList<FactoryClockSession> sessions;
             try{sessions=Read(history);}
             catch(InvalidOperationException ex){return Results.Conflict(new{message=ex.Message});}
             if(sessions.Any(x=>x.StoppedUtc is null &&
                 (x.WorkCenterId==op.WorkCenterId||x.OrderId==id)))
                 return Results.Conflict(new{message="این مرکز کاری یا دستور، عملیات زمان‌دار باز دارد."});
+            IReadOnlyList<FactoryCapacityReservation> booked;
+            try{booked=FactoryCapacityReservations.Read(history);}
+            catch(InvalidOperationException ex){return Results.Conflict(new{message=ex.Message});}
+            var startedAt=DateTime.UtcNow;
+            var local=TimeZoneInfo.ConvertTimeFromUtc(startedAt,FactoryTimeZone);
+            if(booked.Any(x=>x.WorkCenterId==op.WorkCenterId &&
+                x.OperationId!=op.Id && x.StartLocal<=local && local<x.EndLocal))
+                return Results.Conflict(new{message="مرکز کاری در این لحظه برای عملیات دیگری رزرو شده است."});
             var at=DateTime.UtcNow;
             db.ManufacturingOrderAudits.Add(new ManufacturingOrderAudit{
                 OrderId=id,Action=Started,AtUtc=at,
