@@ -439,11 +439,23 @@ check=request(slot_path)["rows"]
 assert len(check)==1 and check[0]["plannedMinutes"]==60
 assert check[0]["actualMinutes"] is not None
 request(slot_path,"POST",reservation,409)
+other=request("/api/v1/manufacturing-orders","POST",{
+ "number":"CI-SLOT-CONFLICT-ORDER","itemId":product["id"],"plannedQuantity":2,
+ "plannedStartJalali":JALALI_NOW,"dueOnJalali":JALALI_NOW},201)
+other_released=request(f"/api/v1/manufacturing-orders/{other['id']}/release","POST")
+other_path=f"/api/v1/manufacturing-orders/{other['id']}/capacity-reservations"
+other_booking={"operationId":other_released["operations"][0]["id"],"dateJalali":next_day,
+ "startTime":"08:30","endTime":"09:30"}
+request(other_path,"POST",other_booking,409)
 cancel_path=slot_path+"/"+booked["id"]+"/cancel"
 assert request(cancel_path,"POST")["cancelled"]
 request(cancel_path,"POST",status=409)
 assert not request(slot_path)["rows"]
-print("PASS: SQL machine reservations, replay, overlap blocking and cancellation.")
+new_booking=request(other_path,"POST",other_booking,201)
+assert new_booking["id"]!=booked["id"]
+preview_booked=request(f"/api/v1/mrp/{mps['id']}/lot-capacity-preview?horizonDays=7")
+assert preview_booked["activeCapacityReservations"]>=1,preview_booked
+print("PASS: SQL machine reservations, cross-order conflict, cancellation and MRP capacity.")
 
 
 
