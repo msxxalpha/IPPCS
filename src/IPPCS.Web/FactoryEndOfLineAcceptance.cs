@@ -115,7 +115,12 @@ public static class FactoryEndOfLineAcceptance
             .Join(db.ManufacturingOrders.AsNoTracking(),x=>x.OrderId,x=>x.Id,
                 (entry,sourceOrder)=>new{ConfirmationId=entry.Id,entry.OrderId,sourceOrder.ItemId})
             .Where(x=>sourceIds.Contains(x.ConfirmationId)).ToListAsync(ct);
-        var sourceItems=sourceConfirmations.ToDictionary(x=>x.ConfirmationId,x=>x.ItemId);
+        // Internal adjacent-step links are not consumed semi-finished
+        // components; exclude them from cross-order BOM provenance coverage.
+        var crossLinks=links.Where(x=>sourceConfirmations.Any(y=>
+            y.ConfirmationId==x.SourceConfirmationId&&y.OrderId!=id)).ToArray();
+        var sourceItems=sourceConfirmations.Where(x=>x.OrderId!=id)
+            .ToDictionary(x=>x.ConfirmationId,x=>x.ItemId);
         var componentIds=bom?.Lines.Select(x=>x.ComponentItemId).Distinct().ToArray()??[];
         var semiItems=await db.Items.AsNoTracking()
             .Where(x=>componentIds.Contains(x.Id)&&x.Type==PlanningItemType.SemiFinished)
@@ -124,7 +129,7 @@ public static class FactoryEndOfLineAcceptance
             .Where(x=>x.OrderId==id&&x.Status==ManufacturingQualityStatus.Open).ToListAsync(ct);
         var audits=await db.ManufacturingOrderAudits.AsNoTracking()
             .Where(x=>x.OrderId==id&&x.Action==ApprovedAction).ToListAsync(ct);
-        return Evaluate(order,bom,lots,links,sourceItems,semiItems.ToHashSet(),holds,audits);
+        return Evaluate(order,bom,lots,crossLinks,sourceItems,semiItems.ToHashSet(),holds,audits);
     }
 
     public static IEndpointRouteBuilder MapEndOfLineAcceptance(this IEndpointRouteBuilder routes)
