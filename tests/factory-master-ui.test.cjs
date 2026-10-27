@@ -43,3 +43,30 @@ test("CAPA uses stable master codes, server paging and MPS-peg filtering rather 
  assert.match(client,/production-pegging\/mps\//);
  assert.doesNotMatch(client,/\.innerHTML\s*=|insertAdjacentHTML/);
 });
+
+test("older shop-floor forms use reportable master lists and shared searchable native choices",()=>{
+ const execution=read("execution.html");
+ const q=read("js/quality-oee.js"),e=read("js/execution.js");
+ for(const id of ["stop-reason-code","timed-stop-reason-code","quality-reason-code"]){
+  assert.match(execution,new RegExp('id="'+id+'"'));
+ }
+ assert.match(execution,/src="\/js\/factory-choices\.js"/);
+ assert.match(e,/reasonCode/);
+ assert.match(e,/factory-master-options\?kind=DowntimeReason/);
+ assert.match(q,/factory-master-options\?kind=QualityHoldReason/);
+ assert.match(q,/reasonCode/);
+ for(const file of ["control-plan.html","planning.html","planning-advanced.html",
+                    "mps-pegging.html"]){
+  assert.match(read(file),/src="\/js\/factory-choices\.js"/,file);
+ }
+ for(const file of ["js/control-plan.js","js/planning-stage3.js",
+                    "js/planning-advanced.js","js/mps-pegging.js"]){
+  assert.match(read(file),/IPPCSChoices\.fill/,file);
+ }
+});
+test("master-data reporting uses Jalali date controls and safe tabular rendering",()=>{
+ assert.match(page,/id="master-reason-report"/);
+ assert.match(page,/data-jalali-date/);
+ assert.match(script,/production-reason-summary/);
+ assert.doesNotMatch(script,/\.innerHTML\s*=|insertAdjacentHTML/);
+});
