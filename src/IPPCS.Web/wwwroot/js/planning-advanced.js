@@ -21,15 +21,15 @@ function fill(select,rows,label,getId=x=>x.id){
 }
 function table(id,columns,records,action=null){
  const host=$(id);host.replaceChildren();
- const wrap=document.createElement("div");wrap.className="table-wrap";
+ const wrap=document.createElement("div");wrap.className="table-wrap factory-report-responsive";
  const table=document.createElement("table"),head=document.createElement("thead"),top=document.createElement("tr");
  columns.forEach(([name])=>{const th=document.createElement("th");th.textContent=name;top.append(th);});
  if(action){const th=document.createElement("th");th.textContent="عملیات";top.append(th);}
  head.append(top);table.append(head);const body=document.createElement("tbody");
  if(!records.length){const tr=document.createElement("tr"),td=document.createElement("td");td.className="empty";td.colSpan=columns.length+(action?1:0);td.textContent="اطلاعاتی ثبت نشده است.";tr.append(td);body.append(tr);}
  for(const row of records){const tr=document.createElement("tr");
-  columns.forEach(([,getter])=>{const td=document.createElement("td");let val=typeof getter==="function"?getter(row):row[getter];td.textContent=val??"—";tr.append(td);});
-  if(action){const td=document.createElement("td");
+  columns.forEach(([label,getter])=>{const td=document.createElement("td");td.dataset.label=label;let val=typeof getter==="function"?getter(row):row[getter];td.textContent=val??"—";tr.append(td);});
+  if(action){const td=document.createElement("td");td.dataset.label="عملیات";
    if(!action.disabled?.(row)){const btn=document.createElement("button");btn.className="btn-outline";btn.type="button";btn.textContent=action.label;btn.onclick=async()=>{
     btn.disabled=true;try{await action.run(row);}catch(e){flash(e.message,true);}finally{btn.disabled=false;}
    };td.append(btn);}tr.append(td);}
