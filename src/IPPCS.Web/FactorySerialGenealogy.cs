@@ -91,7 +91,7 @@ public static class FactorySerialGenealogy
                @LockMode='Exclusive',@LockOwner='Transaction',@LockTimeout=10000;
                IF @rc<0 THROW 51071, 'Serial register lock unavailable', 1;",ct);
     }
-    private static async Task<(IReadOnlyList<FactorySerialEvidence> Rows,string? Error)>
+    internal static async Task<(IReadOnlyList<FactorySerialEvidence> Rows,string? Error)>
         LoadLedger(ProductionDb db,CancellationToken ct)
     {
         var journal=await db.ManufacturingOrderAudits.AsNoTracking()

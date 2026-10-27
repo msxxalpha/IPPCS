@@ -25,6 +25,20 @@ def stage18_acceptance(request, jalali, fixture, center_id, semi_item):
     assert ancestry["hasLinks"] and ancestry["orderCount"]>=2,ancestry
     assert any(x["confirmationId"]==fixture["semiLotId"] for x in ancestry["nodes"]),ancestry
     request("/api/v1/factory-serials/CI-ST18-UNKNOWN/trace",status=404)
+    # Read-only backward-compatible blast-radius analysis: a documented
+    # semi-finished source exposes the two final serials and the final order.
+    recall=request(f"/api/v1/factory-recall/source-lot/{fixture['semiLotId']}?depth=16")
+    assert recall["rootConfirmationId"]==fixture["semiLotId"],recall
+    assert recall["registeredSerialCount"]==2 and recall["finalAssemblyOrders"]>=1,recall
+    assert set(recall["serialNumbers"])=={
+        "CI-ST18-1405-001","CI-ST18-1405-002"},recall
+    assert not recall["hasUnserializedFinalOutput"],recall
+    assert not recall["depthTruncated"],recall
+    assert any(x["confirmationId"]==lot for x in recall["finalLots"]),recall
+    request(f"/api/v1/factory-recall/source-lot/{fixture['semiLotId']}?depth=0",status=400)
+    request(f"/api/v1/factory-recall/source-lot/{fixture['semiLotId']}?depth=17",status=400)
+    request(f"/api/v1/factory-recall/source-lot/{'00000000-0000-0000-0000-000000000001'}",status=404)
+    print("PASS: SQL documented semi-finished recall exposure finds all recorded finished serials without warehouse or customer assumptions.")
     print("PASS: SQL post-EOL serialized unique production serials; signed lot ceiling, Persian digit normalization and multi-order backward ancestry.")
 
     bom=request("/api/v1/bom-revisions","POST",{

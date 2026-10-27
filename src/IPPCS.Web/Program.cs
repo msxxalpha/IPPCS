@@ -150,6 +150,7 @@ app.MapEngineeringDraftRebind();
 app.MapEngineeringCutover();
 app.MapInProcessHandoffs();
 app.MapGenealogyExplorer();
+app.MapFactoryRecallImpact();
 app.MapFactoryExecutionInsights();
 app.MapPlanningReconciliation();
 app.MapMpsChangeControl();
