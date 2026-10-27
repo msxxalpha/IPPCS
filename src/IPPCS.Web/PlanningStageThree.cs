@@ -502,7 +502,7 @@ public static class PlanningStageThreeEndpoints
             await tx.CommitAsync(ct);
             return Results.NoContent();
         });
-        api.MapDelete("/bom-revisions/{revisionId:guid}/lines/{lineId:guid}",async(Guid revisionId,Guid lineId,ProductionDb db,CancellationToken ct)=>{
+        planningApi.MapDelete("/bom-revisions/{revisionId:guid}/lines/{lineId:guid}",async(Guid revisionId,Guid lineId,ProductionDb db,CancellationToken ct)=>{
             var owner=await db.ManufacturingBomRevisions.AsNoTracking().Where(x=>x.Id==revisionId)
                 .Select(x=>(Guid?)x.ParentItemId).SingleOrDefaultAsync(ct);
             if(owner is null)return Results.NotFound();
