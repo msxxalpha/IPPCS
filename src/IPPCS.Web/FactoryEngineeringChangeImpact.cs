@@ -63,7 +63,9 @@ public static class FactoryEngineeringChangeImpact
     {
         var overlap=FactoryRevisionGovernance.Overlaps(baselineFrom,baselineTo,
             candidateFrom,candidateTo);
-        var impacted=frozenOrders.Where(x=>x.PlannedStart>=candidateFrom)
+        var impacted=frozenOrders.Where(x=>x.PlannedStart>=candidateFrom||
+            x.Status is ManufacturingOrderStatus.Released or
+                ManufacturingOrderStatus.InProgress or ManufacturingOrderStatus.OnHold)
             .OrderBy(x=>x.PlannedStart).Take(501).Select(x=>
                 new FactoryEngineeringAffectedOrder(x.Id,x.Number,x.Status,
                     x.PlannedStart,kind=="BOM"?x.BomRevisionId:x.RoutingRevisionId,
@@ -74,7 +76,9 @@ public static class FactoryEngineeringChangeImpact
         if(impacted.Length>500)
             throw new InvalidOperationException("تعداد دستورات تحت تأثیر بیش از ۵۰۰ است؛ فهرست ناقص ارائه نمی‌شود.");
         return new(baselineId,candidateId,kind,issues.Count==0,overlap,issues,
-            impacted.Length,impacted.Count(x=>x.Status!=ManufacturingOrderStatus.Draft),
+            impacted.Length,impacted.Count(x=>x.Status is ManufacturingOrderStatus.Released or
+                ManufacturingOrderStatus.InProgress or ManufacturingOrderStatus.OnHold or
+                ManufacturingOrderStatus.Completed),
             impacted,parts,steps,
             "فقط مقایسه پیشنهادی مهندسی است؛ تصویب ECO یا تغییر خودکار نسخه دستورات موجود نیست. بازه متداخل، مجاز به تصویب معمول نیست؛ نسخه مصوب و داده‌های تاریخی بازنویسی نمی‌شوند.");
     }
