@@ -63,8 +63,8 @@ public static class FactoryTimedDowntime
         {
             var items=group.OrderBy(x=>x.StartedUtc).ToArray();
             for(var i=1;i<items.Length;i++)
-                if(items[i-1].StoppedUtc is null||
-                   items[i-1].StoppedUtc.Value>items[i].StartedUtc)
+                if(items[i-1].StoppedUtc is not { } previousStop||
+                   previousStop>items[i].StartedUtc)
                     throw new InvalidOperationException("تداخل زمان توقف در مرکز کاری شناسایی شد.");
         }
         return stops;
