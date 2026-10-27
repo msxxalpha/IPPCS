@@ -33,6 +33,14 @@ def stage36_acceptance(request, jalali):
     assert len(state["examples"]["closedMonthJalali"])==10,state
     assert len(state["examples"]["todayJalali"])==10,state
 
+    product=state["examples"]["finishedItemId"]
+    forecast=request(f"/api/v1/factory-demand/forecast/{product}"+
+                     f"?fromJalali={jalali}&lookback=12&months=1")
+    assert len(forecast["rows"])==1,forecast
+    assert forecast["historyComplete"]==(len(forecast["missingHistoryMonths"])==0),forecast
+    assert forecast["historyMonthsWithRecords"]+len(forecast["missingHistoryMonths"])==12,forecast
+    assert forecast["historySamples"]>=forecast["historyMonthsWithRecords"],forecast
+
     mps=state["examples"]["approvedMpsId"]
     crp=request(f"/api/v1/crp/{mps}/preview")
     assert crp["mode"]=="RoughCutSingleDay" and isinstance(crp["rows"],list),crp
