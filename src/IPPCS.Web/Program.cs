@@ -149,6 +149,7 @@ app.MapTimePhasedPegging();
 app.MapNetMrpDemandPegging();
 app.MapMrpLotCapacityPreview();
 app.MapFactoryOperationClock();
+app.MapFactoryCapacityReservations();
 app.MapDemandAps();
 app.MapOperationsAnalytics();
 app.Run();
