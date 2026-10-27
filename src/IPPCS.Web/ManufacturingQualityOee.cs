@@ -148,6 +148,7 @@ public static class ManufacturingQualityAndOeeEndpoints
     public static IEndpointRouteBuilder MapQualityAndOee(this IEndpointRouteBuilder routes)
     {
         var api=routes.MapGroup("/api/v1").RequireAuthorization("IpProductionUser");
+        var qualityReportApi=routes.MapGroup("/api/v1").RequireAuthorization("IpQualityHoldRaise");
         api.MapGet("/manufacturing-orders/{id:guid}/wip",async(Guid id,ProductionDb db,CancellationToken ct)=>{
             var order=await db.ManufacturingOrders.AsNoTracking().Include(x=>x.Operations).SingleOrDefaultAsync(x=>x.Id==id,ct);
             return order is null?Results.NotFound():Results.Ok(new{orderId=id,rows=ManufacturingPerformance.CalculateWip(order)});
@@ -157,7 +158,7 @@ public static class ManufacturingQualityAndOeeEndpoints
             return Results.Ok(await db.ManufacturingQualityHolds.AsNoTracking()
                 .Where(x=>x.OrderId==id).OrderByDescending(x=>x.RaisedUtc).ToListAsync(ct));
         });
-        api.MapPost("/manufacturing-orders/{id:guid}/quality-holds",
+        qualityReportApi.MapPost("/manufacturing-orders/{id:guid}/quality-holds",
             async(Guid id,ManufacturingQualityHoldInput input,ProductionDb db,HttpContext ctx,CancellationToken ct)=>{
             if(string.IsNullOrWhiteSpace(input.Reason)||input.Reason.Length>500)
                 return Results.BadRequest(new{message="علت عدم‌انطباق معتبر لازم است."});
