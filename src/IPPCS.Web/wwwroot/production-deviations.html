@@ -13,7 +13,13 @@
 <div class="factory-pager"><span id="deviation-count" role="status">—</span>
 <button id="deviation-prev" class="btn-outline" type="button">صفحه قبل</button>
 <span id="deviation-page">۱</span>
-<button id="deviation-next" class="btn-outline" type="button">صفحه بعد</button></div></div><form id="action" class="panel form-grid"><h3 class="wide">تعیین علت و اقدام</h3><label>پرونده باز<select id="action-case" required></select></label><label>علت ریشه‌ای<textarea id="cause" required maxlength="1000"></textarea></label><label>اقدام اصلاحی<textarea id="corrective" required maxlength="1000"></textarea></label><label>مسئول پیگیری (اطلاعات پایه)<select id="action-owner" required></select></label>
+<button id="deviation-next" class="btn-outline" type="button">صفحه بعد</button></div></div><section class="panel"><h3>انتخاب سریع پرونده برای اقدام و پیگیری</h3>
+<div class="factory-filter-bar"><label>جست‌وجو در تمام سوابق، شامل پرونده‌های قدیمی
+<input id="case-search" type="search" autocomplete="off" placeholder="عبارتی از شرح، علت یا مسئول را وارد کنید"></label></div>
+<p id="case-search-count" role="status" aria-live="polite">در حال بارگذاری پرونده‌ها…</p>
+<p>این فهرست ۱۰۰ نتیجهٔ آخر را نمایش می‌دهد. برای پرونده‌های قدیمی‌تر عبارت مرتبط را جست‌وجو کنید تا نتایج مستقیماً از پایگاه داده دریافت شوند.</p>
+</section>
+<form id="action" class="panel form-grid"><h3 class="wide">تعیین علت و اقدام</h3><label>پرونده باز<select id="action-case" required></select></label><label>علت ریشه‌ای<textarea id="cause" required maxlength="1000"></textarea></label><label>اقدام اصلاحی<textarea id="corrective" required maxlength="1000"></textarea></label><label>مسئول پیگیری (اطلاعات پایه)<select id="action-owner" required></select></label>
 <label>طبقه علت ریشه‌ای (اطلاعات پایه)<select id="cause-group" required></select></label><label>تاریخ اقدام<span class="jalali-field"><input id="action-date" data-jalali-date required><button type="button" data-jalali-trigger class="date-trigger">▣</button></span></label><div class="form-actions"><button type="submit" class="btn-main">ثبت اقدام</button></div></form><form id="revise" class="panel form-grid">
 <h3 class="wide">بازنگری کنترل‌شده اقدام اصلاحی</h3>
 <p class="wide">اطلاعات قبلی در تاریخچه باقی می‌ماند. برای تغییر علت، اقدام، مسئول یا موعد باید دلیل بازنگری ثبت شود.</p>
