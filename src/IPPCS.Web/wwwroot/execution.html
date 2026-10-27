@@ -22,6 +22,7 @@
   <button data-page="slots">رزرو برنامه‌ای ظرفیت مراکز</button>
   <button data-page="dispatch">تابلوی آمادگی اجرای عملیات APS</button>
   <button data-page="stops">توقفات تولید</button>
+  <button data-page="timed-stops">توقفات زمان‌دار دقیق</button>
   <button data-page="history">تاریخچه دستور تولید</button>
   <button data-page="quality">کنترل کیفیت و WIP</button>
   <button data-page="oee">توقفات و OEE مقدماتی</button>
@@ -111,7 +112,7 @@
  <div class="panel"><h3>صف برنامه عملیاتی و موانع</h3><div id="dispatch-table"></div></div>
  </section>
  <section class="page" id="stops" hidden>
-  <div class="section-title"><h3>مدیریت توقفات تولید</h3><small>توقفات عملیاتی ثبت می‌شوند؛ OEE واقعی هنوز محاسبه نمی‌شود.</small></div>
+  <div class="section-title"><h3>مدیریت توقفات تولید</h3><small>توقفات این بخش فقط مدت دارند و برای تطبیق دقیق OEE نامطمئن محسوب می‌شوند. برای توقفات جدید از بخش «توقفات زمان‌دار دقیق» استفاده کنید.</small></div>
   <form class="panel form-grid" id="stop-form">
    <label>دستور<select name="orderId" data-order-active required></select></label>
    <label>عملیات<select name="operationId" id="stop-operation" required></select></label>
@@ -119,6 +120,22 @@
    <label>مدت توقف (دقیقه)<input name="duration" type="number" min="1" max="1440" step="1" required></label>
    <div class="form-actions"><button class="btn-main" type="submit">ثبت توقف</button></div>
   </form>
+ </section>
+ <section class="page" id="timed-stops" hidden>
+ <div class="section-title"><h3>توقف زمان‌دار و غیرقابل بازنویسی مراکز کاری</h3>
+ <small>ثبت واقعی شروع/پایان توقف و جلوگیری از تداخل با ساعت کار همان مرکز</small></div>
+ <div class="callout">این ثبت دستی فقط داخل IPPCS انجام می‌شود. ابتدا ساعت کار باز را پایان دهید و سپس شروع توقف را ثبت کنید. پس از پایان توقف، ساعت کار مجدداً قابل آغاز است. این سند جایگزین داده تجهیز، PLC یا سیستم تعمیرات نیست.</div>
+ <div class="panel form-grid">
+  <label>دستور فعال<select id="timed-stop-order"></select></label>
+  <label>عملیات<select id="timed-stop-operation"></select></label>
+  <label>علت توقف<input id="timed-stop-reason" maxlength="150" placeholder="تنظیم ابزار، خرابی، تعمیر ..."></label>
+  <div class="form-actions">
+   <button id="timed-stop-start" type="button" class="btn-main">شروع توقف زمان‌دار</button>
+   <button id="timed-stop-end" type="button" class="btn-outline">پایان توقف زمان‌دار</button>
+   <button id="timed-stop-review" type="button" class="btn-outline">نمایش سوابق توقف</button>
+  </div>
+ </div>
+ <div class="panel"><h3>سابقه شروع، پایان و مدت توقف</h3><div id="timed-stop-history"></div></div>
  </section>
  <section class="page" id="history" hidden>
   <div class="section-title"><h3>سوابق دستور ساخت</h3><small>تغییر وضعیت، ثبت تولید و توقف‌ها در تاریخچه مستقل نگهداری می‌شوند.</small></div>
@@ -164,7 +181,11 @@
    <label>روز گزارش OEE<span class="jalali-field"><input id="oee-date" data-jalali-date required placeholder="تاریخ شمسی"><button type="button" data-jalali-trigger class="date-trigger">▣</button></span></label>
    <div class="form-actions"><button id="oee-calculate" type="button" class="btn-outline">محاسبه شاخص‌های روز</button></div>
   </div>
-  <div class="panel"><h3>نتایج OEE مراکز کاری</h3>
+  <div class="panel"><h3>تطبیق زمان عملیات و توقفات دارای ساعت دقیق</h3>
+ <p>توقفات جدید با زمان شروع و پایان مستقل ثبت می‌شوند. توقفات قدیمیِ صرفاً دارای مدت، ساعت کار باز، تداخل یا ثبت بیش از ظرفیت روزانه موجب «نامشخص» شدن اعتبار تطبیق خواهد شد. دقایق توقف هرگز دوباره از ساعت کار واقعی کسر نمی‌شوند.</p>
+ <div class="form-actions"><button id="oee-reconciliation-review" type="button" class="btn-outline">بررسی تطبیق زمان و توقفات روز</button></div>
+ <div id="oee-reconciliation-table"></div></div>
+ <div class="panel"><h3>نتایج OEE مراکز کاری</h3>
    <p>Availability = زمان عملیاتی ÷ زمان برنامه؛ Performance = زمان سیکل استاندارد تولید ÷ زمان عملیاتی؛ Quality = تعداد سالم ÷ کل گزارش‌شده. ثبت دوباره‌کاری و مغایرت زمان می‌تواند باعث هشدار شود. هنوز اندازه‌گیری مستقیم PLC یا ثبت دقیق بازه توقف فعال نیست.</p>
    <div id="oee-table"></div>
   </div>
