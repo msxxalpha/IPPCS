@@ -24,6 +24,14 @@ public sealed class FactoryStageFifteenTests
     }
 
     [Fact]
+    public void Free_text_usage_cannot_impersonate_structured_lot_or_reversal_journals()
+    {
+        Assert.True(FactoryLineSideCorrections.IsReservedReference("IPLOT:fake|manual"));
+        Assert.True(FactoryLineSideCorrections.IsReservedReference("iprev:fake|manual"));
+        Assert.False(FactoryLineSideCorrections.IsReservedReference("CI legitimate manual usage"));
+    }
+
+    [Fact]
     public void Consumption_reversal_refuses_orphan_partial_and_mismatched_adjustments()
     {
         var original=new FactoryMaterialUsage{OrderId=Guid.NewGuid(),
