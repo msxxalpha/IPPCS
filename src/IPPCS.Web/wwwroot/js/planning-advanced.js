@@ -47,6 +47,7 @@ function showResources(){
  fill($("#material-order"),state.orders.filter(x=>x.status===1||x.status===2),x=>x.number);
  fill($("#cost-order"),state.orders,x=>x.number);
  fill($("#cost-center"),state.centers,x=>x.code+" | "+x.name);
+ fill($("#aps-blackout-center"),state.centers,x=>x.code+" | "+x.name);
  fill($("#demand-mps-target"),state.mps.filter(x=>x.state===0),x=>x.code);
  fill($("#demand-target"),state.demand,x=>item(x.itemId)+" • "+x.reference+" • "+x.dueOnJalali);
  table("#demand-table",[["محصول",x=>item(x.itemId)],["مرجع","reference"],
