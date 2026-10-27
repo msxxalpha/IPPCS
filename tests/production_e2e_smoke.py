@@ -378,11 +378,14 @@ print("PASS: SQL net MRP proposal lots, generated component needs and bounded da
 # Stage 9.5: finite, read-only center capacity check based on the same net proposed lots.
 preview = request(f"/api/v1/mrp/{mps['id']}/lot-capacity-preview?horizonDays=7&capacityMultiplier=1")
 assert preview["kind"] == "UnconfirmedNetMrpBatchCapacityPreview"
-assert preview["onTimeLots"] == 1 and preview["lateLots"] == 0, preview
-assert preview["blockedLots"] == 0 and len(preview["allocations"]) == 2, preview
-assert all(x["startJalali"] == JALALI_NOW for x in preview["allocations"])
-assert all(x["lotKey"] == parent_lots[0]["lotKey"] for x in preview["allocations"])
-assert preview["allocations"][0]["finishTime"] <= preview["allocations"][1]["startTime"]
+assert len(preview["lots"]) == 1 and preview["lots"][0]["lotKey"] == parent_lots[0]["lotKey"]
+assert preview["lateLots"] == 0, preview
+# Earlier stages leave an in-progress manufacturing order on this center.
+# Stage 9.6 must not claim that resource is available for new proposals.
+assert preview["conservativelyBlockedActiveOrders"] >= 1, preview
+assert preview["blockedLots"] == 1 and preview["onTimeLots"] == 0, preview
+assert not preview["allocations"], preview
+assert preview["lots"][0]["status"] == "Unscheduled", preview
 assert request(f"/api/v1/mrp/{mps['id']}/lot-capacity-preview?horizonDays=0",status=400)["message"]
 print("PASS: SQL net MRP proposed lot finite-center check, operation precedence and validation.")
 # Stage 9.6: no false capacity availability while an active production order
