@@ -68,3 +68,12 @@ All endpoints are local IPPCS-only. No inventory, purchase, sales or employee sy
 | 08 Work orders | Pre-release approved-revision/MPS preflight enforced in transactional release; draft reschedule/quantity edit rebinds valid revisions with immutable actor + before/after audit | Signed release, permission separation, non-draft revision/change requests, full plant exception/rework signoff |
 
 As previously, the release gate is still Draft; no ERP module or integration is created.
+
+## Stage 15 controlled operational progress (partial pending UAT)
+| Module | Stage 15 functional proof | Still required before plant acceptance |
+|---|---|---|
+| 11 Consumption | Confirmed batch+frozen BOM consumption with per-component maximum; immutable correction rows; duplicate and mismatch detection; legacy evidence distinguished | Material substitutions and shop-floor authorization, controlled auto backflush, per-shift consumption, physical stock/warehouse processes intentionally excluded |
+| 12 Deviations | Immutable corrective-action before/after revision journal and reason, manual escalation and linked follow-up; initial action no longer silently overwrites earlier assignment | Independent effectiveness signoff, escalation owners/SLAs, policy for corrective action evidence and plant UAT |
+| 18 Dashboards | Escalated cases flagged Critical when overdue and drill down into the referenced case, even when its due date is outside ordinary alert horizon | KPI benchmark signoff, alert acknowledgement, authorized drilldown by group, operator user testing |
+
+Strict isolation maintained: no warehouse, purchasing, sales or HR integration; no schema reset, no approval to merge main.
