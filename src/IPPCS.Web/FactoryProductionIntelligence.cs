@@ -22,6 +22,10 @@ public record FactoryClockOee(decimal? AvailabilityPercent,decimal? PerformanceP
     decimal? QualityPercent,decimal? OeePercent,decimal ActualMinutes,
     bool HasOpenClock,string? Warning);
 
+public record FactoryMpsLineAdherence(Guid LineId,Guid ItemId,DateOnly NeededOn,
+    decimal Required,decimal Assigned,decimal CompletedGood,decimal OnTimeGood,
+    decimal LateGood,decimal UndatedGood,decimal PendingAssigned,decimal Unassigned,
+    decimal Shortage,decimal? FulfilmentPercent,int LateOrderCount);
 public static class FactoryProductionIntelligence
 {
     private static readonly PersianCalendar Calendar=new();
@@ -155,10 +159,83 @@ public static class FactoryProductionIntelligence
             Math.Round(quality,2),Math.Round(oee,2),Math.Round(measured,2),false,warning);
     }
 
+    public static IReadOnlyList<FactoryMpsLineAdherence> PeggedAdherence(
+        IEnumerable<MpsDemandLine> lines,IEnumerable<ManufacturingOrderPeg> pegs,
+        IReadOnlyDictionary<Guid,ManufacturingOrder> orders)
+    {
+        return lines.OrderBy(x=>x.NeededOn).ThenBy(x=>x.Id).Select(line=>{
+            var linked=pegs.Where(p=>p.MpsLineId==line.Id &&
+                orders.TryGetValue(p.OrderId,out var order) &&
+                order.Status!=ManufacturingOrderStatus.Cancelled).ToArray();
+            var assigned=linked.Sum(x=>x.LinkedQuantity);
+            decimal completed=0,onTime=0,late=0,undated=0;
+            var lateOrderIds=new HashSet<Guid>();
+            foreach(var peg in linked)
+            {
+                var order=orders[peg.OrderId];
+                if(order.Status!=ManufacturingOrderStatus.Completed)continue;
+                var good=order.Operations.OrderBy(o=>o.Sequence)
+                    .LastOrDefault()?.GoodQuantity??0m;
+                var attributed=order.PlannedQuantity>0
+                    ?Math.Min(peg.LinkedQuantity,Math.Max(0m,
+                        good*peg.LinkedQuantity/order.PlannedQuantity)):0m;
+                completed+=attributed;
+                if(!order.CompletedUtc.HasValue)
+                    undated+=attributed;
+                else
+                {
+                    var finished=DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(
+                        DateTime.SpecifyKind(order.CompletedUtc.Value,DateTimeKind.Utc),Tehran));
+                    if(finished<=line.NeededOn)onTime+=attributed;
+                    else{late+=attributed;lateOrderIds.Add(order.Id);}
+                }
+            }
+            var unassigned=Math.Max(0m,line.Quantity-assigned);
+            return new FactoryMpsLineAdherence(line.Id,line.ItemId,line.NeededOn,
+                line.Quantity,assigned,completed,onTime,late,undated,
+                Math.Max(0m,assigned-completed),unassigned,
+                Math.Max(0m,line.Quantity-completed),
+                line.Quantity>0?Math.Round(100m*completed/line.Quantity,2):null,
+                lateOrderIds.Count);
+        }).ToArray();
+    }
+
     public static IEndpointRouteBuilder MapFactoryProductionIntelligence(
         this IEndpointRouteBuilder endpoints)
     {
         var api=endpoints.MapGroup("/api/v1").RequireAuthorization("IpProductionUser");
+
+        api.MapGet("/factory-kpis/peg-adherence/{mpsId:guid}",
+            async(Guid mpsId,ProductionDb db,CancellationToken ct)=>{
+            var version=await db.MpsVersions.AsNoTracking().Include(x=>x.Lines)
+                .SingleOrDefaultAsync(x=>x.Id==mpsId,ct);
+            if(version is null)return Results.NotFound();
+            if(version.State!=PlanningApproval.Approved)
+                return Results.Conflict(new{message="گزارش تحقق تخصیص‌یافته فقط برای MPS مصوب محاسبه می‌شود."});
+            var lineIds=version.Lines.Select(x=>x.Id).ToArray();
+            var links=await db.ManufacturingOrderPegs.AsNoTracking()
+                .Where(x=>lineIds.Contains(x.MpsLineId)).ToListAsync(ct);
+            var orderIds=links.Select(x=>x.OrderId).Distinct().ToArray();
+            var orders=await db.ManufacturingOrders.AsNoTracking()
+                .Include(x=>x.Operations).Where(x=>orderIds.Contains(x.Id))
+                .ToDictionaryAsync(x=>x.Id,ct);
+            var rows=PeggedAdherence(version.Lines,links,orders);
+            return Results.Ok(new{mpsId,version.Code,
+                rows=rows.Select(x=>new{
+                    x.LineId,x.ItemId,
+                    neededOnJalali=PersianPlanningDates.Format(x.NeededOn),
+                    x.Required,x.Assigned,x.CompletedGood,x.OnTimeGood,x.LateGood,
+                    x.UndatedGood,x.PendingAssigned,x.Unassigned,x.Shortage,
+                    x.FulfilmentPercent,x.LateOrderCount}),
+                totals=new{
+                    required=rows.Sum(x=>x.Required),
+                    assigned=rows.Sum(x=>x.Assigned),
+                    completed=rows.Sum(x=>x.CompletedGood),
+                    onTime=rows.Sum(x=>x.OnTimeGood),
+                    late=rows.Sum(x=>x.LateGood),
+                    shortage=rows.Sum(x=>x.Shortage)},
+                disclaimer="تحقق بر اساس تخصیص صریح دستور به ردیف MPS؛ خروجی سالم تکمیل‌شده با نسبت سهم دستور محاسبه می‌شود. اقلام دارای زمان پایان نامشخص به‌موقع فرض نمی‌شوند. ارتباطی با سیستم فروش وجود ندارد."});
+        });
 
         api.MapGet("/factory-demand/backtest/{itemId:guid}",
             async(Guid itemId,string throughJalali,int lookback,int months,ProductionDb db,CancellationToken ct)=>{
