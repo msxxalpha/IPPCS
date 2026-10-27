@@ -361,6 +361,39 @@ public static class PlanningStageThreeEndpoints
             if(version.Lines.Any(x=>x.Quantity<=0)||version.Lines.Count>5000)
                 return Results.Conflict(new{message="نسخه دارای ردیف نامعتبر یا بیش از سقف کنترل‌شده است."});
             var actor=ctx.User.Identity?.Name??"unknown";
+            // A controlled revision is not a normal new plan: before publishing
+            // its changed demand we must recalculate and freeze actual MRP/CRP
+            // implications and the parent source under the *same* MPS SQL lock.
+            var originEvidence=await db.PlanningCalculations.AsNoTracking()
+                .Where(x=>x.MpsVersionId==id&&
+                    x.AlgorithmVersion==FactoryMpsChangeControl.RevisionAlgorithm)
+                .ToListAsync(ct);
+            if(originEvidence.Count>1)
+                return Results.Conflict(new{message="اسناد منشأ بازنگری MPS تکراری یا ناسازگار هستند."});
+            if(originEvidence.Count==1)
+            {
+                var origin=FactoryMpsChangeControl.ParseOrigin(originEvidence[0].InputSnapshotJson);
+                if(origin is null||origin.DraftVersionId!=version.Id)
+                    return Results.Conflict(new{message="سند منشأ بازنگری MPS معتبر نیست."});
+                var basePlan=await db.MpsVersions.AsNoTracking().Include(x=>x.Lines)
+                    .SingleOrDefaultAsync(x=>x.Id==origin.SourceVersionId,ct);
+                if(basePlan is null||basePlan.State!=PlanningApproval.Approved||
+                    version.Lines.Count>5000)
+                    return Results.Conflict(new{message="نسخه مبنای مصوب بازنگری موجود یا معتبر نیست."});
+                FactoryMpsChangeImpact impact;
+                try{impact=await FactoryMpsChangeControl.CalculateActualImpact(db,basePlan,version,ct);}
+                catch(Exception ex)when(ex is InvalidOperationException or OverflowException or ArgumentOutOfRangeException)
+                    {return Results.UnprocessableEntity(new{message="بررسی اثر برنامه بر ظرفیت یا فرضیات MRP کامل نیست: "+ex.Message});}
+                db.PlanningCalculations.Add(new PlanningCalculation{
+                    MpsVersionId=id,
+                    AlgorithmVersion=FactoryMpsChangeControl.ImpactApprovalAlgorithm,
+                    InputSnapshotJson=JsonSerializer.Serialize(new{
+                        origin.SourceVersionId,version.Id,origin.Reason,approvedBy=actor,
+                        approvedUtc=DateTime.UtcNow,
+                        lines=version.Lines.OrderBy(x=>x.NeededOn).ThenBy(x=>x.ItemId)
+                            .Select(x=>new{x.Id,x.ItemId,x.NeededOn,x.Quantity,x.Reference})}),
+                    ResultSnapshotJson=JsonSerializer.Serialize(impact)});
+            }
             db.PlanningCalculations.Add(new PlanningCalculation{
                 MpsVersionId=version.Id,AlgorithmVersion=FactoryMpsChangeControl.ApprovalAlgorithm,
                 InputSnapshotJson=JsonSerializer.Serialize(new{
