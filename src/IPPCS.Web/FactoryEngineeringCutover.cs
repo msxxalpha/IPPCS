@@ -126,6 +126,12 @@ public static class FactoryEngineeringCutover
                 try{await FactoryRevisionGovernance.LockRevisionItem(db,kind,owner.Value,ct);}
                 catch(SqlException){return Results.Conflict(new{message="قفل گراف مهندسی یا مسیر ساخت در دسترس نیست."});}
 
+                // An ECO reference identifies one immutable engineering decision.
+                // Reject re-use even across BOM / Routing to prevent audit ambiguity.
+                var duplicateReference=await db.FactoryEngineeringCutoverEvents.AsNoTracking()
+                    .AnyAsync(x=>x.ApprovalReference==input.ApprovalReference.Trim(),ct);
+                if(duplicateReference)
+                    return Results.Conflict(new{message="شماره مرجع ECO قبلاً در سابقه برش مهندسی استفاده شده است."});
                 var issues=new List<FactoryRevisionIssue>();
                 DateOnly? previousEnd;
                 if(kind=="Routing")
