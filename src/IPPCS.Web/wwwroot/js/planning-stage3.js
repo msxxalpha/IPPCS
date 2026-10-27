@@ -111,6 +111,10 @@ function boot(){
   $$("nav [data-section]").forEach(btn=>btn.classList.toggle("nav-active",btn===b));
   $("#title").textContent=b.textContent;$("#alert").hidden=true;
  });
+ // Open the requested working tab from analytic preflight links.
+ const initialTab=decodeURIComponent(location.hash.slice(1));
+ const tabButton=$("nav [data-section]").find(x=>x.dataset.section===initialTab);
+ if(tabButton)tabButton.click();
  async function revisionPreflight(kind){
   const id=$(kind==="bom"?"#revision-bom-check":"#revision-routing-check").value;
   if(!id){alertText("یک نسخه برای بررسی انتخاب کنید.",true);return;}
