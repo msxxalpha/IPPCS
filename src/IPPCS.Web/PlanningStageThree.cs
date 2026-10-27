@@ -322,12 +322,19 @@ public static class PlanningStageThreeEndpoints
             if(string.IsNullOrWhiteSpace(input.Code)||input.Code.Trim().Length>64)
                 return Results.BadRequest(new{message="کد نسخه برنامه معتبر نیست."});
             var code=input.Code.Trim();
+            await using var tx=await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable,ct);
+            try{await FactoryMpsChangeControl.LockMps(db,ct);}
+            catch(Microsoft.Data.SqlClient.SqlException){return Results.Conflict(new{message="قفل تغییر نسخه MPS در دسترس نیست."});}
             if(await db.MpsVersions.AnyAsync(x=>x.Code==code,ct))
                 return Results.Conflict(new{message="کد برنامه تکراری است."});
             var version=new MpsVersion{Code=code};db.MpsVersions.Add(version);await db.SaveChangesAsync(ct);
+            await tx.CommitAsync(ct);
             return Results.Created($"/api/v1/mps/{version.Id}",new{version.Id,version.Code});
         });
         api.MapPost("/mps/{id:guid}/lines",async(Guid id,MpsLineInput input,ProductionDb db,CancellationToken ct)=>{
+            await using var tx=await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable,ct);
+            try{await FactoryMpsChangeControl.LockMps(db,ct);}
+            catch(Microsoft.Data.SqlClient.SqlException){return Results.Conflict(new{message="قفل تغییر ردیف MPS در دسترس نیست."});}
             var version=await db.MpsVersions.FindAsync([id],ct);
             if(version is null)return Results.NotFound();
             if(version.State!=PlanningApproval.Draft)return Results.Conflict(new{message="برنامه تأییدشده قابل تغییر نیست."});
@@ -340,14 +347,30 @@ public static class PlanningStageThreeEndpoints
             var line=new MpsDemandLine{MpsVersionId=id,ItemId=input.ItemId,
                 NeededOn=date,Quantity=input.Quantity,Reference=input.Reference?.Trim()??""};
             db.MpsDemandLines.Add(line);await db.SaveChangesAsync(ct);
+            await tx.CommitAsync(ct);
             return Results.Created($"/api/v1/mps/{id}",new{line.Id});
         });
-        api.MapPost("/mps/{id:guid}/approve",async(Guid id,ProductionDb db,CancellationToken ct)=>{
+        api.MapPost("/mps/{id:guid}/approve",async(Guid id,ProductionDb db,HttpContext ctx,CancellationToken ct)=>{
+            await using var tx=await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable,ct);
+            try{await FactoryMpsChangeControl.LockMps(db,ct);}
+            catch(Microsoft.Data.SqlClient.SqlException){return Results.Conflict(new{message="قفل تصویب MPS در دسترس نیست."});}
             var version=await db.MpsVersions.Include(x=>x.Lines).SingleOrDefaultAsync(x=>x.Id==id,ct);
             if(version is null)return Results.NotFound();
             if(version.State!=PlanningApproval.Draft)return Results.Conflict(new{message="برنامه قبلاً تأیید شده است."});
             if(version.Lines.Count==0)return Results.BadRequest(new{message="برنامه بدون ردیف قابل تأیید نیست."});
+            if(version.Lines.Any(x=>x.Quantity<=0)||version.Lines.Count>5000)
+                return Results.Conflict(new{message="نسخه دارای ردیف نامعتبر یا بیش از سقف کنترل‌شده است."});
+            var actor=ctx.User.Identity?.Name??"unknown";
+            db.PlanningCalculations.Add(new PlanningCalculation{
+                MpsVersionId=version.Id,AlgorithmVersion=FactoryMpsChangeControl.ApprovalAlgorithm,
+                InputSnapshotJson=JsonSerializer.Serialize(new{
+                    version.Id,version.Code,approvedBy=actor,approvedUtc=DateTime.UtcNow,
+                    lines=version.Lines.OrderBy(x=>x.NeededOn).ThenBy(x=>x.ItemId)
+                        .Select(x=>new{x.Id,x.ItemId,x.NeededOn,x.Quantity,x.Reference})}),
+                ResultSnapshotJson=JsonSerializer.Serialize(new{status="Approved",
+                    lineCount=version.Lines.Count,quantity=version.Lines.Sum(x=>x.Quantity)})});
             version.State=PlanningApproval.Approved;await db.SaveChangesAsync(ct);
+            await tx.CommitAsync(ct);
             return Results.Ok(new{version.Id,version.State});
         });
 
@@ -432,12 +455,16 @@ public static class PlanningStageThreeEndpoints
             return Results.NoContent();
         });
         api.MapDelete("/mps/{versionId:guid}/lines/{lineId:guid}",async(Guid versionId,Guid lineId,ProductionDb db,CancellationToken ct)=>{
+            await using var tx=await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable,ct);
+            try{await FactoryMpsChangeControl.LockMps(db,ct);}
+            catch(Microsoft.Data.SqlClient.SqlException){return Results.Conflict(new{message="قفل تغییر ردیف MPS در دسترس نیست."});}
             var version=await db.MpsVersions.FindAsync([versionId],ct);
             if(version is null)return Results.NotFound();
             if(version.State!=PlanningApproval.Draft)return Results.Conflict(new{message="فقط ردیف‌های برنامه پیش‌نویس قابل حذف هستند."});
             var line=await db.MpsDemandLines.SingleOrDefaultAsync(x=>x.Id==lineId&&x.MpsVersionId==versionId,ct);
             if(line is null)return Results.NotFound();
             db.MpsDemandLines.Remove(line);await db.SaveChangesAsync(ct);
+            await tx.CommitAsync(ct);
             return Results.NoContent();
         });
         api.MapDelete("/bom-revisions/{revisionId:guid}/lines/{lineId:guid}",async(Guid revisionId,Guid lineId,ProductionDb db,CancellationToken ct)=>{
