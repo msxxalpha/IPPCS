@@ -147,6 +147,7 @@ app.MapEndOfLineAcceptance();
 app.MapSerialGenealogy();
 app.MapEngineeringChangeImpact();
 app.MapEngineeringDraftRebind();
+app.MapEngineeringCutover();
 app.MapInProcessHandoffs();
 app.MapGenealogyExplorer();
 app.MapFactoryExecutionInsights();
@@ -206,6 +207,7 @@ public sealed class ProductionDb(DbContextOptions<ProductionDb> options) : Ident
     public DbSet<FactoryApsRun> FactoryApsRuns => Set<FactoryApsRun>();
     public DbSet<FactoryMaterialUsage> FactoryMaterialUsages => Set<FactoryMaterialUsage>();
     public DbSet<FactoryCenterCostRate> FactoryCenterCostRates => Set<FactoryCenterCostRate>();
+    public DbSet<FactoryEngineeringCutoverEvent> FactoryEngineeringCutoverEvents => Set<FactoryEngineeringCutoverEvent>();
     protected override void OnModelCreating(ModelBuilder model)
     {
         base.OnModelCreating(model);
@@ -233,6 +235,12 @@ public sealed class ProductionDb(DbContextOptions<ProductionDb> options) : Ident
         ProductionDeviationEndpoints.ConfigureModel(model);
         FactoryDemandApsEndpoints.ConfigureModel(model);
         FactoryOperationsAnalyticsEndpoints.ConfigureModel(model);
+        model.Entity<FactoryEngineeringCutoverEvent>().HasKey(x => x.Id);
+        model.Entity<FactoryEngineeringCutoverEvent>().HasIndex(x => new { x.Kind, x.CandidateId }).IsUnique();
+        model.Entity<FactoryEngineeringCutoverEvent>().Property(x => x.Kind).HasMaxLength(16);
+        model.Entity<FactoryEngineeringCutoverEvent>().Property(x => x.Actor).HasMaxLength(100);
+        model.Entity<FactoryEngineeringCutoverEvent>().Property(x => x.ApprovalReference).HasMaxLength(100);
+        model.Entity<FactoryEngineeringCutoverEvent>().Property(x => x.Reason).HasMaxLength(300);
     }
 }
 public enum PlanningItemType { RawMaterial, SemiFinished, Finished, Consumable }
