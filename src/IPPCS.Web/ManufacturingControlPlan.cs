@@ -206,6 +206,10 @@ public static class ManufacturingControlPlanEndpoints
                 ||string.IsNullOrWhiteSpace(input.Unit)||input.Unit.Length>32
                 ||(input.Minimum.HasValue&&input.Maximum.HasValue&&input.Minimum>input.Maximum))
                 return Results.BadRequest(new{message="مشخصات کنترل کیفی و حدود مجاز معتبر نیست."});
+            var unit=await FactoryMasterData.Active(db,
+                FactoryMasterData.UnitOfMeasure,input.Unit,ct);
+            if(unit is null)return Results.Conflict(new{
+                message="واحد مشخصهٔ بازرسی در اطلاعات پایه وجود ندارد یا غیرفعال است."});
             var plan=await db.ManufacturingControlPlans.FindAsync([id],ct);
             if(plan is null)return Results.NotFound();
             if(plan.State!=ControlPlanState.Draft)return Results.Conflict(new{message="کنترل پلن مصوب قابل ویرایش نیست."});
@@ -216,7 +220,7 @@ public static class ManufacturingControlPlanEndpoints
                 && x.OperationSequence==input.OperationSequence && x.Code==input.Code.Trim(),ct))
                 return Results.Conflict(new{message="کد ویژگی در این عملیات تکراری است."});
             var value=new ControlPlanCharacteristic{PlanId=id,OperationSequence=input.OperationSequence,
-                Code=input.Code.Trim(),Description=input.Description.Trim(),Unit=input.Unit.Trim(),
+                Code=input.Code.Trim(),Description=input.Description.Trim(),Unit=unit.Code,
                 Minimum=input.Minimum,Maximum=input.Maximum,Mandatory=input.Mandatory};
             db.ControlPlanCharacteristics.Add(value);await db.SaveChangesAsync(ct);
             return Results.Created($"/api/v1/control-plans/{id}",new{value.Id});
