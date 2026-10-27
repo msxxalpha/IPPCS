@@ -1,4 +1,6 @@
 using Microsoft.EntityFrameworkCore;
+using System.Data;
+using Microsoft.Data.SqlClient;
 using System.Text.Json.Serialization;
 
 // Factory execution only; this is NOT warehouse inventory, purchasing, sales, or HR.
@@ -268,7 +270,9 @@ public static class ManufacturingExecutionEndpoints
             async(Guid id,Guid operationId,ManufacturingConfirmationInput input,ProductionDb db,CancellationToken ct)=>{
             if((input.LotCode?.Length??0)>100||(input.Note?.Length??0)>500)
                 return Results.BadRequest(new{message="شرح یا شناسه بچ بیش از حد مجاز است."});
-            await using var tx=await db.Database.BeginTransactionAsync(ct);
+            await using var tx=await db.Database.BeginTransactionAsync(IsolationLevel.Serializable,ct);
+            try{await FactoryCapacityReservations.LockOrder(db,id,ct);}
+            catch(SqlException){return Results.Conflict(new{message="قفل دستور ساخت در دسترس نیست."});}
             var order=await db.ManufacturingOrders.Include(x=>x.Operations)
                 .ThenInclude(x=>x.InspectionRequirements).SingleOrDefaultAsync(x=>x.Id==id,ct);
             if(order is null)return Results.NotFound();
@@ -285,6 +289,17 @@ public static class ManufacturingExecutionEndpoints
                 return Results.Conflict(new{message="پیش از ثبت عملکرد، ساعت کارکرد باز این عملیات را متوقف کنید."});
             if(!TryApplyConfirmation(order,operationId,input,out var error))
                 return Results.Conflict(new{message=error});
+            // A completed routing step (including quality-safe zero-input auto-close)
+            // relinquishes its future machine slot atomically with the confirmation.
+            var completedIds=order.Operations.Where(x=>x.IsComplete)
+                .Select(x=>x.Id).ToHashSet();
+            try{
+                await FactoryCapacityReservations.ReleaseOperations(db,id,completedIds,
+                    order.Status==ManufacturingOrderStatus.Completed
+                        ?"OrderCompleted":"OperationCompleted",ct);
+            }
+            catch(InvalidOperationException ex){return Results.Conflict(new{message=ex.Message});}
+            catch(SqlException){return Results.Conflict(new{message="قفل رزرو مرکز کاری در دسترس نیست."});}
             db.ManufacturingConfirmations.Add(new ManufacturingConfirmation{
                 OperationId=operationId,GoodQuantity=input.GoodQuantity,ScrapQuantity=input.ScrapQuantity,
                 ReworkQuantity=input.ReworkQuantity,LotCode=input.LotCode?.Trim(),Note=input.Note?.Trim()
@@ -319,14 +334,28 @@ public static class ManufacturingExecutionEndpoints
             return Results.Ok(new{order.Id,order.Status});
         });
         api.MapPost("/manufacturing-orders/{id:guid}/cancel",async(Guid id,ProductionDb db,CancellationToken ct)=>{
+            await using var tx=await db.Database.BeginTransactionAsync(IsolationLevel.Serializable,ct);
+            try{await FactoryCapacityReservations.LockOrder(db,id,ct);}
+            catch(SqlException){return Results.Conflict(new{message="قفل دستور ساخت در دسترس نیست."});}
             var order=await db.ManufacturingOrders.Include(x=>x.Operations).SingleOrDefaultAsync(x=>x.Id==id,ct);
             if(order is null)return Results.NotFound();
             if(order.Status is not (ManufacturingOrderStatus.Draft or ManufacturingOrderStatus.Released)
                 ||order.Operations.Any(x=>x.GoodQuantity+x.ScrapQuantity+x.ReworkQuantity>0))
                 return Results.Conflict(new{message="دستور اجراشده را نمی‌توان لغو کرد."});
+            var ids=order.Operations.Select(x=>x.Id).ToHashSet();
+            var history=await db.ManufacturingOrderAudits.AsNoTracking()
+                .Where(x=>x.OrderId==id&&(x.Action==FactoryOperationClock.Started ||
+                    x.Action==FactoryOperationClock.Stopped)).ToListAsync(ct);
+            try{
+                if(FactoryOperationClock.Read(history).Any(x=>x.StoppedUtc is null))
+                    return Results.Conflict(new{message="برای لغو ابتدا زمان عملیات باز را متوقف کنید."});
+                await FactoryCapacityReservations.ReleaseOperations(db,id,ids,"OrderCancelled",ct);
+            }
+            catch(InvalidOperationException ex){return Results.Conflict(new{message=ex.Message});}
+            catch(SqlException){return Results.Conflict(new{message="قفل رزرو مرکز کاری در دسترس نیست."});}
             order.Status=ManufacturingOrderStatus.Cancelled;order.UpdatedUtc=DateTime.UtcNow;
             db.ManufacturingOrderAudits.Add(new ManufacturingOrderAudit{OrderId=id,Action="Cancelled"});
-            try{await db.SaveChangesAsync(ct);}
+            try{await db.SaveChangesAsync(ct);await tx.CommitAsync(ct);}
             catch(DbUpdateConcurrencyException){return Results.Conflict(new{message="وضعیت دستور هم‌زمان تغییر کرده است."});}
             return Results.Ok(new{order.Id,order.Status});
         });
