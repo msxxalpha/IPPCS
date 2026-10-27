@@ -372,7 +372,12 @@ function register(){
     ["تاریخ موعد",x=>x.dueDate?new Date(x.dueDate+"T12:00:00Z").toLocaleDateString("fa-IR-u-ca-persian",{timeZone:"Asia/Tehran"}):"نامشخص"],
     ["روز دیرکرد",x=>x.daysOverdue===null?"—":format(x.daysOverdue)],
     ["شرح","message"]
-  ],d.alerts);
+  ],d.alerts,{
+   label:"پیگیری پرونده",
+   disabled:x=>x.type!=="DeviationAction",
+   run:x=>{window.location.assign("/production-deviations.html?case="+
+     encodeURIComponent(x.referenceId));}
+  });
   flash(d.disclaimer);
  });
  addForm("#maintenance-whatif-form",async f=>{
