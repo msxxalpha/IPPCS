@@ -144,6 +144,7 @@ app.MapQualityAndOee();
 app.MapControlPlanEndpoints();
 app.MapCrossOrderTrace();
 app.MapEndOfLineAcceptance();
+app.MapSerialGenealogy();
 app.MapInProcessHandoffs();
 app.MapGenealogyExplorer();
 app.MapFactoryExecutionInsights();
