@@ -103,8 +103,12 @@ public static class FactoryDeviationGovernance
                     "|"+input.Reason.Trim();
                 if(item.Events.Any(x=>x.Details==details))
                     return Results.Conflict(new{message="این تشدید قبلاً برای پرونده ثبت شده است."});
-                item.Events.Add(new ProductionDeviationEvent{
-                    Status=item.Status,Details=details,Username=ctx.User.Identity?.Name??"unknown"});
+                // Preassigned Guid child attached through a tracked collection can be
+                // interpreted as an existing row by EF; explicitly mark the event Added.
+                var eventRow=new ProductionDeviationEvent{DeviationId=id,
+                    Status=item.Status,Details=details,
+                    Username=ctx.User.Identity?.Name??"unknown"};
+                db.ProductionDeviationEvents.Add(eventRow);
                 await db.SaveChangesAsync(ct);await tx.CommitAsync(ct);
                 return Results.Ok(new{id,item.Status,escalationCount=item.Events.Count(x=>
                     x.Details.StartsWith(EscalationPrefix,StringComparison.Ordinal))});
