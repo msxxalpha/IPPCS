@@ -189,7 +189,8 @@ async function traceGraph(){
   {name:"بچ‌های ثبت‌شده",value:r.batchCount},
   {name:"دستورات مرتبط",value:r.orderCount},
   {name:"پیوندهای مستند",value:r.edges.length},
-  {name:"عمق مشاهده‌شده",value:r.depthReached}
+  {name:"عمق مشاهده‌شده",value:r.depthReached},
+  {name:"روابط فراتر از عمق انتخابی",value:r.hasMoreBeyondDepth?"وجود دارد؛ عمق را افزایش دهید":"مشاهده نشد"}
  ]);
  table("#trace-nodes",[
   ["دستور","orderNumber"],["بچ","lotCode"],
