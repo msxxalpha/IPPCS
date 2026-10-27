@@ -457,6 +457,14 @@ preview_booked=request(f"/api/v1/mrp/{mps['id']}/lot-capacity-preview?horizonDay
 assert preview_booked["activeCapacityReservations"]>=1,preview_booked
 print("PASS: SQL machine reservations, cross-order conflict, cancellation and MRP capacity.")
 
+# Stage 9.9 lifecycle releases are appended to the immutable journal.
+cancel_order=request(f"/api/v1/manufacturing-orders/{other['id']}/cancel","POST")
+assert cancel_order["status"]==5
+assert not request(other_path)["rows"]
+cancel_events=request(f"/api/v1/manufacturing-orders/{other['id']}/history")["events"]
+assert any(x["action"]=="CapacityLifecycle" for x in cancel_events)
+
+
 
 
 
