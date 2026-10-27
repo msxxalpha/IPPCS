@@ -142,6 +142,7 @@ app.MapPlanningStageThree();
 app.MapManufacturingExecution();
 app.MapQualityAndOee();
 app.MapControlPlanEndpoints();
+app.MapOrderPegging();
 app.MapDemandAps();
 app.MapOperationsAnalytics();
 app.Run();
@@ -174,6 +175,7 @@ public sealed class ProductionDb(DbContextOptions<ProductionDb> options) : Ident
     public DbSet<ManufacturingInspectionRequirement> ManufacturingInspectionRequirements => Set<ManufacturingInspectionRequirement>();
     public DbSet<ManufacturingInspectionResult> ManufacturingInspectionResults => Set<ManufacturingInspectionResult>();
     public DbSet<ManufacturingLotGenealogy> ManufacturingLotGenealogies => Set<ManufacturingLotGenealogy>();
+    public DbSet<ManufacturingOrderPeg> ManufacturingOrderPegs => Set<ManufacturingOrderPeg>();
     public DbSet<FactoryDemand> FactoryDemands => Set<FactoryDemand>();
     public DbSet<FactorySopReview> FactorySopReviews => Set<FactorySopReview>();
     public DbSet<FactoryApsRun> FactoryApsRuns => Set<FactoryApsRun>();
@@ -202,6 +204,7 @@ public sealed class ProductionDb(DbContextOptions<ProductionDb> options) : Ident
         ManufacturingExecutionEndpoints.ConfigureModel(model);
         ManufacturingQualityAndOeeEndpoints.ConfigureModel(model);
         ManufacturingControlPlanEndpoints.ConfigureModel(model);
+        ManufacturingOrderPegging.ConfigureModel(model);
         FactoryDemandApsEndpoints.ConfigureModel(model);
         FactoryOperationsAnalyticsEndpoints.ConfigureModel(model);
     }
