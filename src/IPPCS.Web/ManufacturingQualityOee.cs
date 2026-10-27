@@ -202,6 +202,14 @@ public static class ManufacturingQualityAndOeeEndpoints
                 return Results.Conflict(new{message=error});
             hold.DispositionNote=input.Note.Trim();
             hold.ResolvedBy=ctx.User.Identity?.Name??"unknown";
+            if(order.Status==ManufacturingOrderStatus.Completed)
+            {
+                try{await FactoryCapacityReservations.ReleaseOperations(db,id,
+                    order.Operations.Select(x=>x.Id).ToHashSet(),"QualityDispositionCompleted",ct);}
+                catch(InvalidOperationException ex){return Results.Conflict(new{message=ex.Message});}
+                catch(Microsoft.Data.SqlClient.SqlException)
+                {return Results.Conflict(new{message="قفل مرکز کاری برای تکمیل کیفیت در دسترس نیست."});}
+            }
             db.ManufacturingOrderAudits.Add(new ManufacturingOrderAudit{
                 OrderId=id,Action=decision==ManufacturingQualityStatus.Released?"QualityRelease":"QualityScrap",
                 Details=$"Hold={holdId};Qty={hold.Quantity}"});
