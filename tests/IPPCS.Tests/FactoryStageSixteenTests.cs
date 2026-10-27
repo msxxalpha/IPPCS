@@ -102,6 +102,39 @@ public sealed class FactoryStageSixteenTests
     }
 
     [Fact]
+    public void Reconstructed_stage_handoff_exposes_overissued_source_and_destination_batches()
+    {
+        var order=new ManufacturingOrder{Kind=ManufacturingOrderKind.FinalAssembly,
+            Status=ManufacturingOrderStatus.Completed};
+        var first=new ManufacturingOrderOperation{OrderId=order.Id,Sequence=10,
+            GoodQuantity=3,IsComplete=true};
+        var second=new ManufacturingOrderOperation{OrderId=order.Id,Sequence=20,
+            GoodQuantity=4,IsComplete=true};
+        order.Operations.AddRange([first,second]);
+        var from=new ManufacturingConfirmation{OperationId=first.Id,
+            LotCode="SOURCE",GoodQuantity=3};
+        var to=new ManufacturingConfirmation{OperationId=second.Id,
+            LotCode="TARGET",GoodQuantity=4};
+        // Both destination coverage and total upstream evidence appear complete
+        // to the old reader, but four units cannot originate from a three-unit lot.
+        var over=new ManufacturingLotGenealogy{OrderId=order.Id,
+            SourceConfirmationId=from.Id,DestinationConfirmationId=to.Id,Quantity=4};
+        var audit=FactoryInProcessHandoffs.Analyze(order,[from,to],[over],[]);
+        var pair=Assert.Single(audit.Pairs);
+        Assert.Equal(1m,pair.OverAllocatedUpstreamGood);
+        Assert.Equal(1,audit.PairsWithOverAllocation);
+        Assert.False(pair.QualityGatePassed);
+        Assert.Equal(0m,pair.DestinationLots[0].OverAllocatedGood);
+
+        to.GoodQuantity=2;
+        first.GoodQuantity=6;
+        from.GoodQuantity=6;
+        var destinationOver=FactoryInProcessHandoffs.Analyze(order,[from,to],[over],[]);
+        Assert.Equal(2m,Assert.Single(destinationOver.Pairs[0].DestinationLots).OverAllocatedGood);
+        Assert.False(destinationOver.Pairs[0].QualityGatePassed);
+    }
+
+    [Fact]
     public void Lot_transfer_cannot_exceed_good_after_quality_rejection_or_pending_quarantine()
     {
         var order=new ManufacturingOrder{Status=ManufacturingOrderStatus.InProgress};
