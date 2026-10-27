@@ -11,6 +11,37 @@ public sealed class ManufacturingQualityAndOeeTests
     };
 
     [Fact]
+    public void Quality_containment_is_accepted_after_operator_suspends_an_active_order()
+    {
+        var order=ActiveOrder(10m);
+        var first=order.Operations[0];
+        Assert.True(ManufacturingExecutionEndpoints.TryApplyConfirmation(order,first.Id,
+            new(3m,0m,0m,"HOLD-LOT",null),out _));
+        order.ResumeStatus=order.Status;
+        order.Status=ManufacturingOrderStatus.OnHold;
+        Assert.True(ManufacturingPerformance.CanHold(order,first.Id,2m,out var reason),reason);
+        // Still cannot record production while an operator has stopped the line.
+        Assert.False(ManufacturingExecutionEndpoints.TryApplyConfirmation(order,first.Id,
+            new(1m,0m,0m,"HOLD-LOT",null),out _));
+    }
+
+    [Fact]
+    public void Quality_containment_on_invalid_suspension_or_finished_order_is_rejected()
+    {
+        var order=ActiveOrder(10m);
+        var first=order.Operations[0];
+        first.GoodQuantity=5;
+        order.Status=ManufacturingOrderStatus.OnHold;
+        order.ResumeStatus=ManufacturingOrderStatus.Draft;
+        Assert.False(ManufacturingPerformance.CanHold(order,first.Id,1m,out _));
+        order.Status=ManufacturingOrderStatus.Cancelled;
+        order.ResumeStatus=ManufacturingOrderStatus.InProgress;
+        Assert.False(ManufacturingPerformance.CanHold(order,first.Id,1m,out _));
+        order.Status=ManufacturingOrderStatus.Completed;
+        Assert.False(ManufacturingPerformance.CanHold(order,first.Id,1m,out _));
+    }
+
+    [Fact]
     public void Quality_hold_blocks_downstream_until_release()
     {
         var order=ActiveOrder();
