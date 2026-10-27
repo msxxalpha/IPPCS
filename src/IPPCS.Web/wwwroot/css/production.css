@@ -168,3 +168,22 @@ textarea:focus,input:focus-visible,select:focus-visible,button:focus-visible,a:f
  overflow-wrap:anywhere;word-break:break-word;max-height:340px;overflow:auto;
  font:12px Consolas,monospace;line-height:1.65;color:#233442;
  background:#fff;border:1px solid #dde6ec;border-radius:7px;padding:12px}
+
+
+/* Stage 37 shop-floor report tables: no unlabeled sideways-scrolling cards on phones. */
+.factory-report-responsive table{table-layout:fixed;white-space:normal}
+.factory-report-responsive th,.factory-report-responsive td{
+ overflow-wrap:anywhere;white-space:normal}
+@media(max-width:760px){
+ .factory-report-responsive{overflow-x:hidden}
+ .factory-report-responsive table,.factory-report-responsive tbody,
+ .factory-report-responsive tbody tr,.factory-report-responsive tbody td{
+  display:block;width:100%;min-width:0;box-sizing:border-box}
+ .factory-report-responsive thead{display:none}
+ .factory-report-responsive tbody tr{padding:8px 12px;margin:0 0 12px;
+  background:#fff;border:1px solid var(--line);border-radius:10px}
+ .factory-report-responsive tbody td{border:0;padding:7px 0}
+ .factory-report-responsive tbody td:not(.empty)::before{
+  content:attr(data-label) " : ";display:inline;font-weight:700;color:var(--navy)}
+ .factory-report-responsive tbody tr:has(td.empty){padding:12px}
+}
