@@ -60,7 +60,7 @@ public sealed class FactoryPlanningStageSevenTests
     [Fact]
     public void Planned_maintenance_blackout_moves_operations_to_next_available_day()
     {
-        var center=Guid.NewGuid(),demand=Guid.NewGuid(),item=Guid.NewGuid(),route=Guid.NewGuid();
+        var center=Guid.NewGuid();var demand=Guid.NewGuid();var item=Guid.NewGuid();var route=Guid.NewGuid();
         var t=new ApsTask(demand,item,Monday,10,route,10,center,60,"Assembly");
         var tuesday=Monday.AddDays(1);
         var shifts=new[]{
