@@ -55,3 +55,18 @@ def stage11_acceptance(request, component_id, center_id, jalali):
     assert request(f"/api/v1/manufacturing-orders/{semi_order['id']}/assembly-genealogy",
                    status=409)["message"]
     print("PASS: SQL semi-finished to assembly genealogy, BOM coverage and QC readiness.")
+
+    # Stage 12 uses the already-created disposable SQL fixtures (no ERP writes).
+    import subprocess
+    tomorrow=subprocess.check_output(["node","-e",
+      "let p=new Intl.DateTimeFormat('en-US-u-ca-persian-nu-latn',{timeZone:'Asia/Tehran',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date(Date.now()+86400000));console.log([p.find(x=>x.type==='year').value,p.find(x=>x.type==='month').value,p.find(x=>x.type==='day').value].join('/'))"
+    ],text=True).strip()
+    orders=request("/api/v1/manufacturing-orders")
+    material=next(x for x in orders if x["number"]=="CI-WIP-MATERIAL-STAGE7")
+    controlled=next(x for x in orders if x["number"]=="CI-CONTROLLED-STAGE6")
+    prior=request("/api/v1/production-deviations")
+    mps_line=next(x for x in prior if x["status"]==2)["mpsLineId"]
+    from stage12_factory_insights_checks import stage12_acceptance
+    stage12_acceptance(request,jalali,tomorrow,controlled["itemId"],None,
+                       component_id,material["id"],controlled["id"],
+                       source["id"],target["id"],mps_line)
