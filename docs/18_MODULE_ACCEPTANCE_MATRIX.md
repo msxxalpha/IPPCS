@@ -111,3 +111,13 @@ Nothing connects to warehouse, purchasing, sales or HR. Plant decision makers ha
 | 17 Cost conversion | Frozen operation standard rate and explicit missing-rate evidence at work-order release, protected from later center-rate updates, separate historical audit endpoint and UI | Factory finance-approved rates and historical changes, overhead allocation/revaluation policy, cost-vs-output signoff and operational UAT; exact-head CI has yet to execute |
 
 Still strictly no external warehouse, purchasing, sales or HR connections or modules. A failed-to-start CI is not equivalent to a validated failed compilation; both need to be distinguished.
+
+## Stage 20 implementation — night-shift calendar (tests committed; CI not yet verified)
+| Module | Functional scope advanced | Outstanding factory gate |
+|---|---|---|
+| 03 S&OP | True local calendar-day center capacity including previous-night minutes | Planning owner approval of actual shift coverage; scenario signoff |
+| 06 CRP | Correct next-day night availability and weekend rollover; missing-day capability remains visible | Tool, labor, break and maintenance calendars with verified plant time sheet |
+| 07 APS | Nonpreemptive next-day finish, two-day center occupancy, night blackout and chain precedence; versioned algorithm | Resource/tool alternatives, job split policies, validated overnight scheduling UAT |
+| 08 Capacity reservation | Append-only overnight work-order reservation and accurate next-day Jalali finish; real weekly overlap prevention | Multi-operator concurrency, approved dispatch changes/rollback and plant line trial |
+
+These rows are implementation evidence, **not an attestation of successfully run CI**. GitHub Actions infrastructure has been failing before any logged test step since Stage19. Do not merge to main or assert all 18 modules complete.
