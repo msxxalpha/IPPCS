@@ -182,9 +182,10 @@ public static class PlanningCalculators
             }
         }
         return loads.OrderBy(x=>x.Key.NeededOn).ThenBy(x=>x.Key.WorkCenterId).Select(x=>{
-            var weekly=shifts.Where(s=>s.WorkCenterId==x.Key.WorkCenterId
-                && s.DayOfWeek==(int)x.Key.NeededOn.DayOfWeek);
-            var cap=weekly.Sum(s=>(decimal)(s.EndTime-s.StartTime).TotalMinutes*s.EffectiveCapacityPercent/100m);
+            // Wall-clock calendar day capacity includes night-shift minutes
+            // carried from the previous weekday; no negative TimeOnly delta.
+            var cap=FactoryShiftCalendar.AvailableMinutes(
+                x.Key.WorkCenterId,x.Key.NeededOn,shifts);
             return new CrpRow(x.Key.WorkCenterId,x.Key.NeededOn,x.Value,cap,
                 Math.Max(0,x.Value-cap),cap==0?null:Math.Round(x.Value/cap*100m,2));
         }).ToList();
