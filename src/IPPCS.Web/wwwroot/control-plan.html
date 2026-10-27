@@ -14,6 +14,8 @@
 <button data-section="genealogy">شجره بچ بین عملیات</button>
 <button data-section="assembly">ردیابی نیمه‌ساخته تا مونتاژ نهایی</button>
 <button data-section="readiness">آمادگی عملیات و وضعیت بازرسی</button>
+<button data-section="handoff">ممیزی انتقال بچ بین عملیات</button>
+<button data-section="eol">گواهی داخلی کنترل نهایی مونتاژ</button>
 <button data-section="spc">پایش آماری اندازه‌گیری‌ها SPC</button>
 <button data-section="tracegraph">ردیابی چندمرحله‌ای بچ</button>
 </nav>
@@ -95,6 +97,33 @@
  </div>
  <div class="panel"><h3>آمادگی مرحله به مرحله دستور</h3><div id="readiness-steps"></div></div>
  <div class="panel"><h3>وضعیت کنترل‌های نسخه ثابت دستور</h3><div id="readiness-inspections"></div></div>
+</section>
+<section id="handoff" class="page" hidden>
+ <div class="section-title"><h3>ممیزی انتقال مستند نیمه‌ساخته بین عملیات</h3>
+ <small>مقایسه خروجی سالم قابل انتقال با مقدار مستند بچ در مرحله بعد، با لحاظ قرنطینه و کیفیت</small></div>
+ <div class="callout">این گزارش پیوندهای واقعی ثبت‌شده ساخت را با مانده WIP مقایسه می‌کند؛ رسید فیزیکی به انبار یا حواله ایجاد نمی‌شود. انتقال از عملیات دارای قرنطینه یا کنترل کیفیت مردود قابل تأیید نیست.</div>
+ <div class="panel form-grid">
+  <label>دستور تولید<select id="handoff-order"></select></label>
+  <div class="form-actions"><button id="handoff-refresh" class="btn-outline" type="button">ممیزی مراحل و بچ‌های بدون پیوند</button></div>
+ </div>
+ <div class="panel"><h3>جمع‌بندی میزان پوشش مرحله به مرحله</h3><div id="handoff-summary"></div></div>
+ <div class="panel"><h3>تفکیک مبدأ و مقصد در مراحل تولید</h3><div id="handoff-steps"></div></div>
+ <div class="panel"><h3>بچ‌های مرحله بعد با منشأ مستند ناقص</h3><div id="handoff-lots"></div></div>
+</section>
+<section id="eol" class="page" hidden>
+ <div class="section-title"><h3>گواهی کیفیت داخلی مونتاژ نهایی کمک‌فنر</h3>
+ <small>گیت کنترل نهایی شامل پایان عملیات، بازرسی اجباری، نبود قرنطینه، پیوند مراحل و پوشش منشأ نیمه‌ساخته به تفکیک بچ</small></div>
+ <div class="callout">این تأیید فقط داخل IPPCS و توسط نقش تأییدکننده کیفیت ثبت می‌شود. به معنی اجازه ارسال به مشتری، خروج انبار، فروش یا صدور گواهی بیرونی نیست. پس از تأیید، شجره بچ همین دستور در سامانه قفل می‌شود.</div>
+ <div class="panel form-grid">
+  <label>دستور مونتاژ نهایی<select id="eol-order"></select></label>
+  <div class="form-actions">
+   <button id="eol-refresh" type="button" class="btn-outline">بررسی گیت‌های کنترل نهایی</button>
+   <button id="eol-approve" type="button" class="btn-main">تأیید داخلی نهایی توسط کیفیت</button>
+  </div>
+ </div>
+ <div class="panel"><h3>خلاصه کنترل نهایی و وضعیت تأیید</h3><div id="eol-summary"></div></div>
+ <div class="panel"><h3>موانع و کنترل‌های ناقص</h3><div id="eol-issues"></div></div>
+ <div class="panel"><h3>پوشش شجره نیمه‌ساخته برای هر بچ مونتاژ</h3><div id="eol-coverage"></div></div>
 </section>
 <section id="spc" class="page" hidden>
  <div class="section-title"><h3>پایش آماری مشخصه‌های تولید</h3><small>نمودار افراد و دامنه متحرک بر اساس اندازه‌گیری‌های واقعی ثبت‌شده؛ مقادیر نمونه‌برداری‌شده قابل ویرایش نیستند</small></div>
