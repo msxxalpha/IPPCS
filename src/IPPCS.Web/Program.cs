@@ -146,6 +146,7 @@ app.MapCrossOrderTrace();
 app.MapEndOfLineAcceptance();
 app.MapSerialGenealogy();
 app.MapEngineeringChangeImpact();
+app.MapEngineeringDraftRebind();
 app.MapInProcessHandoffs();
 app.MapGenealogyExplorer();
 app.MapFactoryExecutionInsights();
