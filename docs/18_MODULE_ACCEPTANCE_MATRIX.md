@@ -63,7 +63,7 @@ All endpoints are local IPPCS-only. No inventory, purchase, sales or employee sy
 ## Stage 14 actual guarded workflows (still not full factory UAT)
 | Module | Functional improvement | Production signoff remaining |
 |---|---|---|
-| 01 Master revisions | Serializable item-level BOM/Routing approval, overlap/cycle/duplicate validation, explicit preflight, immutable approved revision dates | Approved ECO/changeover workflow, revision ownership/signatures, instrument/resource hierarchy, plant UAT |
+| 01 Master revisions | Serializable graph-level BOM and item-level Routing approval, overlap/cycle/duplicate validation, explicit preflight, immutable approved revision dates | Approved ECO/changeover workflow, revision ownership/signatures, instrument/resource hierarchy, plant UAT |
 | 07 APS | QC-, route-step- and clock-aware read-only dispatch board with actual machine reservation evidence and no-slot warnings | Approved real dispatch/alternative routing, shift splitting, tool/labor capacity and PLC confirmation |
 | 08 Work orders | Pre-release approved-revision/MPS preflight enforced in transactional release; draft reschedule/quantity edit rebinds valid revisions with immutable actor + before/after audit | Signed release, permission separation, non-draft revision/change requests, full plant exception/rework signoff |
 
