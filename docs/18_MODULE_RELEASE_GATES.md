@@ -97,3 +97,11 @@ The production program (04) has a controlled-copy revision path: approved source
 - **امنیت و رابط فارسی:** کد ۴۰۱ برای نشست منقضی‌شده موجب ورود مجدد می‌شود؛ کد ۴۰۳ به معنای نقش فاقد مجوز است و نباید کاربر واردشده را به لاگین پرتاب کند. `/auth/me` فقط نقش‌های همان کاربر را برمی‌گرداند. اقدامات دستورات ساخت و گردش انحرافات با نقش‌های برنامه‌ریز، اپراتور و بازرس کیفیت در رابط نمایش/مخفی می‌شوند. مجوز معتبر همواره در API کنترل می‌شود.
 - **کنترل کامپایل محلی بدون دستکاری SQL:** `scripts/Validate-IPPCS.ps1` برای اجرای Restore، Build، xUnit، بررسی نحوی تمام JavaScriptها، آزمون تقویم شمسی و مقایسه فقط‌خواندنی EF Model/Snapshot اضافه شد. اجرای آن هیچ مهاجرت دیتابیس، حذف اطلاعات یا اتصال ERP انجام نمی‌دهد؛ SQL disposable E2E، UAT، امنیت IIS و آزمون بازیابی پشتیبان همچنان ضروری است.
 - **وضعیت نهایی:** مرحله ۲۵ در شاخه توسعه ثبت شده، ولی هیچ تأیید موفق Build/xUnit/SQL برای این SHA در اختیار نداریم. تمام ۱۸ ماژول تا اجرای CI و سناریوهای کارخانه **گیت پذیرش باز** دارند. `main` بدون تغییر است؛ ادغام و استقرار ممنوع.
+
+
+## تشخیص قطعی خطای GitHub Actions — توقف به علت حساب و صورتحساب
+- متن خطا در رابط GitHub: `The job was not started because recent account payments have failed or your spending limit needs to be increased.`
+- این خطا **پیش از ورود Runner به مراحل Build/Test** رخ می‌دهد؛ بنابراین Failureهای اخیر شواهد خطای کامپایل C#، خرابی Migration یا شکست آزمون SQL نیستند. موفقیت این آزمون‌ها نیز هنوز اثبات نشده است.
+- مالک حساب باید از GitHub → Settings → Billing & Licensing ابتدا `Payment information` و `Payment history` و سپس `Budgets and alerts` برای GitHub Actions را بررسی کند. بدون اجازه مالک حساب نباید بودجه یا روش پرداخت تغییر کند.
+- پس از رفع محدودیت، همهٔ Workflowهای Build و SQL روی SHA واحد دوباره اجرا و نتیجه لاگ‌های واقعی ثبت شود. اگر صورتحساب سالم باشد ولی قفل ادامه یابد، درخواست بررسی قفل Billing در GitHub Support ثبت شود.
+- برای آزمون محلی غیرمخرب در Visual Studio از `scripts/Validate-IPPCS.ps1` استفاده شود؛ این کار جایگزین SQL disposable E2E و UAT نهایی نیست.
