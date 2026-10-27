@@ -40,6 +40,7 @@ async function load(){[state.routes,state.plans,state.orders]=await Promise.all(
  select($("#readiness-order"),state.orders.filter(x=>x.status!==0&&x.status!==5),x=>x.number);
  select($("#handoff-order"),state.orders.filter(x=>x.status!==0&&x.status!==5),x=>x.number);
  select($("#eol-order"),state.orders.filter(x=>x.kind===1&&x.status!==0&&x.status!==5),x=>x.number);
+ select($("#factory-serial-order"),state.orders.filter(x=>x.kind===1&&x.status===4),x=>x.number);
  select($("#spc-order"),state.orders.filter(x=>x.status!==0&&x.status!==5),x=>x.number);
  select($("#trace-order"),state.orders.filter(x=>x.status!==0&&x.status!==5),x=>x.number);
 
@@ -268,6 +269,54 @@ async function eolApprove(){
  await eolReport();
  alertTo("گواهی کنترل نهایی داخلی توسط نقش کیفیت ثبت شد؛ شجره بچ قفل است.");
 }
+async function reloadFactorySerials(){
+ const id=$("#factory-serial-order").value;
+ if(!id){
+  select($("#factory-serial-lot"),[],x=>x.lotCode||"");
+  table("#factory-serial-ledger",[["سریال","serialNumber"]],[]);
+  return;
+ }
+ const [lots,ledger]=await Promise.all([
+  api("/manufacturing-orders/"+id+"/confirmations"),
+  api("/manufacturing-orders/"+id+"/serials")
+ ]);
+ const finalSequence=lots.length?Math.max(...lots.map(x=>x.operationSequence)):0;
+ select($("#factory-serial-lot"),lots.filter(x=>x.operationSequence===finalSequence&&
+     Number(x.goodQuantity)>0),x=>(x.lotCode||"بدون کد")+" | سالم: "+x.goodQuantity);
+ table("#factory-serial-ledger",[
+  ["شماره سریال","serialNumber"],["دستور","orderNumber"],["بچ","lotCode"],
+  ["ثبت‌کننده","recordedBy"],
+  ["زمان ثبت",x=>new Date(x.recordedUtc).toLocaleString("fa-IR-u-ca-persian",{timeZone:"Asia/Tehran"})]
+ ],ledger.serials);
+ alertTo(ledger.disclaimer);
+}
+async function traceFactorySerial(){
+ const serial=$("#factory-serial-trace-code").value.trim();
+ const depth=Number($("#factory-serial-trace-depth").value);
+ if(!serial||!Number.isInteger(depth)||depth<1||depth>16)
+  throw Error("شماره سریال و عمق ۱ تا ۱۶ معتبر لازم است.");
+ const trace=await api("/factory-serials/"+encodeURIComponent(serial)+
+  "/trace?depth="+depth);
+ const info=trace.serial,graph=trace.ancestry;
+ table("#factory-serial-trace-summary",[["شاخص","name"],["مقدار","value"]],[
+  {name:"شماره سریال",value:info.serialNumber},
+  {name:"دستور نهایی",value:info.orderNumber},
+  {name:"بچ نهایی",value:info.lotCode},
+  {name:"تعداد دستورهای مرتبط",value:graph.orderCount},
+  {name:"تعداد بچ‌های مرتبط",value:graph.batchCount},
+  {name:"گسترش شجره بیش از عمق انتخابی",value:graph.hasMoreBeyondDepth?"بله":"خیر"}
+ ]);
+ table("#factory-serial-trace-nodes",[
+  ["دستور","orderNumber"],["بچ","lotCode"],["کالا",x=>x.itemId.slice(0,8)],
+  ["عملیات","sequence"],["تولید سالم","goodQuantity"]
+ ],graph.nodes);
+ table("#factory-serial-trace-edges",[
+  ["بچ مبدأ",x=>x.sourceId.slice(0,8)],
+  ["بچ مقصد",x=>x.targetId.slice(0,8)],
+  ["مقدار مستند","quantity"]
+ ],graph.edges);
+ alertTo(trace.disclaimer);
+}
 function register(id,fn){const f=$(id);f.addEventListener("submit",async e=>{
  e.preventDefault();if(!f.reportValidity())return;
  const b=f.querySelector('button[type="submit"]');b.disabled=true;
@@ -316,6 +365,19 @@ function boot(){
  $("#handoff-refresh").onclick=()=>handoffReport().catch(e=>alertTo(e.message,true));
  $("#eol-refresh").onclick=()=>eolReport().catch(e=>alertTo(e.message,true));
  $("#eol-approve").onclick=()=>eolApprove().catch(e=>alertTo(e.message,true));
+ $("#factory-serial-order").onchange=()=>reloadFactorySerials().catch(e=>alertTo(e.message,true));
+ $("#factory-serial-reload").onclick=()=>reloadFactorySerials().catch(e=>alertTo(e.message,true));
+ register("#factory-serial-form",async()=>{
+  const id=$("#factory-serial-order").value,lot=$("#factory-serial-lot").value;
+  if(!id||!lot)throw Error("دستور نهایی و بچ ثبت‌شده را انتخاب کنید.");
+  const result=await api("/manufacturing-orders/"+id+"/serials","POST",{
+   confirmationId:lot,serialNumber:$("#factory-serial-code").value
+  });
+  await reloadFactorySerials();
+  $("#factory-serial-trace-code").value=result.serialNumber;
+  alertTo("شماره سریال "+result.serialNumber+" به بچ نهایی تخصیص یافت.");
+ });
+ register("#factory-serial-trace-form",traceFactorySerial);
  $("#spc-order").onchange=()=>reloadSpcRequirements().catch(e=>alertTo(e.message,true));
  $("#spc-refresh").onclick=()=>spcReport().catch(e=>alertTo(e.message,true));
  $("#trace-order").onchange=()=>reloadTraceLots().catch(e=>alertTo(e.message,true));
