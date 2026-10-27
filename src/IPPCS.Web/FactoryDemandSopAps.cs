@@ -61,7 +61,8 @@ public static class FiniteFactoryScheduler
 {
     public static ApsResult Schedule(IReadOnlyList<ApsTask> tasks,
         IReadOnlyList<WorkShift> shifts,DateOnly start,int horizonDays,decimal multiplier=1,
-        IReadOnlySet<(Guid WorkCenterId,DateOnly Date)>? unavailableDays=null)
+        IReadOnlySet<(Guid WorkCenterId,DateOnly Date)>? unavailableDays=null,
+        IReadOnlyDictionary<Guid,DateOnly>? earliestStartDates=null)
     {
         if(horizonDays is <1 or >90 || multiplier<=0 || multiplier>2)
             throw new ArgumentException("افق برنامه‌ریزی یا ضریب ظرفیت نامعتبر است.");
@@ -82,7 +83,8 @@ public static class FiniteFactoryScheduler
             {
                 missing.Add(new(job.ItemId,job.OperationSequence,"عملیات قبلی قابل زمان‌بندی نبود."));continue;
             }
-            var earliest=chainReady.GetValueOrDefault(job.DemandLineId,start.ToDateTime(TimeOnly.MinValue));
+            var earliest=chainReady.GetValueOrDefault(job.DemandLineId,
+                (earliestStartDates?.GetValueOrDefault(job.DemandLineId)??start).ToDateTime(TimeOnly.MinValue));
             bool allocated=false;
             for(int d=0;d<horizonDays && !allocated;d++)
             {
@@ -120,7 +122,7 @@ public static class FiniteFactoryScheduler
                             result.Add(new ApsAllocation(job.ItemId,job.WorkCenterId,
                                 job.OperationSequence,job.Quantity,job.DueOn,day,
                                 TimeOnly.FromDateTime(from),DateOnly.FromDateTime(until),TimeOnly.FromDateTime(until),
-                                job.DurationMinutes,job.OperationName,day>job.DueOn));
+                                job.DurationMinutes,job.OperationName,DateOnly.FromDateTime(until)>job.DueOn));
                             allocated=true;break;
                         }
                         left=Math.Max(left,block.end);
