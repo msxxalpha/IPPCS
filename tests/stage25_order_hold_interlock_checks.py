@@ -55,3 +55,30 @@ def stage25_acceptance(request,jalali,component_id):
     assert actions.count("Held")==1 and actions.count("Resumed")==1,actions
     assert "QualityHold" in actions and "QualityRelease" in actions,actions
     print("PASS: SQL guarded hold is single-transition, open QA quarantine blocks resume, disposition unlocks, and journal remains intact.")
+
+    # The reverse event ordering must also be safe: first the operator halts
+    # a suspicious lot, THEN QA raises containment while the order stays OnHold.
+    other=request("/api/v1/manufacturing-orders","POST",{
+        "number":"CI-ST25-HOLD-BEFORE-QA","itemId":item["id"],
+        "plannedQuantity":5,"plannedStartJalali":jalali,
+        "dueOnJalali":jalali},201)
+    other_path=f"/api/v1/manufacturing-orders/{other['id']}"
+    second=request(other_path+"/release","POST")["operations"][0]
+    request(other_path+f"/operations/{second['id']}/confirm","POST",{
+        "goodQuantity":1,"scrapQuantity":0,"reworkQuantity":0,
+        "lotCode":"CI-ST25-LOT-2","note":"Partial lot before emergency line stop"})
+    request(other_path+"/hold","POST",{"reason":"Operator reported suspicious output before QA arrived"})
+    assert request(other_path)["status"]==3
+    issue=request(other_path+"/quality-holds","POST",{
+        "operationId":second["id"],"quantity":1,
+        "reason":"Quality officer quarantines safely stopped lot"},201)
+    assert issue["id"],issue
+    request(other_path+"/resume","POST",status=409)
+    request(other_path+"/quality-holds/"+issue["id"]+"/disposition?decision=2",
+        "POST",{"note":"Damaged lot safely scrapped by quality inspector"})
+    restarted=request(other_path+"/resume","POST")
+    assert restarted["status"]==2,restarted
+    history=[x["action"] for x in request(other_path+"/history")["events"]]
+    assert history.index("Held")<history.index("QualityHold")<history.index("QualityScrap")<history.index("Resumed"),history
+    print("PASS: SQL emergency operator stop before QA quarantine is accepted and cannot be restarted until quality disposition.")
+
