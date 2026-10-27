@@ -137,6 +137,25 @@
 <h3>انحراف مصرف ثبت‌شده نسبت به مقدار خروجی واقعی تولید</h3>
 <p>مصرف ثبت‌نشده «نامشخص» است، نه صفر. این گزارش مقایسه عملیاتی است و موجودی هیچ انباری را تغییر نمی‌دهد.</p>
 <div id="material-reconciliation"></div></div>
+<form id="material-lot-form" class="panel form-grid">
+<h3 class="wide">ثبت مصرف منتسب به بچ واقعی تولید</h3>
+<p class="wide">تنها بچ دارای گزارش عملکرد واقعی قابل انتخاب است. مقدار ثبت‌شده برای هر جزء نباید از ضریب استاندارد BOM منجمد همان بچ فراتر رود؛ اصلاح اشتباه از طریق سند معکوس انجام می‌شود.</p>
+<label>بچ ثبت‌شده<select name="confirmationId" id="material-lot" required></select></label>
+<label>جزء BOM<select name="componentItemId" id="material-lot-component" required></select></label>
+<label>مقدار مصرف بچ<input name="quantity" type="number" min="0.0001" step="any" required></label>
+<label>مرجع ثبت<input name="reference" maxlength="140" required></label>
+<div class="form-actions"><button class="btn-main" type="submit">ثبت مصرف قابل ردیابی بچ</button><button id="material-lot-review" type="button" class="btn-outline">بررسی تراز بچ</button></div>
+</form>
+<div class="panel"><h3>استاندارد و مقدار مصرف بچ انتخابی</h3><div id="material-lot-balances"></div></div>
+<form id="material-reversal-form" class="panel form-grid">
+<h3 class="wide">ابطال ثبت اشتباه بدون پاک‌کردن سابقه</h3>
+<label>سند مصرف قبلی<select id="material-reversal-entry" name="entryId" required></select></label>
+<label>علت اصلاح<input name="reason" maxlength="140" required placeholder="دلیل قابل حسابرسی اصلاح مصرف"></label>
+<div class="form-actions"><button class="btn-outline" type="submit">ثبت سند معکوس مصرف</button></div>
+</form>
+<div class="panel"><h3>دفتر شواهد مصرف؛ اصل و اصلاحات</h3>
+<p>مصرف قدیمی فاقد شناسه بچ، فقط به سطح دستور منتسب است. سند معکوس ثبت قبلی را پاک نمی‌کند و مانده خالص آن را صفر می‌کند.</p>
+<div id="material-evidence-ledger"></div></div>
 </section>
 <section id="cost" class="page" hidden>
 <div class="section-title"><h3>برآورد هزینه تبدیل و ضایعات تولید</h3><small>ریال، مبتنی بر نرخ استاندارد هر مرکز؛ نه ماژول مالی یا حسابداری بهای تمام‌شده</small></div>
