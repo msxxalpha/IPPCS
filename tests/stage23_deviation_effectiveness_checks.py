@@ -6,7 +6,7 @@ import json
 import urllib.error
 import urllib.request
 
-def stage23_acceptance(request, base, mps_line):
+def stage23_acceptance(request, base, mps_line, jalali):
     deviation=next(x for x in request("/api/v1/production-deviations")
         if x["description"]=="CI-ST15 capacity corrective action with escalation")
     path=f"/api/v1/production-deviations/{deviation['id']}"
@@ -69,6 +69,10 @@ def stage23_acceptance(request, base, mps_line):
     assert certified["state"]=="Verified" and certified["reviewedBy"]=="ci-stage23-qa-one",certified
     assert not any(x["id"]==deviation["id"] for x in
         request("/api/v1/production-deviations/effectiveness-pending")["rows"])
+    dashboard=request("/api/v1/factory-kpis/production-alerts?asOfJalali="+
+        jalali+"&daysAhead=7")
+    assert not any(x["referenceId"]==deviation["id"]
+                   for x in dashboard["alerts"]),dashboard
     print("PASS: SQL local quality role independently verifies closed CAPA, self-signature blocked, no duplicate approval.")
 
     changed=request("/api/v1/production-deviations","POST",{
@@ -107,6 +111,9 @@ def stage23_acceptance(request, base, mps_line):
     assert final["state"]=="Verified" and final["reviewedBy"]=="ci-stage23-qa-two",final
     report=next(x for x in request("/api/v1/production-deviations") if x["id"]==cid)
     assert report["effectiveness"]["independentlyVerified"]
+    after_final=request("/api/v1/factory-kpis/production-alerts?asOfJalali="+
+        jalali+"&daysAhead=7")
+    assert not any(x["referenceId"]==cid for x in after_final["alerts"]),after_final
     assert sum(e["details"].startswith("EFFECTIVENESS_V1:")
         for e in report["events"])==2
     print("PASS: SQL reject CAPA effectiveness, reopen, revise with immutable events, re-close, independent second QA verification.")
