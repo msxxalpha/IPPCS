@@ -32,7 +32,7 @@
   const allowed=new Set([
    "/app.html","/planning.html","/execution.html","/control-plan.html",
    "/planning-advanced.html","/engineering-rebind.html","/mps-pegging.html",
-   "/production-deviations.html","/system-users.html"
+   "/production-deviations.html","/system-users.html","/factory-recall.html"
   ]);
   const returnTo=allowed.has(location.pathname)?location.pathname:"/app.html";
   if(location.pathname!=="/login.html")location.assign("/login.html?returnUrl="+encodeURIComponent(returnTo));

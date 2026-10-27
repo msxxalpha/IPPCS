@@ -11,7 +11,8 @@ form.addEventListener("submit",async e=>{
    body:JSON.stringify({username:data.get("username"),password:data.get("password")})});
   if(!response.ok)throw new Error(response.status===423?"حساب موقتاً قفل شده است.":"نام کاربری یا رمز عبور صحیح نیست.");
   const requested=new URLSearchParams(location.search).get("returnUrl");
-  const allowed=["/app.html","/planning.html","/execution.html"];
+  const allowed=["/app.html","/planning.html","/execution.html",
+   "/factory-recall.html"];
   location.replace(allowed.includes(requested)?requested:"/app.html");
  }catch(ex){error.hidden=false;error.textContent=ex.message;submit.disabled=false;}
 });
