@@ -39,3 +39,11 @@ Initial Persian RTL UI and shared Jalali datepicker implemented. Manufacturing o
 - MRP must account for available inventory, reservations, due dates and lead times before being called net MRP.
 - APS must respect precedence, calendars, finite capacity and resource eligibility before being called APS.
 - Restore-ready backups and verified schema migrations are required before deploying against real data.
+
+### Stage 12 — five additional manufacturing modules extended
+- **11:** BOM-standard planned and final-stage output-scaled internal material consumption reconciliations; missing actual consumption remains null, never an assumed stock movement.
+- **12:** pending and overdue corrective-action exception rows derived from existing audited deviations.
+- **13:** exploratory frozen-characteristic historical individuals/moving-range control limits, pass/fail and sample-data guards; certified SPC sampling/MSA still pending.
+- **15:** bounded forward/backward multistage genealogy across IPPCS work orders, with explicit evidence and depth-truncation indicator, not warehouse genealogy.
+- **18:** Jalali-date-based operational alert feed for open quarantines, overdue/upcoming production orders and overdue/unassigned corrective action. Not an external notification module.
+All five remain development-grade until representative factory UAT. No external warehouse, purchasing, sales or HR systems were connected or modified.
