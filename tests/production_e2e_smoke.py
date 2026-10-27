@@ -216,6 +216,16 @@ request(f"/api/v1/mps/{mps['id']}/lines", "POST", {
     "quantity": 10, "reference": "CI planned shock absorbers"
 }, 201)
 request(f"/api/v1/mps/{mps['id']}/approve", "POST")
+# Material feasibility must fail closed before any raw-material baseline exists.
+request("/api/v1/factory-aps/calculate", "POST", {
+    "mpsVersionId": mps["id"], "startJalali": JALALI_NOW,
+    "horizonDays": 7, "capacityMultiplier": 1
+}, 422)
+request(f"/api/v1/planning-balances/{raw['id']}", "PUT", {
+    "itemId": raw["id"], "physicalQuantity": 25, "reservedQuantity": 0,
+    "quarantinedQuantity": 0, "safetyQuantity": 0, "leadDays": 1,
+    "minimumBatch": 1, "batchMultiple": 1, "snapshotDateJalali": JALALI_NOW
+})
 aps = request("/api/v1/factory-aps/calculate", "POST", {
     "mpsVersionId": mps["id"], "startJalali": JALALI_NOW,
     "horizonDays": 7, "capacityMultiplier": 1
