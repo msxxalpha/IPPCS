@@ -38,7 +38,9 @@ def stage14_acceptance(request, jalali, tomorrow, semi_item, component_item, cen
     assert request(f"/api/v1/manufacturing-orders/{draft['id']}/release-check")["canRelease"]
     events=request(f"/api/v1/manufacturing-orders/{draft['id']}/history")["events"]
     assert any(x["action"]=="DraftReplanned" and
-               "CI operational date" in (x["details"] or "") for x in events)
+               "CI operational date" in (x["details"] or "") and
+               "Before:" in x["details"] and "After:" in x["details"] and
+               "By=" in x["details"] for x in events)
     released=request(f"/api/v1/manufacturing-orders/{draft['id']}/release","POST")
     assert released["status"]==1 and len(released["operations"])==1,released
     request(f"/api/v1/manufacturing-orders/{draft['id']}/replan-draft","POST",{
