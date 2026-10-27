@@ -47,7 +47,8 @@ try {
             $JalaliTests,
             (Join-Path $Root 'tests/factory-recall-ui.test.cjs'),
             (Join-Path $Root 'tests/eco-ui.test.cjs'),
-            (Join-Path $Root 'tests/factory-master-ui.test.cjs')
+            (Join-Path $Root 'tests/factory-master-ui.test.cjs'),
+            (Join-Path $Root 'tests/factory-first-run-ui.test.cjs')
         )
         Invoke-Gate 'Jalali and accessible factory UI browser contract tests' 'node' (@('--test') + $BrowserTests)
     }
