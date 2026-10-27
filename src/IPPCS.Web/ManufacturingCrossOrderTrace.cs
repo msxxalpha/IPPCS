@@ -134,8 +134,9 @@ public static class ManufacturingCrossOrderTrace
                     results.Single(y=>y.Id==x.DestinationConfirmationId).LotCode??"",
                     x.Quantity,x.LinkedUtc);
             }).ToArray();
+            var componentIds=bom.Lines.Select(l=>l.ComponentItemId).Distinct().ToArray();
             var traceableItems=await db.Items.AsNoTracking()
-                .Where(x=>bom.Lines.Select(l=>l.ComponentItemId).Contains(x.Id) &&
+                .Where(x=>componentIds.Contains(x.Id) &&
                     x.Type==PlanningItemType.SemiFinished)
                 .Select(x=>x.Id).ToListAsync(ct);
             var coverage=Coverage(bom.Lines,results,
