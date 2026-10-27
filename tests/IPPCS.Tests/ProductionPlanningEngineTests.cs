@@ -24,13 +24,13 @@ public sealed class ProductionPlanningEngineTests
         };
         var type=new Dictionary<Guid,PlanningItemType>{{finished,PlanningItemType.Finished},{raw,PlanningItemType.RawMaterial}};
         var result=PlanningCalculators.RunMrp([plan],[bom],balances,receipts,type);
-        var root=Assert.Single(result.Where(x=>x.ItemId==finished));
+        var root=Assert.Single(result,x=>x.ItemId==finished);
         Assert.Equal(10m,root.GrossRequired);
         Assert.Equal(7m,root.OpeningAvailable);
         Assert.Equal(3m,root.NetShortage);
         Assert.Equal(4m,root.SuggestedQuantity); // minimum lot + lot multiple
         Assert.Equal(Due.AddDays(-2),root.SuggestedRelease);
-        var material=Assert.Single(result.Where(x=>x.ItemId==raw));
+        var material=Assert.Single(result,x=>x.ItemId==raw);
         Assert.Equal(Due.AddDays(-2),material.NeededOn);
         Assert.Equal(8m,material.GrossRequired); // demand from planned 4, not whole 10
         Assert.Equal(7m,material.NetShortage);
