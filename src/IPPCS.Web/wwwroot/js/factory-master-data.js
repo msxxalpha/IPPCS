@@ -81,6 +81,38 @@ async function reload(){
  $("master-code").readOnly=kind==="DeviationCategory";
  $("master-code").placeholder=kind==="DeviationCategory"?"کدهای ۰ تا ۶ از قبل تعریف شده‌اند":"مثلاً SHIFT_LEAD";
 }
+async function reasonReport(event){
+ event.preventDefault();
+ const form=$("master-reason-report");
+ if(!form.reportValidity())return;
+ const kind=$("reason-report-kind").value,
+  fromJalali=$("reason-report-from").value.trim(),
+  throughJalali=$("reason-report-through").value.trim();
+ const params=new URLSearchParams({kind,fromJalali,throughJalali});
+ const result=await api("/factory-master-options/production-reason-summary?"+params);
+ const host=$("reason-report-result");host.replaceChildren();
+ const summary=make("p");
+ summary.textContent=result.warning;
+ host.append(summary);
+ const wrap=make("div","table-wrap"),table=make("table"),head=make("tr");
+ for(const heading of ["کد","عنوان مرجع","وضعیت","تعداد رخداد","مقدار جمع‌شده"]){
+  const th=make("th");th.textContent=heading;head.append(th);
+ }
+ table.append(head);
+ for(const row of result.rows){
+  const tr=make("tr");
+  for(const value of [row.code,row.label,row.active?"فعال":"غیرفعال/قدیمی",
+   row.records.toLocaleString("fa-IR"),
+   row.measuredQuantity.toLocaleString("fa-IR")]){
+   const td=make("td");td.textContent=value;tr.append(td);
+  }
+  table.append(tr);
+ }
+ if(!result.rows.length){
+  const p=make("p");p.textContent="در بازه انتخاب‌شده رخدادی وجود ندارد.";host.append(p);
+ }
+ wrap.append(table);host.append(wrap);
+}
 async function boot(){
  const response=await IPPCSSecurity.secureFetch("/auth/me");
  if(response.status===401){IPPCSSecurity.goLogin();return;}
@@ -92,6 +124,7 @@ async function boot(){
  $("master-query").oninput=render;
  $("master-inactive").onchange=render;
  $("master-reload").onclick=()=>reload().catch(e=>msg(e.message,true));
+ $("master-reason-report").onsubmit=event=>reasonReport(event).catch(e=>msg(e.message,true));
  $("master-create").onsubmit=async event=>{
   event.preventDefault();
   const button=$("master-add");button.disabled=true;
