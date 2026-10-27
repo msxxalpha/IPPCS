@@ -70,3 +70,8 @@ def stage11_acceptance(request, component_id, center_id, jalali):
     stage12_acceptance(request,jalali,tomorrow,controlled["itemId"],None,
                        component_id,material["id"],controlled["id"],
                        source["id"],target["id"],mps_line)
+
+    from stage13_planning_bridge_checks import stage13_acceptance
+    version=next(x for x in request("/api/v1/mps") if x["code"]=="CI-MPS-STAGE7")
+    sop=next(x for x in request("/api/v1/factory-sop") if x["code"]=="CI-SOP-001")
+    stage13_acceptance(request,jalali,version["id"],sop["id"],center_id,component_id)
