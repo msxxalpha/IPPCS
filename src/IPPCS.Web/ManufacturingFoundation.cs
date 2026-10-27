@@ -145,17 +145,22 @@ public static class ManufacturingFoundationEndpoints
 
         api.MapPost("/routings/{id:guid}/approve", async (Guid id, ProductionDb db, CancellationToken ct) =>
         {
-            var route = await db.RoutingRevisions.SingleOrDefaultAsync(x => x.Id == id, ct);
+            await using var tx=await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable,ct);
+            var route = await db.RoutingRevisions.Include(x=>x.Operations)
+                .SingleOrDefaultAsync(x => x.Id == id, ct);
             if (route is null) return Results.NotFound();
             if (route.State != RoutingState.Draft) return Results.Conflict(new { message = "مسیر پیش‌نویس نیست." });
             if (!await db.RoutingOperations.AnyAsync(x => x.RoutingRevisionId == id, ct))
                 return Results.BadRequest(new { message = "مسیر بدون عملیات قابل تأیید نیست." });
-            var other = await db.RoutingRevisions.Where(x => x.Id != id && x.ItemId == route.ItemId && x.State == RoutingState.Approved).ToListAsync(ct);
-            if (other.Any(x => x.EffectiveFrom <= (route.EffectiveTo ?? DateOnly.MaxValue) &&
-                               route.EffectiveFrom <= (x.EffectiveTo ?? DateOnly.MaxValue)))
-                return Results.Conflict(new { message = "بازه اعتبار با نسخه تأییدشده دیگری همپوشانی دارد." });
+            try{await FactoryRevisionGovernance.LockRevisionItem(db,"Routing",route.ItemId,ct);}
+            catch(Microsoft.Data.SqlClient.SqlException){return Results.Conflict(new{message="قفل تصویب مسیر ساخت در دسترس نیست."});}
+            var other = await db.RoutingRevisions.AsNoTracking()
+                .Where(x => x.Id != id && x.ItemId == route.ItemId && x.State == RoutingState.Approved)
+                .ToListAsync(ct);
+            var issues=FactoryRevisionGovernance.RoutingIssues(route,other);
+            if(issues.Count>0)return Results.Conflict(new{message="مسیر ساخت برای تصویب آماده نیست.",issues});
             route.State = RoutingState.Approved;
-            await db.SaveChangesAsync(ct);
+            await db.SaveChangesAsync(ct);await tx.CommitAsync(ct);
             return Results.Ok(new { route.Id, route.State });
         });
 
