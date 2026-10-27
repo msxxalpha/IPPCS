@@ -80,7 +80,7 @@ public sealed class FactoryStageTwentyThreeEffectivenessTests
         Assert.False(status.IndependentlyVerified);
         row.Events.Add(new ProductionDeviationEvent{DeviationId=row.Id,
             Status=ProductionDeviationStatus.ActionAssigned,Username="planner-revision",
-            Details="REVISION:Corrected",AtUtc=rejected.ReviewedUtc.AddMinutes(3)});
+            Details="REVISION:Updated:1:Corrected",AtUtc=rejected.ReviewedUtc.AddMinutes(3)});
         row.Status=ProductionDeviationStatus.Closed;row.ClosedUtc=rejected.ReviewedUtc.AddMinutes(5);
         row.Events.Add(new ProductionDeviationEvent{DeviationId=row.Id,
             Status=ProductionDeviationStatus.Closed,Username="planner-close",
@@ -94,6 +94,30 @@ public sealed class FactoryStageTwentyThreeEffectivenessTests
             Status=ProductionDeviationStatus.Closed,Username="qa-2",
             Details=FactoryDeviationEffectiveness.Encode(passed),AtUtc=passed.ReviewedUtc});
         Assert.True(FactoryDeviationEffectiveness.Evaluate(row).IndependentlyVerified);
+    }
+
+    [Fact]
+    public void Reclosing_without_an_audited_action_revision_cannot_pass_QA()
+    {
+        var row=ClosedCase();
+        var failed=new FactoryDeviationEffectivenessProof(false,"QMS-REJECT-100",
+            "Previous corrective action failed in factory samples",
+            "qa-original",new DateTime(2026,10,27,8,20,0,DateTimeKind.Utc));
+        row.Events.Add(new ProductionDeviationEvent{DeviationId=row.Id,
+            Status=ProductionDeviationStatus.ActionAssigned,Username="qa-original",
+            Details=FactoryDeviationEffectiveness.Encode(failed),
+            AtUtc=failed.ReviewedUtc});
+        row.Events.Add(new ProductionDeviationEvent{DeviationId=row.Id,
+            Status=ProductionDeviationStatus.Closed,Username="planner-close",
+            Details="Repeated closure without a corrected action",
+            AtUtc=failed.ReviewedUtc.AddMinutes(5)});
+        Assert.False(FactoryDeviationEffectiveness.CanReview(row,"qa-new",out var why));
+        Assert.Contains("بازنگری",why);
+        row.Events.Add(new ProductionDeviationEvent{DeviationId=row.Id,
+            Status=ProductionDeviationStatus.ActionAssigned,Username="planner-revision",
+            Details="REVISION:Updated:1:Corrective action reworked",
+            AtUtc=failed.ReviewedUtc.AddMinutes(3)});
+        Assert.True(FactoryDeviationEffectiveness.CanReview(row,"qa-new",out _));
     }
 
     [Fact]
