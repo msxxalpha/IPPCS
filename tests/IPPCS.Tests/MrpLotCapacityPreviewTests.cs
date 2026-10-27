@@ -95,6 +95,106 @@ public sealed class MrpLotCapacityPreviewTests
     }
 
     [Fact]
+    public void Parent_batch_cannot_start_until_its_manufactured_component_finishes()
+    {
+        var semi=Guid.NewGuid();var finished=Guid.NewGuid();var center=Guid.NewGuid();
+        var child=Lot(semi,Monday,Monday,20);
+        var parent=Lot(finished,Monday,Monday,10);
+        var need=new NetPegDemand("COMP:"+parent.LotKey+":1",semi,Monday,10,
+            null,parent.LotKey,Guid.NewGuid(),"finished/semi",1);
+        var source=new NetPegAllocation(need.DemandKey,semi,Monday,
+            "ProposedManufacturingReceipt",child.LotKey,Monday,10,false);
+        var graph=new NetPeggingReport([need],[source],[parent,child]);
+        var result=MrpLotCapacityPreview.Evaluate(graph,
+            [Route(semi,center,10,5),Route(finished,center,10,5)],
+            [Shift(center,Monday)],Monday,1);
+        Assert.Equal(2,result.OnTimeLots);
+        var first=Assert.Single(result.Allocations.Where(x=>x.ItemId==semi));
+        var second=Assert.Single(result.Allocations.Where(x=>x.ItemId==finished));
+        Assert.True(first.FinishesAt<=second.StartsAt);
+    }
+
+    [Fact]
+    public void Failed_component_batch_blocks_parent_instead_of_using_unfinished_material()
+    {
+        var semi=Guid.NewGuid();var finished=Guid.NewGuid();var center=Guid.NewGuid();
+        var child=Lot(semi,Monday,Monday,100);var parent=Lot(finished,Monday,Monday,5);
+        var need=new NetPegDemand("COMP:"+parent.LotKey+":1",semi,Monday,5,
+            null,parent.LotKey,Guid.NewGuid(),"finished/semi",1);
+        var source=new NetPegAllocation(need.DemandKey,semi,Monday,
+            "ProposedManufacturingReceipt",child.LotKey,Monday,5,false);
+        var result=MrpLotCapacityPreview.Evaluate(new NetPeggingReport([need],[source],[child,parent]),
+            [Route(semi,center,10,10),Route(finished,center,10,1)],
+            [Shift(center,Monday)],Monday,1);
+        Assert.Equal(2,result.BlockedLots);
+        Assert.Empty(result.Allocations);
+        Assert.Contains(result.Lots,x=>x.ItemId==finished&&x.Status=="Unscheduled"&&
+            x.Reason!.Contains("پیش‌نیاز"));
+    }
+
+    [Fact]
+    public void Unfinished_active_order_conservatively_reserves_its_center_but_draft_does_not()
+    {
+        var item=Guid.NewGuid();var center=Guid.NewGuid();
+        var active=new ManufacturingOrder {
+            Status=ManufacturingOrderStatus.InProgress,
+            PlannedStart=Monday.AddDays(-2),DueOn=Monday,
+            Operations=[new ManufacturingOrderOperation{WorkCenterId=center,Sequence=10,IsComplete=false}]
+        };
+        var result=MrpLotCapacityPreview.Evaluate(Graph(Lot(item,Monday,Monday,10)),
+            [Route(item,center)],[Shift(center,Monday)],Monday,1,1m,[active]);
+        Assert.Equal(1,result.BlockedLots);
+        Assert.Empty(result.Allocations);
+        active.Status=ManufacturingOrderStatus.Draft;
+        var draft=MrpLotCapacityPreview.Evaluate(Graph(Lot(item,Monday,Monday,10)),
+            [Route(item,center)],[Shift(center,Monday)],Monday,1,1m,[active]);
+        Assert.Equal(1,draft.OnTimeLots);
+    }
+
+    [Fact]
+    public void Completed_operations_of_active_order_do_not_reserve_workcenter()
+    {
+        var item=Guid.NewGuid();var center=Guid.NewGuid();
+        var active=new ManufacturingOrder {
+            Status=ManufacturingOrderStatus.OnHold, PlannedStart=Monday,DueOn=Monday,
+            Operations=[new ManufacturingOrderOperation{WorkCenterId=center,Sequence=10,IsComplete=true}]
+        };
+        var report=MrpLotCapacityPreview.Evaluate(Graph(Lot(item,Monday,Monday,10)),
+            [Route(item,center)],[Shift(center,Monday)],Monday,1,1m,[active]);
+        Assert.Equal(1,report.OnTimeLots);
+    }
+
+    [Fact]
+    public void Two_lots_of_same_item_and_due_day_remain_individually_attributed()
+    {
+        var item=Guid.NewGuid();var center=Guid.NewGuid();
+        var a=Lot(item,Monday,Monday,10);
+        var b=Lot(item,Monday,Monday,10) with{LotKey="PLAN:second-batch"};
+        var result=MrpLotCapacityPreview.Evaluate(Graph(a,b),
+            [Route(item,center,10,10)],[Shift(center,Monday)],Monday,1);
+        Assert.Equal(2,result.OnTimeLots);
+        Assert.Equal(2,result.Allocations.Select(x=>x.DemandLineId).Distinct().Count());
+    }
+
+    [Fact]
+    public void Cyclic_lot_dependencies_are_rejected()
+    {
+        var a=Lot(Guid.NewGuid(),Monday,Monday);var b=Lot(Guid.NewGuid(),Monday,Monday);
+        NetPegDemand Need(NetPegPlannedLot parent)=>
+            new("COMP:"+parent.LotKey,parent.ItemId,Monday,1,null,parent.LotKey,null,"loop",1);
+        var d1=Need(a);var d2=Need(b);
+        var graph=new NetPeggingReport([d1,d2],[
+            new NetPegAllocation(d1.DemandKey,a.ItemId,Monday,
+                "ProposedManufacturingReceipt",b.LotKey,Monday,1,false),
+            new NetPegAllocation(d2.DemandKey,b.ItemId,Monday,
+                "ProposedManufacturingReceipt",a.LotKey,Monday,1,false)
+        ],[a,b]);
+        var center=Guid.NewGuid();
+        Assert.Throws<ArgumentException>(()=>MrpLotCapacityPreview.Evaluate(graph,
+            [Route(a.ItemId,center),Route(b.ItemId,center)],[Shift(center,Monday)],Monday,1));
+    }
+
+    [Fact]
     public void Capacity_multiplier_changes_feasibility_without_mutating_inputs()
     {
         var item=Guid.NewGuid();var center=Guid.NewGuid();
