@@ -75,3 +75,6 @@ def stage11_acceptance(request, component_id, center_id, jalali):
     version=next(x for x in request("/api/v1/mps") if x["code"]=="CI-MPS-STAGE7")
     sop=next(x for x in request("/api/v1/factory-sop") if x["code"]=="CI-SOP-001")
     stage13_acceptance(request,jalali,version["id"],sop["id"],center_id,component_id)
+
+    from stage14_factory_governance_checks import stage14_acceptance
+    stage14_acceptance(request,jalali,tomorrow,semi["id"],component_id,center_id)
