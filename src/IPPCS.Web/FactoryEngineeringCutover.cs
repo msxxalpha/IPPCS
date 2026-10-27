@@ -129,11 +129,19 @@ public static class FactoryEngineeringCutover
                 // Serialize all ECO-reference decisions globally, not only per item.
                 // The per-item revision lock above cannot prevent simultaneous
                 // cutovers of different products reusing the same reference.
-                var referenceLock=await db.Database.SqlQueryRaw<int>(
-                    "DECLARE @result int; EXEC @result = sp_getapplock " +
-                    "@Resource = N'IPPCS:ECO:ApprovalReferences', " +
-                    "@LockMode = N'Exclusive', @LockOwner = N'Transaction', " +
-                    "@LockTimeout = 10000; SELECT @result AS Value").SingleAsync(ct);
+                int referenceLock;
+                try
+                {
+                    referenceLock=await db.Database.SqlQueryRaw<int>(
+                        "DECLARE @result int; EXEC @result = sp_getapplock " +
+                        "@Resource = N'IPPCS:ECO:ApprovalReferences', " +
+                        "@LockMode = N'Exclusive', @LockOwner = N'Transaction', " +
+                        "@LockTimeout = 10000; SELECT @result AS Value").SingleAsync(ct);
+                }
+                catch(SqlException)
+                {
+                    return Results.Conflict(new{message="دریافت قفل مرجع ECO با خطا مواجه شد."});
+                }
                 if(referenceLock<0)
                     return Results.Conflict(new{message="قفل یکتایی مرجع ECO در دسترس نیست."});
                 var duplicateReference=await db.FactoryEngineeringCutoverEvents.AsNoTracking()
