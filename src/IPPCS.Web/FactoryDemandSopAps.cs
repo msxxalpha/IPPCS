@@ -40,7 +40,9 @@ public sealed class FactoryApsRun
 }
 public record FactoryDemandInput(Guid ItemId,string Reference,string DueOnJalali,decimal Quantity,string Category);
 public record FactorySopInput(string Code,string FromJalali,string ThroughJalali);
-public record FactoryApsInput(Guid MpsVersionId,string StartJalali,int HorizonDays,decimal CapacityMultiplier=1m);
+public record FactoryApsUnavailableDay(Guid WorkCenterId,string DateJalali,string Reason);
+public record FactoryApsInput(Guid MpsVersionId,string StartJalali,int HorizonDays,
+    decimal CapacityMultiplier=1m,List<FactoryApsUnavailableDay>? UnavailableDays=null);
 public record ApsTask(Guid DemandLineId,Guid ItemId,DateOnly DueOn,decimal Quantity,Guid RoutingRevisionId,
     int OperationSequence,Guid WorkCenterId,decimal DurationMinutes,string OperationName);
 public record ApsAllocation(Guid ItemId,Guid WorkCenterId,int Sequence,decimal Quantity,
@@ -58,7 +60,8 @@ public record ApsResult(IReadOnlyList<ApsAllocation> Allocations,
 public static class FiniteFactoryScheduler
 {
     public static ApsResult Schedule(IReadOnlyList<ApsTask> tasks,
-        IReadOnlyList<WorkShift> shifts,DateOnly start,int horizonDays,decimal multiplier=1)
+        IReadOnlyList<WorkShift> shifts,DateOnly start,int horizonDays,decimal multiplier=1,
+        IReadOnlySet<(Guid WorkCenterId,DateOnly Date)>? unavailableDays=null)
     {
         if(horizonDays is <1 or >90 || multiplier<=0 || multiplier>2)
             throw new ArgumentException("افق برنامه‌ریزی یا ضریب ظرفیت نامعتبر است.");
@@ -84,6 +87,7 @@ public static class FiniteFactoryScheduler
             for(int d=0;d<horizonDays && !allocated;d++)
             {
                 var day=start.AddDays(d);
+                if(unavailableDays?.Contains((job.WorkCenterId,day))==true)continue;
                 if(day.ToDateTime(TimeOnly.MaxValue)<earliest)continue;
                 foreach(var shift in shifts.Where(x=>x.WorkCenterId==job.WorkCenterId
                     && x.DayOfWeek==(int)day.DayOfWeek).OrderBy(x=>x.StartTime))
@@ -110,11 +114,12 @@ public static class FiniteFactoryScheduler
                             var end=left+duration;
                             intervals.Add((left,end));
                             var from=day.ToDateTime(TimeOnly.FromTimeSpan(TimeSpan.FromMinutes(left)));
-                            var until=day.ToDateTime(TimeOnly.FromTimeSpan(TimeSpan.FromMinutes(end)));
+                            // DateTime handles end-of-day 24:00; TimeOnly itself cannot represent 24:00.
+                            var until=day.ToDateTime(TimeOnly.MinValue).AddMinutes(end);
                             chainReady[job.DemandLineId]=until;
                             result.Add(new ApsAllocation(job.ItemId,job.WorkCenterId,
                                 job.OperationSequence,job.Quantity,job.DueOn,day,
-                                TimeOnly.FromDateTime(from),day,TimeOnly.FromDateTime(until),
+                                TimeOnly.FromDateTime(from),DateOnly.FromDateTime(until),TimeOnly.FromDateTime(until),
                                 job.DurationMinutes,job.OperationName,day>job.DueOn));
                             allocated=true;break;
                         }
@@ -337,6 +342,16 @@ public static class FactoryDemandApsEndpoints
             var routes=await db.RoutingRevisions.AsNoTracking().Include(x=>x.Operations)
                 .Where(x=>x.State==RoutingState.Approved).ToListAsync(ct);
             var shifts=await db.WorkShifts.AsNoTracking().ToListAsync(ct);
+            var unavailable=new HashSet<(Guid WorkCenterId,DateOnly Date)>();
+            foreach(var block in input.UnavailableDays??new())
+            {
+                if(block.WorkCenterId==Guid.Empty ||
+                    !PersianPlanningDates.TryParse(block.DateJalali,out var blockedOn) ||
+                    string.IsNullOrWhiteSpace(block.Reason) || block.Reason.Length>180 ||
+                    blockedOn<start || blockedOn>=start.AddDays(input.HorizonDays))
+                    return Results.BadRequest(new{message="مرکز، علت یا تاریخ شمسی روز عدم‌دسترسی معتبر نیست."});
+                unavailable.Add((block.WorkCenterId,blockedOn));
+            }
             var tasks=new List<ApsTask>();
             var errors=new List<string>();
             foreach(var line in plan.Lines.OrderBy(x=>x.NeededOn).ThenBy(x=>x.ItemId))
@@ -355,12 +370,12 @@ public static class FactoryDemandApsEndpoints
             }
             if(errors.Count>0)return Results.UnprocessableEntity(new{message=string.Join("؛ ",errors)});
             ApsResult result;
-            try {result=FiniteFactoryScheduler.Schedule(tasks,shifts,start,input.HorizonDays,input.CapacityMultiplier);}
+            try {result=FiniteFactoryScheduler.Schedule(tasks,shifts,start,input.HorizonDays,input.CapacityMultiplier,unavailable);}
             catch(ArgumentException ex){return Results.BadRequest(new{message=ex.Message});}
             var snapshot=new FactoryApsRun{MpsVersionId=plan.Id,StartOn=start,HorizonDays=input.HorizonDays,
                 InputJson=JsonSerializer.Serialize(new{mps=plan.Lines.Select(x=>new{x.ItemId,x.Quantity,x.NeededOn}),
                     tasks,shifts=shifts.Select(x=>new{x.WorkCenterId,x.DayOfWeek,x.StartTime,x.EndTime,
-                        x.EffectiveCapacityPercent}),input.CapacityMultiplier}),
+                        x.EffectiveCapacityPercent}),input.CapacityMultiplier,unavailableDays=unavailable.Select(x=>new{x.WorkCenterId,x.Date})}),
                 OutputJson=JsonSerializer.Serialize(result)};
             db.FactoryApsRuns.Add(snapshot);await db.SaveChangesAsync(ct);
             return Results.Ok(new{runId=snapshot.Id,snapshot.Algorithm,
