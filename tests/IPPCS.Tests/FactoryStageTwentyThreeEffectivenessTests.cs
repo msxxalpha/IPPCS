@@ -65,6 +65,30 @@ public sealed class FactoryStageTwentyThreeEffectivenessTests
     }
 
     [Fact]
+    public void Forged_capa_reviewer_or_mismatched_event_time_never_verifies()
+    {
+        var row=ClosedCase();
+        var timestamp=new DateTime(2026,10,27,8,20,0,DateTimeKind.Utc);
+        var proof=new FactoryDeviationEffectivenessProof(true,
+            "QMS-31-TRACE","Production samples passed independent review",
+            "qa-independent",timestamp);
+        var evidence=new ProductionDeviationEvent{DeviationId=row.Id,
+            Username="qa-other",Status=ProductionDeviationStatus.Closed,
+            Details=FactoryDeviationEffectiveness.Encode(proof),AtUtc=timestamp};
+        row.Events.Add(evidence);
+        Assert.Equal("InvalidEvidence",FactoryDeviationEffectiveness.Evaluate(row).State);
+        Assert.False(FactoryDeviationEffectiveness.CanReview(row,"qa-next",out _));
+        evidence.Username="qa-independent";
+        evidence.AtUtc=timestamp.AddHours(2);
+        Assert.Equal("InvalidEvidence",FactoryDeviationEffectiveness.Evaluate(row).State);
+        evidence.AtUtc=timestamp;
+        Assert.True(FactoryDeviationEffectiveness.Evaluate(row).IndependentlyVerified);
+        // Changing the event disposition after signing must invalidate evidence.
+        evidence.Status=ProductionDeviationStatus.ActionAssigned;
+        Assert.Equal("InvalidEvidence",FactoryDeviationEffectiveness.Evaluate(row).State);
+    }
+
+    [Fact]
     public void Rejection_reopens_corrective_action_and_new_independent_reviewer_can_certify_after_reclosure()
     {
         var row=ClosedCase();
