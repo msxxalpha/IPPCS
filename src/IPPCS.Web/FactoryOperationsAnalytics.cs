@@ -102,7 +102,8 @@ public static class FactoryOperationsAnalyticsEndpoints
         api.MapPost("/factory-material/{orderId:guid}/consumption",
             async(Guid orderId,MaterialConsumptionInput input,ProductionDb db,HttpContext ctx,CancellationToken ct)=>{
             if(input.Quantity<=0||input.Quantity>1000000000m||string.IsNullOrWhiteSpace(input.Reference)
-                ||input.Reference.Trim().Length>200)
+                ||input.Reference.Trim().Length>200||
+                FactoryLineSideCorrections.IsReservedReference(input.Reference.Trim()))
                 return Results.BadRequest(new{message="مقدار و مرجع مصرف تولیدی معتبر نیست."});
             await using var tx=await db.Database.BeginTransactionAsync(IsolationLevel.Serializable,ct);
             try{await FactoryCapacityReservations.LockOrder(db,orderId,ct);}
