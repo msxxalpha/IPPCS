@@ -98,3 +98,4 @@ def stage16_acceptance(request, jalali, center_id, semi_item):
       "semiFinishedConfirmationId":source_lot["id"],
       "assemblyConfirmationId":last["id"],"componentQuantity":1},409)
     print("PASS: SQL finished shock absorber quality gate, documented operation handoff, exact semi-BOM provenance and immutable EOL signature.")
+    return {"finalOrderId":final["id"],"finalLotId":last["id"],"routeId":route["id"],"bomId":bom["id"],"finalItemId":item["id"],"semiLotId":source_lot["id"]}
