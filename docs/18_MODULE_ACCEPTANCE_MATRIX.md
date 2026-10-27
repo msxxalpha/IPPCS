@@ -95,3 +95,11 @@ Strict isolation maintained: no warehouse, purchasing, sales or HR integration; 
 | 06 CRP | Center/day load and overload deltas from controlled MPS version, recalculated/signed at new version approval | Tool/labor/maintenance calendars, true alternative resources, plant constraint simulation and acceptance |
 
 All 18 modules continue to require line-specific scenario approval and staged deployment validation. `docs/18_MODULE_RELEASE_GATES.md` remains the definitive factory signoff checklist.
+
+## Stage 18 stronger code proof (NOT factory acceptance)
+| Module | Integrated Stage 18 increment | Remaining launch gate |
+|---|---|---|
+| 01 BOM/Routing | Engineering diff against selected approved baseline; changes to parts, ratios, stations and time; report impacts on frozen active orders and overlap blockers | Formal ECO owner/signatures, dated cutover or supersession, rollback, revised Control Plan authorization and factory UAT |
+| 15 Traceability | Globally unique factory product serial bound to finished actual confirmed output **after EOL QA**, immutable journal, bound per-lot quantities, serial-to-batch multi-order ancestors | Approved serial coding standard, verified label/scanning, unit split/merge trace, sampling/recall exercise, customer requirement alignment |
+
+Nothing connects to warehouse, purchasing, sales or HR. Plant decision makers have not yet signed the full set of 18 module acceptance gates.
