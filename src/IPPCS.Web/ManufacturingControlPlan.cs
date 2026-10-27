@@ -93,8 +93,19 @@ public static class ManufacturingInspectionRules
         if(from<0||to!=from+1 || source.Id==destination.Id){
             error="بچ‌های مبدا و مقصد باید متعلق به دو عملیات متوالی همین دستور باشند.";return false;
         }
-        if(source.GoodQuantity-alreadyFrom<quantity || destination.GoodQuantity-alreadyTo<quantity){
-            error="ارتباط بچ از تولید سالم ثبت‌شده یا مقدار تخصیص‌نیافته بیشتر است.";return false;
+        var fromOperation=steps[from];
+        var toOperation=steps[to];
+        if(fromOperation.QualityPendingQuantity>0||toOperation.QualityPendingQuantity>0||
+            !ManufacturingInspectionRules.GatePassed(fromOperation)||
+            !ManufacturingInspectionRules.GatePassed(toOperation)){
+            error="عملیات دارای کنترل اجباری مردود یا قرنطینه تعیین تکلیف‌نشده است.";return false;
+        }
+        var eligibleSource=Math.Max(0m,Math.Min(source.GoodQuantity,
+            fromOperation.GoodQuantity-fromOperation.QualityRejectedQuantity));
+        var eligibleDestination=Math.Max(0m,Math.Min(destination.GoodQuantity,
+            toOperation.GoodQuantity-toOperation.QualityRejectedQuantity));
+        if(eligibleSource-alreadyFrom<quantity || eligibleDestination-alreadyTo<quantity){
+            error="مقدار پیوند از خروجی سالم تأییدپذیر، پس از کسر مقدار مردود کیفیت، بیشتر است.";return false;
         }
         if(source.OccurredUtc>destination.OccurredUtc){
             error="ثبت بچ مقصد نباید قبل از ثبت بچ مبدا باشد.";return false;
@@ -334,10 +345,14 @@ public static class ManufacturingControlPlanEndpoints
             try{await FactoryCapacityReservations.LockOrder(db,id,ct);}
             catch(Microsoft.Data.SqlClient.SqlException)
             {return Results.Conflict(new{message="قفل دستور برای شجره ساخت در دسترس نیست."});}
-            var order=await db.ManufacturingOrders.AsNoTracking().Include(x=>x.Operations).SingleOrDefaultAsync(x=>x.Id==id,ct);
+            var order=await db.ManufacturingOrders.AsNoTracking().Include(x=>x.Operations)
+                .ThenInclude(x=>x.InspectionRequirements).SingleOrDefaultAsync(x=>x.Id==id,ct);
             if(order is null)return Results.NotFound();
             if(order.Status is ManufacturingOrderStatus.Draft or ManufacturingOrderStatus.Cancelled)
                 return Results.Conflict(new{message="دستور فاقد عملیات ثبت‌شده است."});
+            if(await db.ManufacturingOrderAudits.AsNoTracking().AnyAsync(x=>
+                x.OrderId==id && x.Action==FactoryEndOfLineAcceptance.ApprovedAction,ct))
+                return Results.Conflict(new{message="گواهی نهایی دستور ثبت شده؛ شجره مصوب قابل تغییر نیست."});
             var confirmations=await db.ManufacturingConfirmations.AsNoTracking()
                 .Where(x=>x.Id==input.SourceConfirmationId||x.Id==input.DestinationConfirmationId).ToListAsync(ct);
             var source=confirmations.SingleOrDefault(x=>x.Id==input.SourceConfirmationId);
@@ -349,6 +364,11 @@ public static class ManufacturingControlPlanEndpoints
                 return Results.Conflict(new{message="این ارتباط قبلاً ثبت شده است."});
             var fromAllocated=links.Where(x=>x.SourceConfirmationId==source.Id).Sum(x=>x.Quantity);
             var toAllocated=links.Where(x=>x.DestinationConfirmationId==destination.Id).Sum(x=>x.Quantity);
+            var affectedIds=new[]{source.OperationId,destination.OperationId};
+            if(await db.ManufacturingQualityHolds.AsNoTracking().AnyAsync(x=>
+                x.OrderId==id&&affectedIds.Contains(x.OperationId)&&
+                x.Status==ManufacturingQualityStatus.Open,ct))
+                return Results.Conflict(new{message="قرنطینه باز مانع ارتباط کیفیت‌پذیر بچ‌های عملیات است."});
             if(!ManufacturingInspectionRules.TryLinkLot(order,source,destination,input.Quantity,
                 fromAllocated,toAllocated,out var error))
                 return Results.Conflict(new{message=error});
