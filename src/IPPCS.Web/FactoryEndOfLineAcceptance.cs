@@ -53,6 +53,10 @@ public static class FactoryEndOfLineAcceptance
         var stagePairs=stageHandoffs??[];
         if(order.Operations.Count>1)
         {
+            if(stagePairs.Any(x=>x.OverAllocatedUpstreamGood>0||
+                x.DestinationLots.Any(lot=>lot.OverAllocatedGood>0)))
+                issues.Add(new("OverAllocatedStageHandoff",
+                    "در شجره مراحل ساخت، مقدار پیوند ثبت‌شده از خروجی سالم بچ مبدأ یا مقصد بیشتر است."));
             if(stagePairs.Count!=order.Operations.Count-1 ||
                 stagePairs.Any(x=>x.UntracedDownstreamGood>0||!x.QualityGatePassed))
                 issues.Add(new("UndocumentedStageHandoff",
