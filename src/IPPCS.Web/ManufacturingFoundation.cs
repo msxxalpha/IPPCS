@@ -226,7 +226,7 @@ public static class ManufacturingFoundationEndpoints
             await db.SaveChangesAsync(ct);
             await tx.CommitAsync(ct);
             return Results.Created("/api/v1/work-shifts", shift);
-        });
+        }).RequireAuthorization("IpPlanningWrite");
 
         api.MapPost("/production-plans/jalali", async (JalaliPlanInput input, ProductionDb db, CancellationToken ct) =>
         {
