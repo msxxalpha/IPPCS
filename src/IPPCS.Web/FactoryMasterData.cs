@@ -26,10 +26,12 @@ public static class FactoryMasterData
     public const string RootCauseCategory = "RootCauseCategory";
     public const string DowntimeReason = "DowntimeReason";
     public const string QualityHoldReason = "QualityHoldReason";
+    public const string UnitOfMeasure = "UnitOfMeasure";
 
     private static readonly HashSet<string> Kinds = new(StringComparer.Ordinal)
     {
-        DeviationCategory,ActionOwner,RootCauseCategory,DowntimeReason,QualityHoldReason
+        DeviationCategory,ActionOwner,RootCauseCategory,DowntimeReason,QualityHoldReason,
+        UnitOfMeasure
     };
     private static readonly Regex CodePattern=new(
         "^[A-Z0-9][A-Z0-9_-]{1,39}$",
@@ -43,6 +45,9 @@ public static class FactoryMasterData
         if(!ValidKind(kind))return false;
         if(kind==DeviationCategory)
             return int.TryParse(code,out var n)&&n is >=0 and <=6&&code==n.ToString();
+        // SI unit codes such as N, L and G legitimately have one character.
+        if(kind==UnitOfMeasure&&code.Length==1)
+            return code[0] is >= 'A' and <= 'Z';
         return CodePattern.IsMatch(code);
     }
     public static bool ValidLabel(string? label)=>
