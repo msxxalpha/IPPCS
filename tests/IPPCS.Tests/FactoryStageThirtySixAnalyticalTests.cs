@@ -68,4 +68,24 @@ public sealed class FactoryStageThirtySixAnalyticalTests
         Assert.False(forecast.HasRecordedEvidence);
         Assert.Contains(forecast.Checks,x=>x.Key=="months"&&x.Minimum==4&&!x.Ready);
     }
+    [Fact]
+    public void Moving_average_clearly_reports_missing_months_instead_of_certified_zero_demand()
+    {
+        var jalali=new System.Globalization.PersianCalendar();
+        DateOnly D(int y,int m,int day)=>
+            DateOnly.FromDateTime(new DateTime(y,m,day,jalali));
+        var history=new[]{
+            new FactoryDemand{Category="Confirmed",DueOn=D(1405,6,5),Quantity=10},
+            new FactoryDemand{Category="Confirmed",DueOn=D(1405,8,10),Quantity=20},
+            new FactoryDemand{Category="Forecast",DueOn=D(1405,7,10),Quantity=100},
+            new FactoryDemand{Category="Confirmed",DueOn=D(1405,9,11),Quantity=999}
+        };
+        var coverage=FactoryForecasting.Coverage(history,D(1405,9,1),3);
+        Assert.False(coverage.Complete);
+        Assert.Equal(2,coverage.RecordedMonths);
+        Assert.Equal(new[]{"1405/07"},coverage.MissingMonths);
+        Assert.Equal(10m,FactoryForecasting.MonthlyMovingAverage(
+            history,D(1405,9,1),3));
+    }
+
 }
