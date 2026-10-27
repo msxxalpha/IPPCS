@@ -389,6 +389,9 @@ public static class PlanningStageThreeEndpoints
             try{result=PlanningCalculators.RunMrp(version.Lines,bom,balances,receipts,types);}
             catch(Exception ex)when(ex is InvalidOperationException or OverflowException or ArgumentOutOfRangeException)
                 {return Results.UnprocessableEntity(new{message=ex.Message});}
+            IReadOnlyList<MrpSuggestionExplanation> explanations;
+            try{explanations=NetMrpSuggestionExplainer.Explain(result,balances);}
+            catch(InvalidOperationException ex){return Results.UnprocessableEntity(new{message=ex.Message});}
             var snapshot=new PlanningCalculation{
                 MpsVersionId=id,InputSnapshotJson=JsonSerializer.Serialize(new{
                     mps=new{version.Id,version.Code,version.State,lines=version.Lines.Select(l=>new{
@@ -398,7 +401,7 @@ public static class PlanningStageThreeEndpoints
                     balances,receipts,types}),
                 ResultSnapshotJson=JsonSerializer.Serialize(result)};
             db.PlanningCalculations.Add(snapshot);await db.SaveChangesAsync(ct);
-            return Results.Ok(new{runId=snapshot.Id,algorithm=snapshot.AlgorithmVersion,
+            return Results.Ok(new{runId=snapshot.Id,algorithm=snapshot.AlgorithmVersion,explanations=explanations.Select(x=>new{x.ItemId,neededOnJalali=PersianPlanningDates.Format(x.NeedDate),x.NetShortage,x.SuggestedReceipt,x.LotSizingSurplus,releaseJalali=x.ProposedReleaseDate.HasValue?PersianPlanningDates.Format(x.ProposedReleaseDate.Value):null,x.ReleaseBeforePlanningBaseline,x.Warning}),
                 rows=result.Select(x=>new{x.ItemId,neededOnJalali=PersianPlanningDates.Format(x.NeededOn),
                     x.GrossRequired,x.OpeningAvailable,x.NetShortage,x.SuggestedQuantity,
                     suggestedReleaseJalali=x.SuggestedRelease.HasValue?PersianPlanningDates.Format(x.SuggestedRelease.Value):null,
