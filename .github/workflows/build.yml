@@ -24,6 +24,7 @@ jobs:
           node --check src/IPPCS.Web/wwwroot/js/execution.js
           node --check src/IPPCS.Web/wwwroot/js/quality-oee.js
           node --check src/IPPCS.Web/wwwroot/js/control-plan.js
+          node --check src/IPPCS.Web/wwwroot/js/mps-pegging.js
           node --check src/IPPCS.Web/wwwroot/js/planning-advanced.js
           node --check src/IPPCS.Web/wwwroot/js/ip-users.js
           node --check src/IPPCS.Web/wwwroot/js/security-client.js
