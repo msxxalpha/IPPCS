@@ -77,5 +77,7 @@ def stage15_acceptance(request,today,tomorrow,component_item,mps_line):
     request(dev+"/escalate","POST",{"reason":"closed cannot escalate"},409)
     cleaned=request("/api/v1/factory-kpis/production-alerts?asOfJalali="+
       tomorrow+"&daysAhead=7")
-    assert not any(x["referenceId"]==deviation["id"] for x in cleaned["alerts"])
-    print("PASS: SQL immutable corrective-action revision, nonduplicate escalation, critical alert and closure.")
+    matching=[x for x in cleaned["alerts"] if x["referenceId"]==deviation["id"]]
+    assert len(matching)==1 and matching[0]["type"]=="DeviationEffectivenessPending",matching
+    assert matching[0]["severity"]=="High",matching
+    print("PASS: SQL immutable corrective-action revision, escalation and closure retain pending QA effectiveness alert.")
