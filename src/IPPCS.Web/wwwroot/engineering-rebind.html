@@ -28,7 +28,7 @@
 <button type="button" class="btn-outline" data-ip-logout>خروج</button>
 </header>
 <main class="content">
-<div class="callout">این فرایند فقط مرجع BOM یا Routing دستورات <strong>پیش‌نویس و بدون عملیات</strong> را به نسخه مصوب جدید انتقال می‌دهد. دستورات آزادشده، تولیدشده و سوابق تاریخی دست‌نخورده باقی می‌مانند. برش تاریخ اعتبار نیز سابقه مستقل دارد، اما مرجع تأیید درج‌شده جای امضای دیجیتال یا گردش چندامضایی ECO را نمی‌گیرد.</div>
+<div class="callout">این فرایند فقط مرجع BOM یا Routing دستورات <strong>پیش‌نویس و بدون عملیات</strong> را به نسخه مصوب جدید انتقال می‌دهد. دستورات آزادشده، تولیدشده و سوابق تاریخی دست‌نخورده باقی می‌مانند. برش تاریخ اعتبار نیازمند درخواست ECO توسط نقش برنامه‌ریزی و تأیید مستقل کاربر دوم با نقش کیفیت است. دو تصمیم هویتی با تاریخ و اثرانگشت نسخه‌ها ثبت می‌شوند، اما امضای رمزنگاری‌شده PKI یا مجوز خروج محصول نیستند.</div>
 <div id="engineering-message" class="notice" role="status" aria-live="polite" hidden></div>
 <section class="panel">
 <h3>۱. انتخاب نوع و نسخه‌های تغییر</h3>
@@ -56,9 +56,30 @@
 <label class="wide">علت ثبت برش
 <input id="cutover-reason" maxlength="300" placeholder="شرح تغییر نسخه و تصمیم مسئول مهندسی"></label>
 </div>
+<div class="panel">
+<h3>درخواست و امضای مستقل ECO پیش از برش</h3>
+<p class="muted">پس از انتخاب نسخه مبدأ مصوب، نسخه پیشنهادی، تاریخ، مرجع و دلیل، کاربر برنامه‌ریزی درخواست ECO را ثبت می‌کند. سپس کاربر متفاوت با نقش <strong>QualityInspector</strong> شواهد را بررسی و تأیید یا رد می‌کند. پس از تغییر نسخه‌های مهندسی، اثرانگشت درخواست منقضی و برش مسدود خواهد شد.</p>
 <div class="form-actions">
-<button type="button" class="btn-outline" id="cutover-preview">کنترل تاریخ و اثر برش</button>
-<button type="button" class="btn-main" id="cutover-apply" disabled>ثبت برش و سابقه تغییر</button>
+<button type="button" class="btn-outline" id="eco-submit">۱. ثبت درخواست و امضای مسئول برنامه‌ریزی</button>
+<button type="button" class="btn-outline" id="eco-refresh">به‌روزرسانی درخواست‌های ECO</button>
+</div>
+<div class="form-grid">
+<label class="wide">درخواست ECO ثبت‌شده
+<select id="eco-approval-select"><option value="">برای مشاهده درخواست‌ها ابتدا نسخه مبدأ را انتخاب کنید</option></select></label>
+<label>شناسه شواهد بررسی کیفیت
+<input id="eco-evidence" maxlength="100" placeholder="QA-ECO-1405-001"></label>
+<label class="wide">شرح مستقل شواهد بررسی کیفیت
+<input id="eco-observation" maxlength="400" placeholder="نتیجه بررسی مشخصات فنی، ریسک، ظرفیت، Control Plan و مدارک تغییر"></label>
+</div>
+<div class="form-actions">
+<button type="button" class="btn-main" id="eco-approve">۲. ثبت تأیید مستقل کیفیت</button>
+<button type="button" class="btn-outline" id="eco-reject">رد و ثبت توضیح کیفیت</button>
+</div>
+<div id="eco-review-history" aria-live="polite"></div>
+</div>
+<div class="form-actions">
+<button type="button" class="btn-outline" id="cutover-preview">۳. کنترل تاریخ و اثر برش</button>
+<button type="button" class="btn-main" id="cutover-apply" disabled>۴. ثبت برش مصوب و سابقه تغییر</button>
 </div>
 <div id="cutover-results" aria-live="polite"></div>
 </section>

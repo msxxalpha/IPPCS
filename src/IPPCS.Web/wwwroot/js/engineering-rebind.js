@@ -1,7 +1,7 @@
 (()=>{
 "use strict";
 const $=id=>document.getElementById(id);
-const state={routings:[],boms:[],orders:[],selected:new Set(),previewSignature:null,cutoverSignature:null};
+const state={routings:[],boms:[],orders:[],ecos:[],selected:new Set(),previewSignature:null,cutoverSignature:null};
 const revisionList=()=> $("engineering-kind").value==="BOM"?state.boms:state.routings;
 const ownerOf=rev=>$("engineering-kind").value==="BOM"?rev?.parentItemId:rev?.itemId;
 function title(rev){
@@ -184,7 +184,9 @@ function renderCutoverResult(data){
   p.textContent=data.issues.map(i=>i.description).join("؛ ");host.append(p);return;
  }
  const p=document.createElement("p");
- p.textContent="پیش‌نویس‌های نیازمند انتقال: "+(data.staleDraftOrders||[]).length+
+ p.textContent="وضعیت ECO: "+(data.ecoApprovalStatus||"نامشخص")+
+  " | امضای مستقل کیفیت: "+(data.qualityReviewedBy||"ثبت نشده")+
+  " | پیش‌نویس‌های نیازمند انتقال: "+(data.staleDraftOrders||[]).length+
   " | دستورات دارای نسخه منجمد بدون تغییر: "+(data.protectedFrozenOrders??0)+
   (data.journalId?" | ثبت در سابقه مهندسی: "+data.journalId:"");
  host.append(p);
@@ -202,8 +204,10 @@ async function cutoverPreview(){
   const response=await api("/factory-engineering/cutover","POST",request);
   renderCutoverResult(response);
   state.cutoverSignature=JSON.stringify(cutoverPayload(false));
-  $("cutover-apply").disabled=false;
-  notice("شرایط برش نسخه قابل قبول است. آثار روی دستورات پیش‌نویس را بررسی کنید.");
+  const signed=response.ecoApprovalStatus==="QualityApproved";
+  $("cutover-apply").disabled=!signed;
+  notice(signed?"امضای مستقل کیفیت معتبر است؛ برش آماده ثبت است.":
+   "پیش‌نمایش مهندسی معتبر است، اما برش تا ثبت امضای مستقل کیفیت با همین نسخه و مرجع مسدود می‌ماند.",!signed);
  }catch(e){renderCutoverResult(e.details);notice(e.message,true);}
 }
 async function cutoverApply(){
@@ -219,10 +223,63 @@ async function cutoverApply(){
  }catch(e){renderCutoverResult(e.details);clearCutover();notice(e.message,true);}
 }
 
+async function refreshEcoApprovals(){
+ const baseline=revisionList().find(x=>x.id===$("engineering-baseline").value);
+ const el=$("eco-approval-select");el.replaceChildren(option("","انتخاب درخواست ECO"));
+ const host=$("eco-review-history");host.replaceChildren();
+ state.ecos=[];
+ if(!baseline)return;
+ const query="/factory-engineering/eco-approvals?itemId="+encodeURIComponent(ownerOf(baseline));
+ const rows=await api(query);
+ state.ecos=rows.filter(x=>x.kind===$("engineering-kind").value &&
+    x.baselineId===baseline.id);
+ const statuses=["در انتظار کیفیت","تأیید مستقل کیفیت","ردشده","برش اجراشده"];
+ for(const r of state.ecos){
+  el.append(option(r.id,r.approvalReference+" | "+
+   (statuses[r.status]||"نامشخص")+" | "+r.requestedBy+
+   (r.qualityReviewedBy?" / "+r.qualityReviewedBy:"")));
+ }
+ const p=document.createElement("p");
+ p.textContent=state.ecos.length+" درخواست برای نسخه مبدأ موجود است. "+
+  "تأیید درخواست فقط توسط فرد متفاوت با نقش کیفیت مجاز است.";
+ host.append(p);
+}
+async function submitEcoApproval(){
+ const button=$("eco-submit");button.disabled=true;
+ try{
+  const {dryRun,...request}=cutoverPayload(false);
+  const result=await api("/factory-engineering/eco-approvals","POST",request);
+  clearCutover();
+  await refreshEcoApprovals();
+  $("eco-approval-select").value=result.id;
+  notice("درخواست ECO با شناسه "+result.id+" ثبت شد؛ تأیید مستقل کیفیت الزامی است.");
+ }catch(e){notice(e.message,true);}finally{button.disabled=false;}
+}
+async function reviewEco(approve){
+ const id=$("eco-approval-select").value;
+ const evidence=$("eco-evidence").value.trim();
+ const observation=$("eco-observation").value.trim();
+ if(!id||evidence.length<4||observation.length<10){
+  notice("درخواست ECO، شناسه سند (حداقل ۴ نویسه) و شرح بررسی (حداقل ۱۰ نویسه) لازم است.",true);return;
+ }
+ const trigger=$(approve?"eco-approve":"eco-reject");trigger.disabled=true;
+ try{
+  const response=await api("/factory-engineering/eco-approvals/"+
+      encodeURIComponent(id)+"/quality-review","POST",{
+        approve,evidenceReference:evidence,observation});
+  clearCutover();await refreshEcoApprovals();
+  $("eco-approval-select").value=id;
+  notice(response.message);
+ }catch(e){notice(e.message,true);}finally{trigger.disabled=false;}
+}
+
 document.addEventListener("DOMContentLoaded",async()=>{
- $("engineering-kind").addEventListener("change",()=>{state.selected.clear();clearPreview();renderBaseline();});
+ $("engineering-kind").addEventListener("change",()=>{
+  state.selected.clear();clearPreview();renderBaseline();refreshEcoApprovals().catch(e=>notice(e.message,true));
+ });
  $("engineering-baseline").addEventListener("change",()=>{
   state.selected.clear();renderCandidate();renderOrders();
+  refreshEcoApprovals().catch(e=>notice(e.message,true));
  });
  $("cutover-candidate").addEventListener("change",()=>{
   const r=revisionList().find(x=>x.id===$("cutover-candidate").value);
@@ -231,12 +288,17 @@ document.addEventListener("DOMContentLoaded",async()=>{
  });
  ["cutover-date","cutover-ref","cutover-reason"].forEach(id=>
   $(id).addEventListener("input",clearCutover));
+ $("eco-submit").addEventListener("click",submitEcoApproval);
+ $("eco-refresh").addEventListener("click",()=>refreshEcoApprovals().catch(e=>notice(e.message,true)));
+ $("eco-approve").addEventListener("click",()=>reviewEco(true));
+ $("eco-reject").addEventListener("click",()=>reviewEco(false));
  $("cutover-preview").addEventListener("click",cutoverPreview);
  $("cutover-apply").addEventListener("click",cutoverApply);
  $("engineering-candidate").addEventListener("change",clearPreview);
  $("engineering-reason").addEventListener("input",clearPreview);
  $("engineering-preview").addEventListener("click",preview);
  $("engineering-apply").addEventListener("click",apply);
- try{await refresh();}catch(e){notice("دریافت داده‌ها ناموفق بود: "+e.message,true);}
+ try{await refresh();await refreshEcoApprovals();}
+ catch(e){notice("دریافت داده‌ها ناموفق بود: "+e.message,true);}
 });
 })();
