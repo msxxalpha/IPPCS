@@ -34,6 +34,8 @@ namespace IPPCS.Web.Migrations.CI
                 migrationBuilder.InsertData(
                     table:"FactoryMasterOptions",
                     columns:new[]{"Id","Kind","Code","Label","IsActive","SortOrder","CreatedUtc","UpdatedUtc"},
+                    columnTypes:new[]{"uniqueidentifier","nvarchar(40)","nvarchar(40)","nvarchar(100)",
+                        "bit","int","datetime2","datetime2"},
                     values:new object[]{
                         Guid.Parse($"0e5a3400-0000-4000-8000-{(i+1):000000000000}"),
                         kind,code,label,true,sort,
@@ -49,8 +51,8 @@ namespace IPPCS.Web.Migrations.CI
             // without a factory-reviewed backup and audit-preserving strategy.
             for(var i=0;i<12;i++)
             {
-                migrationBuilder.DeleteData("FactoryMasterOptions","Id",
-                    Guid.Parse($"0e5a3400-0000-4000-8000-{(i+1):000000000000}"));
+                migrationBuilder.Sql(
+                    $"DELETE FROM [FactoryMasterOptions] WHERE [Id] = '0e5a3400-0000-4000-8000-{(i+1):000000000000}'");
             }
         }
     }
