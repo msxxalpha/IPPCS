@@ -79,7 +79,8 @@ async function reload(){
  all=await api("/factory-master-options?kind="+encodeURIComponent(kind)+"&includeInactive=true");
  render();
  $("master-code").readOnly=kind==="DeviationCategory";
- $("master-code").placeholder=kind==="DeviationCategory"?"کدهای ۰ تا ۶ از قبل تعریف شده‌اند":"مثلاً SHIFT_LEAD";
+ $("master-code").placeholder=kind==="DeviationCategory"?"کدهای ۰ تا ۶ از قبل تعریف شده‌اند":
+  kind==="UnitOfMeasure"?"مثلاً N، PCS یا KG":"مثلاً SHIFT_LEAD";
 }
 async function reasonReport(event){
  event.preventDefault();
@@ -133,8 +134,11 @@ async function boot(){
    if(kind==="DeviationCategory")throw Error("دسته‌های ثابت انحراف از قبل در اطلاعات پایه وجود دارند.");
    const code=$("master-code").value.trim(),label=$("master-label").value.trim(),
     sortOrder=Number($("master-sort").value);
-   if(!/^[A-Za-z0-9][A-Za-z0-9_-]{1,39}$/.test(code))
-    throw Error("کد ثابت باید ۲ تا ۴۰ نویسه انگلیسی، عدد، خط فاصله یا زیرخط باشد.");
+   const valid=kind==="UnitOfMeasure"?
+    /^[A-Za-z][A-Za-z0-9_-]{0,39}$/.test(code):
+    /^[A-Za-z0-9][A-Za-z0-9_-]{1,39}$/.test(code);
+   if(!valid)
+    throw Error("کد ثابت نامعتبر است؛ واحدهای SI مثل N یک‌حرفی مجازند و سایر کدها حداقل ۲ نویسه دارند.");
    await api("/factory-master-options","POST",{kind,code,label,sortOrder});
    $("master-code").value="";$("master-label").value="";
    msg("گزینهٔ جدید ثبت شد و اکنون برای انتخاب کاربران فعال است.");
