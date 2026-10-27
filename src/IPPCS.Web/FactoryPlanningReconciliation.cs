@@ -3,8 +3,8 @@ using Microsoft.EntityFrameworkCore;
 // Stage 13: read-only decisions from internal planning assumptions. No links to
 // warehouse, sales, purchasing, finance or HR and no plan/stock mutations.
 public record FactorySopMpsBridge(Guid SopId,Guid MpsId,string FromJalali,string ThroughJalali,
-    decimal HistoricalSopDemand,decimal CurrentConfirmedDemand,decimal ApprovedMpsQuantity,
-    decimal DifferenceToSop,decimal DifferenceToCurrentConfirmed,int InWindowMpsLines,
+    decimal HistoricalSopDemand,decimal CurrentScopedDemand,decimal ApprovedMpsQuantity,
+    decimal DifferenceToSop,decimal DifferenceToCurrentDemand,int InWindowMpsLines,
     bool DemandSnapshotChanged,string ConfidenceNote);
 public record FactoryMpsDemandGap(Guid DemandId,Guid ItemId,string Reference,DateOnly NeededOn,
     decimal ConfirmedQuantity,decimal ExactlyReferencedQuantity,decimal UncoveredQuantity,
@@ -43,14 +43,14 @@ public static class FactoryPlanningReconciliation
         if(approved.State!=PlanningApproval.Approved)
             throw new InvalidOperationException("برای بررسی مغایرت فقط MPS مصوب معتبر است.");
         var lines=approved.Lines.Where(x=>x.NeededOn>=sop.From&&x.NeededOn<=sop.Through).ToArray();
-        var current=demands.Where(x=>x.Category=="Confirmed"&&x.DueOn>=sop.From&&
+        var current=demands.Where(x=>x.DueOn>=sop.From&&
             x.DueOn<=sop.Through).Sum(x=>x.Quantity);
         var planned=lines.Sum(x=>x.Quantity);
         return new(sop.Id,approved.Id,PersianPlanningDates.Format(sop.From),
             PersianPlanningDates.Format(sop.Through),sop.DemandQuantity,current,
             planned,planned-sop.DemandQuantity,planned-current,lines.Length,
             current!=sop.DemandQuantity,
-            "مقایسه جمع مقادیر است و یکسانی ترکیب اقلام را اثبات نمی‌کند. S&OP تصویر تاریخی است؛ تغییر نیازهای فعلی به عنوان اختلاف مبنا گزارش می‌شود.");
+            "مقایسه جمع تمام انواع تقاضای ثبت‌شده در افق S&OP است، نه فقط نیاز قطعی. S&OP تصویر تاریخی است؛ مقایسه مجموع‌ها یکسانی ترکیب اقلام را اثبات نمی‌کند.");
     }
 
     public static FactoryMpsAudit AuditDemandReferences(MpsVersion version,
@@ -79,7 +79,7 @@ public static class FactoryPlanningReconciliation
         return new(version.Id,version.Lines.Count,referenced.Length,
             gaps.Sum(x=>x.ConfirmedQuantity),gaps.Sum(x=>x.UncoveredQuantity),
             nonref,gaps,unmatched,
-            "فقط ردیف‌های دارای شناسه DEMAND ثبت‌شده با نیاز قطعی تطبیق داده شده‌اند. ردیف‌های دستی ممکن است مربوط به نیاز مستقل دیگر باشند؛ کسری عددی نشان‌دهنده کسری واقعی سفارش یا موجودی نیست.");
+            "نیازهای قطعی فقط برای اقلام این MPS و بین اولین و آخرین تاریخ ردیف آن بررسی می‌شوند. صرفاً شناسه DEMAND قابل انتساب قطعی است؛ ردیف دستی ممکن است نیاز مستقل باشد. این گزارش وضعیت موجودی را نشان نمی‌دهد.");
     }
 
     public static FactoryMrpRiskResult MrpRisk(Guid mpsId,NetPeggingReport graph)
@@ -90,7 +90,7 @@ public static class FactoryPlanningReconciliation
             var opening=links.Where(x=>x.SourceType=="PlanningOpeningBalance").Sum(x=>x.Quantity);
             var receipts=links.Where(x=>x.SourceType=="ExpectedReceipt").Sum(x=>x.Quantity);
             var proposed=links.Where(x=>x.SourceType=="ProposedManufacturingReceipt"||
-                x.SourceType=="ProposedSupplyReceipt").Sum(x=>x.Quantity);
+                x.SourceType=="ProposedExternalReceipt").Sum(x=>x.Quantity);
             var gross=group.Sum(x=>x.Quantity);
             var lots=graph.PlannedLots.Where(x=>x.ItemId==group.Key).ToArray();
             var firm=opening+receipts;
@@ -154,7 +154,7 @@ public static class FactoryPlanningReconciliation
             if(mps.State!=PlanningApproval.Approved)
                 return Results.Conflict(new{message="نسخه MPS باید مصوب باشد."});
             var demands=await db.FactoryDemands.AsNoTracking()
-                .Where(x=>x.DueOn>=sop.From&&x.DueOn<=sop.Through&&x.Category=="Confirmed")
+                .Where(x=>x.DueOn>=sop.From&&x.DueOn<=sop.Through)
                 .ToListAsync(ct);
             return Results.Ok(ReconcileSop(sop,mps,demands));
         });
@@ -165,8 +165,14 @@ public static class FactoryPlanningReconciliation
             if(mps is null)return Results.NotFound();
             if(mps.State!=PlanningApproval.Approved)
                 return Results.Conflict(new{message="نسخه MPS باید مصوب باشد."});
+            if(mps.Lines.Count==0)
+                return Results.Conflict(new{message="برنامه مصوب فاقد ردیف برای بررسی پوشش تقاضاست."});
+            var from=mps.Lines.Min(x=>x.NeededOn);
+            var through=mps.Lines.Max(x=>x.NeededOn);
+            var ids=mps.Lines.Select(x=>x.ItemId).Distinct().ToArray();
             var demand=await db.FactoryDemands.AsNoTracking()
-                .Where(x=>x.Category=="Confirmed").ToListAsync(ct);
+                .Where(x=>x.Category=="Confirmed"&&x.DueOn>=from&&
+                    x.DueOn<=through&&ids.Contains(x.ItemId)).ToListAsync(ct);
             return Results.Ok(AuditDemandReferences(mps,demand));
         });
         api.MapGet("/mrp/{mpsId:guid}/assumption-risks",
