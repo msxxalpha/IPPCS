@@ -89,3 +89,9 @@ No schema migration; all work remains on `feature/production-platform-foundation
 - **14 OEE**: separate timestamped operator stop start/end journals protected by the same work-center locks as production clocks; real interval and historical duration-only sources shown side-by-side and never double-counted. Factory Tehran local day/midnight reconciliation fails explicitly on open/overlapping sessions or missing time source. No PLC/maintenance integration.
 - **17 Conversion cost**: rates and missing rates are frozen per operation during SQL work-order release, with cost-rate edits sharing a global serializable lock. Actual conversion variance uses immutable release-time evidence; legacy orders are explicitly flagged unverified for historic pricing.
 All changes internal-only, use existing audit table (no new migration or DB reset). Stage19 workflows await GitHub Actions runner execution; plant UAT remains open.
+
+### Stage 20 — next-day production shift calendar (03 / 06 / 07 / 08)
+- Shared `FactoryShiftCalendar` supports factory-only weekly shift boundaries across midnight and rejects real weekday-overlap including Saturday/Sunday under a serialized center lock.
+- CRP and S&OP derive center availability from true local calendar-day portions, including previous-night overlap; APS V2 schedules night work without center occupancy collision with the following day and honors next-day blackout.
+- Order center reservations may span midnight within the effective shift; append-only journal tracks both dates and forbids overlapping reservations. New read-only 1–31-day Jalali effective capacity calendar and Persian UI. No data migration, HR attendance or external warehouse, purchasing, sales, HR integrations.
+- The code/tests are committed but exact-head CI has **not executed successfully** due immediate runner failures with no logs. No claim of UAT completion.
