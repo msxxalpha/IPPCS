@@ -1265,6 +1265,96 @@ namespace IPPCS.Web.Migrations.CI
                     b.ToTable("Items");
                 });
 
+            modelBuilder.Entity("ProductionDeviation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateOnly?>("ActionDueOn")
+                        .HasColumnType("date");
+
+                    b.Property<int>("Category")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("ClosedUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CorrectiveAction")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<Guid>("MpsLineId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("OrderId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Responsible")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("RootCause")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrderId");
+
+                    b.HasIndex("MpsLineId", "Status");
+
+                    b.ToTable("ProductionDeviations");
+                });
+
+            modelBuilder.Entity("ProductionDeviationEvent", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("AtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Details")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<Guid>("DeviationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Username")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DeviationId");
+
+                    b.ToTable("ProductionDeviationEvents");
+                });
+
             modelBuilder.Entity("ProductionPlan", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1777,6 +1867,31 @@ namespace IPPCS.Web.Migrations.CI
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("ProductionDeviation", b =>
+                {
+                    b.HasOne("MpsDemandLine", null)
+                        .WithMany()
+                        .HasForeignKey("MpsLineId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ManufacturingOrder", null)
+                        .WithMany()
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("ProductionDeviationEvent", b =>
+                {
+                    b.HasOne("ProductionDeviation", "Deviation")
+                        .WithMany("Events")
+                        .HasForeignKey("DeviationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Deviation");
+                });
+
             modelBuilder.Entity("ProductionPlan", b =>
                 {
                     b.HasOne("PlanningItem", null)
@@ -1846,6 +1961,11 @@ namespace IPPCS.Web.Migrations.CI
             modelBuilder.Entity("MpsVersion", b =>
                 {
                     b.Navigation("Lines");
+                });
+
+            modelBuilder.Entity("ProductionDeviation", b =>
+                {
+                    b.Navigation("Events");
                 });
 
             modelBuilder.Entity("RoutingRevision", b =>
