@@ -164,6 +164,27 @@ public sealed class FactoryStageSixteenTests
     }
 
     [Fact]
+    public void Overissued_internal_stage_is_named_and_blocks_final_quality_certificate()
+    {
+        var (order,bom,lot,cross,semi,origin)=Assembly();
+        var upstream=new ManufacturingOrderOperation{OrderId=order.Id,
+            Sequence=5,IsComplete=true,GoodQuantity=1};
+        order.Operations.Insert(0,upstream);
+        var previous=new ManufacturingConfirmation{OperationId=upstream.Id,
+            LotCode="INTERNAL",GoodQuantity=1};
+        var invalid=new ManufacturingLotGenealogy{OrderId=order.Id,
+            SourceConfirmationId=previous.Id,DestinationConfirmationId=lot.Id,
+            Quantity=2};
+        var handoff=FactoryInProcessHandoffs.Analyze(order,[previous,lot],[invalid],[]);
+        Assert.Equal(1,handoff.PairsWithOverAllocation);
+        var report=FactoryEndOfLineAcceptance.Evaluate(order,bom,[lot],[cross],
+            new Dictionary<Guid,Guid>{{origin,semi}},new HashSet<Guid>{semi},
+            [],[],handoff.Pairs);
+        Assert.False(report.CanApprove);
+        Assert.Contains(report.Issues,x=>x.Code=="OverAllocatedStageHandoff");
+    }
+
+    [Fact]
     public void Lot_transfer_cannot_exceed_good_after_quality_rejection_or_pending_quarantine()
     {
         var order=new ManufacturingOrder{Status=ManufacturingOrderStatus.InProgress};
