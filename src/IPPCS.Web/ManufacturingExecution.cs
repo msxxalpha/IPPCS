@@ -245,6 +245,12 @@ public static class ManufacturingExecutionEndpoints
                 ||bom.ValidFrom>order.PlannedStart||(bom.ValidUntil.HasValue&&bom.ValidUntil.Value<order.PlannedStart)
                 ||route.Operations.Count==0)
                 return Results.Conflict(new{message="مسیر و BOM معتبر مصوب وجود ندارند."});
+            // Cost assumptions become part of the released manufacturing
+            // evidence, rather than following future overwrites of center rates.
+            try{await FactoryCostRateHistory.LockRateSchedule(db,ct);}
+            catch(SqlException){return Results.Conflict(new{message="قفل نرخ تبدیل داخلی در دسترس نیست."});}
+            var currentRates=await db.FactoryCenterCostRates.AsNoTracking()
+                .ToDictionaryAsync(x=>x.WorkCenterId,ct);
             // Explicitly mark newly materialized routing steps as Added. Appending a child
             // with an already-assigned Guid to a tracked collection can make EF infer an
             // existing entity and issue UPDATE instead of INSERT (false concurrency 409).
@@ -255,6 +261,17 @@ public static class ManufacturingExecutionEndpoints
                     SetupMinutes=op.SetupMinutes,RunMinutesPerUnit=op.RunMinutesPerUnit
                 };
                 db.ManufacturingOrderOperations.Add(releasedOperation);
+                currentRates.TryGetValue(releasedOperation.WorkCenterId,out var currentRate);
+                var applicable=currentRate is not null&&
+                    currentRate.EffectiveFrom<=order.PlannedStart?currentRate:null;
+                var rateProof=new FactoryCostRateSnapshot(releasedOperation.Id,
+                    releasedOperation.WorkCenterId,
+                    applicable?.ConversionRialsPerMinute,applicable?.ScrapRialsPerUnit,
+                    applicable?.EffectiveFrom);
+                db.ManufacturingOrderAudits.Add(new ManufacturingOrderAudit{
+                    OrderId=id,Action=FactoryCostRateHistory.Action,
+                    Details=FactoryCostRateHistory.Serialize(rateProof)
+                });
                 if(controlPlans.Count==1)
                 {
                     foreach(var characteristic in controlPlans[0].Characteristics
