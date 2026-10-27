@@ -125,7 +125,7 @@ public static class FactoryMasterData
                         .Select(x=>x.Details).ToListAsync(ct);
                     foreach(var detail in timed)
                     {
-                        var parts=detail.Split('|');
+                        var parts=(detail??"").Split('|');
                         if(parts.Length!=4)return Results.Conflict(new{
                             message="سابقه شروع توقف زمان‌دار دارای قالب نامعتبر است."});
                         Add(parts[3],0);
