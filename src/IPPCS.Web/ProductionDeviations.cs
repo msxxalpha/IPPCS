@@ -84,15 +84,26 @@ public static class ProductionDeviationEndpoints
         // list is retained for older clients; high-volume factory screens use
         // this bounded query so entries past the first 300 remain searchable.
         api.MapGet("/production-deviations/search",async(string? text,int? status,
-            int? category,int page,int pageSize,ProductionDb db,CancellationToken ct)=>{
+            int? category,string? categories,int page,int pageSize,ProductionDb db,CancellationToken ct)=>{
             if(page is <1 or >100000||pageSize is <1 or >100||
                 text is {Length:>120}||
                 status is not null&&!Enum.IsDefined((ProductionDeviationStatus)status.Value)||
                 category is not null&&!Enum.IsDefined((ProductionDeviationCategory)category.Value))
                 return Results.BadRequest(new{message="فیلتر، شماره صفحه یا تعداد ردیف نامعتبر است."});
+            int[] selectedCategories=[];
+            if(!string.IsNullOrWhiteSpace(categories))
+            {
+                var values=categories.Split(',',StringSplitOptions.TrimEntries);
+                if(category.HasValue||values.Length is <1 or >7||
+                    values.Any(x=>!int.TryParse(x,out var id)||id is <0 or >6))
+                    return Results.BadRequest(new{message="فهرست چندانتخابی نوع انحراف معتبر نیست."});
+                selectedCategories=values.Select(int.Parse).Distinct().ToArray();
+            }
             var query=db.ProductionDeviations.AsNoTracking().AsQueryable();
             if(status.HasValue)query=query.Where(x=>(int)x.Status==status.Value);
             if(category.HasValue)query=query.Where(x=>(int)x.Category==category.Value);
+            if(selectedCategories.Length>0)
+                query=query.Where(x=>selectedCategories.Contains((int)x.Category));
             var term=text?.Trim();
             if(!string.IsNullOrWhiteSpace(term))
                 query=query.Where(x=>x.Description.Contains(term)||
