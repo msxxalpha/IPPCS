@@ -298,6 +298,24 @@ operator_request("/auth/login", "POST", {
     "username": operator_login, "password": operator_password
 })
 operator_csrf = operator_request("/auth/csrf")["token"]
+
+# Stage 24: shop-floor operator is never the manufacturing plan/release authority.
+operator_request("/api/v1/manufacturing-orders", "POST", {
+    "number":"CI-ST24-OPERATOR-MUST-NOT-CREATE","itemId":product["id"],
+    "plannedQuantity":2,"plannedStartJalali":JALALI_NOW,
+    "dueOnJalali":JALALI_NOW
+}, expected=403, token=operator_csrf)
+operator_request(f"/api/v1/manufacturing-orders/{order_id}/release",
+    "POST", expected=403, token=operator_csrf)
+operator_request(f"/api/v1/manufacturing-orders/{order_id}/cancel",
+    "POST", expected=403, token=operator_csrf)
+operator_request(f"/api/v1/manufacturing-orders/{order_id}/resume",
+    "POST", expected=403, token=operator_csrf)
+operator_request("/api/v1/manufacturing-orders/00000000-0000-0000-0000-000000000001/hold",
+    "POST", {"reason":"Operator may safely hold an existing order"},
+    expected=404, token=operator_csrf)
+print("PASS: SQL operator cannot create, release, cancel or resume manufacturing orders; may raise production hold.")
+
 operator_request("/api/v1/system-users", expected=403)
 operator_request("/api/v1/factory-demand", "POST", {
     "itemId": product["id"], "reference": "operator must not plan",
