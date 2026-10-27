@@ -162,6 +162,7 @@ app.MapNetMrpDemandPegging();
 app.MapMrpLotCapacityPreview();
 app.MapFactoryOperationClock();
 app.MapTimedDowntime();
+app.MapCostRateHistory();
 app.MapFactoryCapacityReservations();
 app.MapDemandAps();
 app.MapOperationsAnalytics();
