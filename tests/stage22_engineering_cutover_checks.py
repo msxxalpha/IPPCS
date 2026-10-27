@@ -7,7 +7,7 @@ def stage22_acceptance(request, jalali, tomorrow, component_id):
     import json
     import urllib.error
     import urllib.request
-    base="http://127.0.0.1:5295"
+    api_base="http://127.0.0.1:5295"
     username="ci-stage32-quality-reviewer"
     password="Ci_Stage32_Quality!2026"
     request("/api/v1/system-users","POST",{
@@ -17,7 +17,7 @@ def stage22_acceptance(request, jalali, tomorrow, component_id):
     def qa_call(path,method="GET",payload=None,expected=200,token=None):
         headers={"Content-Type":"application/json"} if payload is not None else {}
         if token is not None:headers["X-IPPCS-CSRF"]=token
-        req=urllib.request.Request(base+path,method=method,headers=headers,
+        req=urllib.request.Request(api_base+path,method=method,headers=headers,
           data=json.dumps(payload).encode("utf-8") if payload is not None else None)
         try:
             with qa_client.open(req,timeout=30) as response:
