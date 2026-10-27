@@ -4,7 +4,8 @@ using Microsoft.EntityFrameworkCore;
 
 public record FactoryDeviationEscalateInput(string Reason,string? ReviewByJalali);
 public record FactoryDeviationReviseInput(string RootCause,string CorrectiveAction,
-    string Responsible,string ActionDueJalali,string ChangeReason);
+    string Responsible,string ActionDueJalali,string ChangeReason,
+    string? ResponsibleCode=null,string? RootCauseCategoryCode=null);
 public record FactoryDeviationFollowUp(Guid Id,ProductionDeviationStatus Status,
     bool HasAssignedAction,bool IsOverdue,int EscalationCount,
     string? LastEscalationReason,DateOnly? NextReviewOn,int EventCount,
@@ -55,6 +56,8 @@ public static class FactoryDeviationGovernance
         Save("OldRoot",previous.RootCause??"");
         Save("OldAction",previous.CorrectiveAction??"");
         Save("OldResponsible",previous.Responsible??"");
+        Save("OldOwnerCode",previous.ResponsibleCode??"");
+        Save("OldRootCauseCategory",previous.RootCauseCategoryCode??"");
         Save("OldDue",previous.ActionDueOn?.ToString("yyyy-MM-dd")??"");
         Save("Reason",input.ChangeReason.Trim());
         return rows;
@@ -129,10 +132,22 @@ public static class FactoryDeviationGovernance
                 if(item is null)return Results.NotFound();
                 if(item.Status!=ProductionDeviationStatus.ActionAssigned)
                     return Results.Conflict(new{message="فقط اقدام تخصیص‌یافته و مختومه‌نشده با دلیل ثبت‌شده قابل بازنگری است."});
+                var ownerCode=string.IsNullOrWhiteSpace(input.ResponsibleCode)
+                    ?null:FactoryMasterData.NormalizeCode(input.ResponsibleCode);
+                var causeCode=string.IsNullOrWhiteSpace(input.RootCauseCategoryCode)
+                    ?null:FactoryMasterData.NormalizeCode(input.RootCauseCategoryCode);
+                var owner=ownerCode is null?null:
+                    await FactoryMasterData.Active(db,FactoryMasterData.ActionOwner,ownerCode,ct);
+                var cause=causeCode is null?null:
+                    await FactoryMasterData.Active(db,FactoryMasterData.RootCauseCategory,causeCode,ct);
+                if(ownerCode is not null&&owner is null||causeCode is not null&&cause is null)
+                    return Results.Conflict(new{message="مسئول یا طبقه علت در اطلاعات پایه غیرفعال یا نامعتبر است."});
                 var actor=ctx.User.Identity?.Name??"unknown";
                 db.ProductionDeviationEvents.AddRange(RevisionEvidence(item,input,actor));
                 item.RootCause=input.RootCause.Trim();item.CorrectiveAction=input.CorrectiveAction.Trim();
-                item.Responsible=input.Responsible.Trim();item.ActionDueOn=due;
+                item.Responsible=owner?.Label??input.Responsible.Trim();
+                item.ResponsibleCode=owner?.Code;item.RootCauseCategoryCode=cause?.Code;
+                item.ActionDueOn=due;
                 db.ProductionDeviationEvents.Add(new ProductionDeviationEvent{
                     DeviationId=id,Status=item.Status,Username=actor,
                     Details="REVISION:Updated:1:اطلاعات اقدام اصلاحی با ثبت سوابق قبلی به‌روز شد."});
