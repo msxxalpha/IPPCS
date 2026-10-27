@@ -5,6 +5,7 @@
 <title>IPPCS | انتقال کنترل‌شده نسخه دستورات پیش‌نویس</title>
 <link rel="stylesheet" href="/css/production.css">
 <script defer src="/js/security-client.js"></script>
+<script defer src="/js/jalali-datepicker.js"></script>
 <script defer src="/js/engineering-rebind.js"></script>
 </head>
 <body>
@@ -27,7 +28,7 @@
 <button type="button" class="btn-outline" data-ip-logout>خروج</button>
 </header>
 <main class="content">
-<div class="callout">این فرایند فقط مرجع BOM یا Routing دستورات <strong>پیش‌نویس و بدون عملیات</strong> را به نسخه مصوب جدید انتقال می‌دهد. دستورات آزادشده، تولیدشده و سوابق تاریخی دست‌نخورده باقی می‌مانند. این قابلیت جایگزین گردش امضا و تصویب رسمی ECO نیست.</div>
+<div class="callout">این فرایند فقط مرجع BOM یا Routing دستورات <strong>پیش‌نویس و بدون عملیات</strong> را به نسخه مصوب جدید انتقال می‌دهد. دستورات آزادشده، تولیدشده و سوابق تاریخی دست‌نخورده باقی می‌مانند. برش تاریخ اعتبار نیز سابقه مستقل دارد، اما مرجع تأیید درج‌شده جای امضای دیجیتال یا گردش چندامضایی ECO را نمی‌گیرد.</div>
 <div id="engineering-message" class="notice" role="status" aria-live="polite" hidden></div>
 <section class="panel">
 <h3>۱. انتخاب نوع و نسخه‌های تغییر</h3>
@@ -43,13 +44,32 @@
 <p class="muted">نسخه مقصد باید قبلاً تصویب شده و در تاریخ شروع برنامه هر دستور معتبر باشد. نسخه‌های مصوب با بازه‌های متداخل مجاز نیستند.</p>
 </section>
 <section class="panel">
-<h3>۲. انتخاب دستورات پیش‌نویس</h3>
+<h3>۲. برش کنترل‌شده تاریخ اعتبار نسخه‌ها (اختیاری)</h3>
+<p class="muted">برای تصویب نسخه پیشنهادی با تاریخ اعتبار متداخل، ابتدا تاریخ قطع اعتبار نسخه قدیمی را به‌صورت اتمیک با تصویب نسخه جدید ثبت کنید. دستورات آزادشده تغییر نمی‌کنند. در صورت نیاز سپس پیش‌نویس‌ها را در بخش بعد منتقل کنید.</p>
+<div class="form-grid">
+<label>نسخه مقصد پیش‌نویس (برای تصویب با برش)
+<select id="cutover-candidate"></select></label>
+<label>تاریخ مؤثر برش شمسی
+<span class="jalali-field"><input id="cutover-date" data-jalali-date placeholder="۱۴۰۵/۰۸/۰۶"><button type="button" class="date-trigger" data-jalali-trigger>▣</button></span></label>
+<label>شماره/مرجع تأیید مهندسی
+<input id="cutover-ref" maxlength="100" placeholder="ECO-1405-001"></label>
+<label class="wide">علت ثبت برش
+<input id="cutover-reason" maxlength="300" placeholder="شرح تغییر نسخه و تصمیم مسئول مهندسی"></label>
+</div>
+<div class="form-actions">
+<button type="button" class="btn-outline" id="cutover-preview">کنترل تاریخ و اثر برش</button>
+<button type="button" class="btn-main" id="cutover-apply" disabled>ثبت برش و سابقه تغییر</button>
+</div>
+<div id="cutover-results" aria-live="polite"></div>
+</section>
+<section class="panel">
+<h3>۳. انتقال انتخابی دستورات پیش‌نویس</h3>
 <p class="muted">فقط دستورهای پیش‌نویس مربوط به نسخه مبدأ نشان داده می‌شوند؛ این فهرست از ۲۰۰ دستور آخر سامانه ساخته می‌شود. برای دستورات قدیمی‌تر یا انتقال بیش از ۱۰۰ دستور، از فهرست/API با کنترل دقیق شناسه استفاده کنید.</p>
 <div id="engineering-orders"></div>
 <p id="engineering-selected" class="muted"></p>
 <div class="form-actions">
-<button type="button" id="engineering-preview" class="btn-outline">۳. کنترل و پیش‌نمایش</button>
-<button type="button" id="engineering-apply" class="btn-main" disabled>۴. ثبت انتقال تأییدشده</button>
+<button type="button" id="engineering-preview" class="btn-outline">پیش‌نمایش انتقال</button>
+<button type="button" id="engineering-apply" class="btn-main" disabled>ثبت انتقال کنترل‌شده</button>
 </div>
 </section>
 <section class="panel"><h3>نتیجه کنترل</h3><div id="engineering-results" aria-live="polite"></div></section>
