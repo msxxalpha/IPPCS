@@ -93,6 +93,30 @@ public static class FactoryMpsChangeControl
             "گزارش اثر تغییر بر اساس BOM، مسیر، شیفت، مانده‌های فرضی و دریافت‌های ثبت‌شده فعلی محاسبه می‌شود. این خروجی خودِ تغییر برنامه را تأیید نمی‌کند و موجودی واقعی انبار یا تعهد خرید نیست.");
     }
 
+    public const string ImpactApprovalAlgorithm="MPS-REVISION-IMPACT-APPROVAL-1";
+    internal static FactoryMpsRevisionEvidence? ParseOrigin(string json)=>
+        JsonSerializer.Deserialize<FactoryMpsRevisionEvidence>(json,AuditJsonOptions);
+
+    internal static async Task<FactoryMpsChangeImpact> CalculateActualImpact(
+        ProductionDb db,MpsVersion source,MpsVersion candidate,CancellationToken ct)
+    {
+        var routings=await db.RoutingRevisions.AsNoTracking().Include(x=>x.Operations)
+            .ToListAsync(ct);
+        var shifts=await db.WorkShifts.AsNoTracking().ToListAsync(ct);
+        var boms=await db.ManufacturingBomRevisions.AsNoTracking().Include(x=>x.Lines)
+            .ToListAsync(ct);
+        var balances=await db.PlanningBalances.AsNoTracking().ToListAsync(ct);
+        var receipts=await db.PlanningExpectedReceipts.AsNoTracking().ToListAsync(ct);
+        var types=await db.Items.AsNoTracking().ToDictionaryAsync(x=>x.Id,x=>x.Type,ct);
+        if(balances.Count>0&&balances.Any(x=>x.SnapshotDate!=balances[0].SnapshotDate))
+            throw new InvalidOperationException("مبناهای مانده فرضی برنامه‌ریزی یکسان نیستند.");
+        return Compare(source,candidate,
+            PlanningCalculators.RunRoughCutCrp(source.Lines,routings,shifts),
+            PlanningCalculators.RunRoughCutCrp(candidate.Lines,routings,shifts),
+            PlanningCalculators.RunMrp(source.Lines,boms,balances,receipts,types),
+            PlanningCalculators.RunMrp(candidate.Lines,boms,balances,receipts,types));
+    }
+
     public static IEndpointRouteBuilder MapMpsChangeControl(this IEndpointRouteBuilder routes)
     {
         var api=routes.MapGroup("/api/v1").RequireAuthorization("IpProductionUser");
@@ -102,7 +126,9 @@ public static class FactoryMpsChangeControl
                 if(version is null)return Results.NotFound();
                 var events=await db.PlanningCalculations.AsNoTracking()
                     .Where(x=>x.MpsVersionId==id&&
-                        (x.AlgorithmVersion==RevisionAlgorithm||x.AlgorithmVersion==ApprovalAlgorithm))
+                        (x.AlgorithmVersion==RevisionAlgorithm||
+                         x.AlgorithmVersion==ApprovalAlgorithm||
+                         x.AlgorithmVersion==ImpactApprovalAlgorithm))
                     .OrderBy(x=>x.CalculatedUtc).ToListAsync(ct);
                 return Results.Ok(new{version.Id,version.Code,version.State,
                     events=events.Select(x=>new{x.Id,x.CalculatedUtc,x.AlgorithmVersion,
@@ -179,23 +205,8 @@ public static class FactoryMpsChangeControl
                 if(!revisions.Any(x=>JsonSerializer.Deserialize<FactoryMpsRevisionEvidence>(
                     x.InputSnapshotJson,AuditJsonOptions)?.SourceVersionId==sourceId))
                     return Results.Conflict(new{message="نسخه انتخابی از بازنگری مستند این MPS منشأ نگرفته است."});
-                var routings=await db.RoutingRevisions.AsNoTracking().Include(x=>x.Operations)
-                    .ToListAsync(ct);
-                var shifts=await db.WorkShifts.AsNoTracking().ToListAsync(ct);
-                var boms=await db.ManufacturingBomRevisions.AsNoTracking().Include(x=>x.Lines)
-                    .ToListAsync(ct);
-                var balances=await db.PlanningBalances.AsNoTracking().ToListAsync(ct);
-                var receipts=await db.PlanningExpectedReceipts.AsNoTracking().ToListAsync(ct);
-                var types=await db.Items.AsNoTracking().ToDictionaryAsync(x=>x.Id,x=>x.Type,ct);
-                if(balances.Count>0&&balances.Any(x=>x.SnapshotDate!=balances[0].SnapshotDate))
-                    return Results.Conflict(new{message="مبناهای مانده فرضی برنامه‌ریزی یکسان نیستند."});
-                try{
-                    return Results.Ok(Compare(source,candidate,
-                        PlanningCalculators.RunRoughCutCrp(source.Lines,routings,shifts),
-                        PlanningCalculators.RunRoughCutCrp(candidate.Lines,routings,shifts),
-                        PlanningCalculators.RunMrp(source.Lines,boms,balances,receipts,types),
-                        PlanningCalculators.RunMrp(candidate.Lines,boms,balances,receipts,types)));
-                }catch(Exception ex)when(ex is InvalidOperationException or OverflowException or ArgumentOutOfRangeException)
+                try{return Results.Ok(await CalculateActualImpact(db,source,candidate,ct));}
+                catch(Exception ex)when(ex is InvalidOperationException or OverflowException or ArgumentOutOfRangeException)
                     {return Results.UnprocessableEntity(new{message=ex.Message});}
             }).RequireAuthorization("IpPlanningWrite");
         return routes;
