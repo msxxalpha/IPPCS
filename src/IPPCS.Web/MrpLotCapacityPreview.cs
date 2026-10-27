@@ -26,7 +26,8 @@ public static class MrpLotCapacityPreview
         IReadOnlyList<WorkShift> shifts,
         DateOnly baseline,
         int horizonDays=30,
-        decimal capacityMultiplier=1m)
+        decimal capacityMultiplier=1m,
+        IReadOnlyList<ManufacturingOrder>? activeOrders=null)
     {
         if(horizonDays is <1 or >90 || capacityMultiplier<=0m || capacityMultiplier>2m)
             throw new ArgumentException("افق ۱ تا ۹۰ روز و ضریب ظرفیت مثبت تا ۲ لازم است.");
@@ -35,6 +36,47 @@ public static class MrpLotCapacityPreview
         var earliest=new Dictionary<Guid,DateOnly>();
         var initial=new List<MrpLotCapacityRow>();
         var lotKeys=new HashSet<string>(StringComparer.Ordinal);
+        var manufacturing=graph.PlannedLots.Where(x=>x.ProposalType=="Manufacturing")
+            .ToDictionary(x=>x.LotKey,StringComparer.Ordinal);
+        var demands=graph.Demands.ToDictionary(x=>x.DemandKey,StringComparer.Ordinal);
+        var dependentIds=new Dictionary<Guid,HashSet<Guid>>();
+        foreach(var allocation in graph.Allocations.Where(x=>
+            x.SourceType=="ProposedManufacturingReceipt" && x.Quantity>0))
+        {
+            if(!demands.TryGetValue(allocation.DemandKey,out var demand))
+                throw new InvalidOperationException("شناسه منشأ نیاز پیشنهادی یافت نشد.");
+            if(demand.ParentLotKey is null)continue; // A direct MPS demand has no parent manufacturing lot.
+            if(!manufacturing.ContainsKey(demand.ParentLotKey)||
+                !manufacturing.ContainsKey(allocation.SourceKey))
+                throw new InvalidOperationException("بچ ساخت منبع یا مصرف‌کننده در گراف MRP یافت نشد.");
+            var parentId=TaskId(demand.ParentLotKey);
+            var childId=TaskId(allocation.SourceKey);
+            if(parentId==childId)
+                throw new InvalidOperationException("بچ ساخت نمی‌تواند مصرف‌کننده خودش باشد.");
+            if(!dependentIds.TryGetValue(parentId,out var set))
+                dependentIds[parentId]=set=new HashSet<Guid>();
+            set.Add(childId);
+        }
+        // In the absence of actual machine execution intervals, every remaining
+        // operation of an active work order conservatively reserves its center
+        // from its planned start through the end of the simulated horizon.
+        var reservedDays=new HashSet<(Guid WorkCenterId,DateOnly Date)>();
+        foreach(var order in activeOrders??[])
+        {
+            if(order.Status is not (ManufacturingOrderStatus.Released or
+                ManufacturingOrderStatus.InProgress or ManufacturingOrderStatus.OnHold))
+                continue;
+            if(order.PlannedStart>order.DueOn || order.Operations.Count==0)
+                throw new InvalidOperationException("دستور فعال بدون مراحل یا بازه برنامه معتبر است؛ ظرفیت قابل اعتماد نیست.");
+            var blockStart=order.PlannedStart>baseline?order.PlannedStart:baseline;
+            foreach(var operation in order.Operations.Where(x=>!x.IsComplete))
+            {
+                if(operation.WorkCenterId==Guid.Empty)
+                    throw new InvalidOperationException("دستور فعال دارای مرکز کاری نامعتبر است.");
+                for(var date=blockStart;date<end;date=date.AddDays(1))
+                    reservedDays.Add((operation.WorkCenterId,date));
+            }
+        }
         var approved=routings.Where(x=>x.State==RoutingState.Approved).ToArray();
         foreach(var lot in graph.PlannedLots.Where(x=>x.ProposalType=="Manufacturing")
             .OrderBy(x=>x.ReceiptOn).ThenBy(x=>x.LotKey,StringComparer.Ordinal))
@@ -86,20 +128,23 @@ public static class MrpLotCapacityPreview
                 string.IsNullOrEmpty(problem)?"Pending":"Blocked",
                 string.IsNullOrEmpty(problem)?null:problem,false));
         }
+        var prereqs=dependentIds.ToDictionary(x=>x.Key,
+            x=>(IReadOnlyCollection<Guid>)x.Value.ToArray());
         var planned=FiniteFactoryScheduler.Schedule(tasks,shifts,baseline,horizonDays,
-            capacityMultiplier,earliestStartDates:earliest);
+            capacityMultiplier,unavailableDays:reservedDays,
+            earliestStartDates:earliest,prerequisites:prereqs);
         var finished=initial.Select(lot=>{
             if(lot.Status=="Blocked")return lot;
-            var allocations=planned.Allocations.Where(x=>x.ItemId==lot.ItemId &&
-                x.DueOn==lot.ReceiptDue).ToArray();
+            var allocations=planned.Allocations.Where(x=>x.DemandLineId==TaskId(lot.LotKey)).ToArray();
             if(allocations.Any(x=>x.StartDate<lot.ProposedRelease))
                 throw new InvalidOperationException("زمان‌بند عملیاتی را پیش از تاریخ آزادسازی بچ قرار داده است.");
             var done=allocations.Length==lot.OperationsRequired;
             var late=allocations.Any(x=>x.Late);
             var status=!done?"Unscheduled":late?"Late":"OnTime";
             return lot with{OperationsScheduled=allocations.Length,Status=status,
-                Late=late,Reason=done?null:
-                    "یک یا چند عملیات به دلیل محدودیت شیفت یا ظرفیت در افق انتخابی قابل تخصیص نیستند."};
+                Late=late,Reason=done?null:planned.Unscheduled
+                    .FirstOrDefault(x=>x.DemandLineId==TaskId(lot.LotKey))?.Reason
+                    ??"یک یا چند عملیات به دلیل محدودیت شیفت یا ظرفیت در افق انتخابی قابل تخصیص نیستند."};
         }).ToArray();
         return new MrpLotCapacityResult(finished,planned.Allocations,planned.Unscheduled,
             finished.Count(x=>x.Status=="OnTime"),finished.Count(x=>x.Status=="Late"),
@@ -136,16 +181,21 @@ public static class MrpLotCapacityPreview
             var routings=await db.RoutingRevisions.AsNoTracking().Include(x=>x.Operations)
                 .Where(x=>x.State==RoutingState.Approved).ToListAsync(ct);
             var shifts=await db.WorkShifts.AsNoTracking().ToListAsync(ct);
+            var existing=await db.ManufacturingOrders.AsNoTracking()
+                .Include(x=>x.Operations)
+                .Where(x=>x.Status==ManufacturingOrderStatus.Released ||
+                    x.Status==ManufacturingOrderStatus.InProgress ||
+                    x.Status==ManufacturingOrderStatus.OnHold).ToListAsync(ct);
             try
             {
                 var mrp=PlanningCalculators.RunMrp(mps.Lines,boms,balances,receipts,types);
                 var graph=NetMrpDemandPegging.Build(mps.Lines,boms,balances,receipts,types,mrp);
-                var report=Evaluate(graph,routings,shifts,start,days,factor);
+                var report=Evaluate(graph,routings,shifts,start,days,factor,existing);
                 return Results.Ok(new{
-                    kind="UnconfirmedNetMrpBatchCapacityPreview",algorithm="MRP-CRP-PREVIEW-1",
+                    kind="UnconfirmedNetMrpBatchCapacityPreview",algorithm="MRP-CRP-PREVIEW-2",
                     baselineJalali=PersianPlanningDates.Format(start),horizonDays=days,
                     capacityMultiplier=factor,report.OnTimeLots,report.LateLots,report.BlockedLots,
-                    disclaimer="پیش‌نمایش محدودیت ظرفیت برای بچ‌های پیشنهادی MRP: تاریخ شروع بچ، تقدم مراحل و عدم تداخل مرکز کاری کنترل می‌شود. دریافت فرضی مواد قطعی نیست؛ ترتیب مصرف بین بچ‌های ساخت و دستورات تولید فعال، ابزار، تعمیرات و اپراتور لحاظ نشده است. هیچ دستور ساخت یا رزروی ایجاد نمی‌شود.",
+                    disclaimer="پیش‌نمایش صرفاً فرضی: تاریخ آزادسازی، تقدم بچ‌های نیمه‌ساخته وابسته، توالی عملیات و عدم تداخل مرکز کاری رعایت می‌شود. مراکز دستورهای ساخت فعال بدون زمان‌بندی دقیق به صورت محافظه‌کارانه تا پایان افق مسدود می‌شوند. موجودی و دریافت‌ها قطعی نیستند؛ ابزار، تعمیرات، اپراتور و زمان‌های اجرایی واقعی لحاظ نشده‌اند؛ هیچ دستور یا رزروی ثبت نمی‌شود.",
                     lots=report.Lots.Select(x=>new{x.LotKey,x.ItemId,x.Quantity,
                         proposedReleaseJalali=PersianPlanningDates.Format(x.ProposedRelease),
                         receiptDueJalali=PersianPlanningDates.Format(x.ReceiptDue),
@@ -153,12 +203,13 @@ public static class MrpLotCapacityPreview
                         x.Status,x.Reason,x.Late}),
                     allocations=report.Allocations.Select(x=>new{x.ItemId,x.WorkCenterId,
                         x.Sequence,x.Quantity,x.OperationName,x.DurationMinutes,x.Late,
-                        lotKey=report.Lots.Single(l=>l.ItemId==x.ItemId&&l.ReceiptDue==x.DueOn).LotKey,
+                        lotKey=report.Lots.Single(l=>TaskId(l.LotKey)==x.DemandLineId).LotKey,
                         startJalali=PersianPlanningDates.Format(x.StartDate),
                         startTime=x.StartsAt.ToString("HH:mm"),
                         finishJalali=PersianPlanningDates.Format(x.FinishDate),
                         finishTime=x.FinishesAt.ToString("HH:mm")}),
-                    report.Unscheduled
+                    report.Unscheduled,conservativelyBlockedActiveOrders=existing.Count(x=>
+                        x.Operations.Any(op=>!op.IsComplete))
                 });
             }
             catch(Exception ex)when(ex is InvalidOperationException or OverflowException or
