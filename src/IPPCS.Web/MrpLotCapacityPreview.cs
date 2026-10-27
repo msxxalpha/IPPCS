@@ -28,7 +28,8 @@ public static class MrpLotCapacityPreview
         int horizonDays=30,
         decimal capacityMultiplier=1m,
         IReadOnlyList<ManufacturingOrder>? activeOrders=null,
-        IReadOnlyList<FactoryClockSession>? clockSessions=null)
+        IReadOnlyList<FactoryClockSession>? clockSessions=null,
+        IReadOnlyList<FactoryCapacityReservation>? reservations=null)
     {
         if(horizonDays is <1 or >90 || capacityMultiplier<=0m || capacityMultiplier>2m)
             throw new ArgumentException("افق ۱ تا ۹۰ روز و ضریب ظرفیت مثبت تا ۲ لازم است.");
@@ -65,6 +66,14 @@ public static class MrpLotCapacityPreview
         var clocks=clockSessions??[];
         var measured=FactoryOperationClock.BusyIntervals(clocks,
             end.ToDateTime(TimeOnly.MinValue));
+        var activeIds=(activeOrders??[]).Where(x=>x.Status is
+            ManufacturingOrderStatus.Released or ManufacturingOrderStatus.InProgress
+            or ManufacturingOrderStatus.OnHold).Select(x=>x.Id).ToHashSet();
+        var booked=(reservations??[]).Where(x=>activeIds.Contains(x.OrderId) &&
+            activeOrders!.Any(order=>order.Id==x.OrderId&&
+                order.Operations.Any(op=>op.Id==x.OperationId&&!op.IsComplete &&
+                    op.WorkCenterId==x.WorkCenterId))).ToArray();
+        var occupied=measured.Concat(FactoryCapacityReservations.Occupied(booked)).ToArray();
         foreach(var order in activeOrders??[])
         {
             if(order.Status is not (ManufacturingOrderStatus.Released or
@@ -80,7 +89,10 @@ public static class MrpLotCapacityPreview
                 // A running clock supplies a measured start. Its as-yet unknown stop
                 // is conservatively treated as horizon end. Missing clock: full-day guard.
                 if(clocks.Any(x=>x.OrderId==order.Id&&x.OperationId==operation.Id
-                    &&x.WorkCenterId==operation.WorkCenterId&&x.StoppedUtc is null))
+                    &&x.WorkCenterId==operation.WorkCenterId&&x.StoppedUtc is null) ||
+                   booked.Any(x=>x.OrderId==order.Id&&x.OperationId==operation.Id))
+                    // Planned slot is explicit; do not double-block its whole day.
+                    // The slot is not proof the operation will actually finish on time.
                     continue;
                 for(var date=blockStart;date<end;date=date.AddDays(1))
                     reservedDays.Add((operation.WorkCenterId,date));
@@ -142,7 +154,7 @@ public static class MrpLotCapacityPreview
         var planned=FiniteFactoryScheduler.Schedule(tasks,shifts,baseline,horizonDays,
             capacityMultiplier,unavailableDays:reservedDays,
             earliestStartDates:earliest,prerequisites:prereqs,
-            occupiedIntervals:measured);
+            occupiedIntervals:occupied);
         var finished=initial.Select(lot=>{
             if(lot.Status=="Blocked")return lot;
             var allocations=planned.Allocations.Where(x=>x.DemandLineId==TaskId(lot.LotKey)).ToArray();
@@ -193,7 +205,9 @@ public static class MrpLotCapacityPreview
             var shifts=await db.WorkShifts.AsNoTracking().ToListAsync(ct);
             var auditClocks=await db.ManufacturingOrderAudits.AsNoTracking()
                 .Where(x=>x.Action==FactoryOperationClock.Started ||
-                    x.Action==FactoryOperationClock.Stopped).ToListAsync(ct);
+                    x.Action==FactoryOperationClock.Stopped ||
+                    x.Action==FactoryCapacityReservations.Reserved ||
+                    x.Action==FactoryCapacityReservations.Cancelled).ToListAsync(ct);
             var existing=await db.ManufacturingOrders.AsNoTracking()
                 .Include(x=>x.Operations)
                 .Where(x=>x.Status==ManufacturingOrderStatus.Released ||
@@ -204,12 +218,14 @@ public static class MrpLotCapacityPreview
                 var mrp=PlanningCalculators.RunMrp(mps.Lines,boms,balances,receipts,types);
                 var graph=NetMrpDemandPegging.Build(mps.Lines,boms,balances,receipts,types,mrp);
                 var sessions=FactoryOperationClock.Read(auditClocks);
-                var report=Evaluate(graph,routings,shifts,start,days,factor,existing,sessions);
+                var reservations=FactoryCapacityReservations.Read(auditClocks);
+                var report=Evaluate(graph,routings,shifts,start,days,factor,
+                    existing,sessions,reservations);
                 return Results.Ok(new{
-                    kind="UnconfirmedNetMrpBatchCapacityPreview",algorithm="MRP-CRP-PREVIEW-3",
+                    kind="UnconfirmedNetMrpBatchCapacityPreview",algorithm="MRP-CRP-PREVIEW-4",
                     baselineJalali=PersianPlanningDates.Format(start),horizonDays=days,
                     capacityMultiplier=factor,report.OnTimeLots,report.LateLots,report.BlockedLots,
-                    disclaimer="پیش‌نمایش ظرفیت: بازه‌های واقعی ثبت‌شده شروع/پایان عملیات لحاظ می‌شوند؛ ساعت باز تا پایان افق مشغول فرض می‌شود، عملیات فعال بدون ساعت به‌صورت محافظه‌کارانه تمام روز مسدود است. نتیجه قطعی یا مجوز آزادسازی تولید نیست؛ مواد، ابزار، نیروی انسانی و مدت آینده عملیات ممکن است نامشخص باشد.",
+                    disclaimer="پیش‌نمایش ظرفیت: رزروهای قطعی داخلی بازه‌های زمانی مرکز کاری، زمان‌های واقعی ثبت‌شده و ساعت‌های باز لحاظ می‌شوند. برای عملیات بدون رزرو و ساعت باز، ظرفیت به‌طور محافظه‌کارانه بسته است. رزرو به معنای تکمیل واقعی یا موجودی قطعی نیست؛ نتیجه مجوز آزادسازی نیست.",
                     lots=report.Lots.Select(x=>new{x.LotKey,x.ItemId,x.Quantity,
                         proposedReleaseJalali=PersianPlanningDates.Format(x.ProposedRelease),
                         receiptDueJalali=PersianPlanningDates.Format(x.ReceiptDue),
@@ -222,7 +238,10 @@ public static class MrpLotCapacityPreview
                         startTime=x.StartsAt.ToString("HH:mm"),
                         finishJalali=PersianPlanningDates.Format(x.FinishDate),
                         finishTime=x.FinishesAt.ToString("HH:mm")}),
-                    report.Unscheduled,recordedOperationClockSessions=sessions.Count,
+                    report.Unscheduled,
+                    activeCapacityReservations=reservations.Count(x=>existing.Any(o=>
+                        o.Id==x.OrderId&&o.Operations.Any(op=>op.Id==x.OperationId&&!op.IsComplete))),
+                    recordedOperationClockSessions=sessions.Count,
                     runningOperationClockSessions=sessions.Count(x=>x.StoppedUtc is null),
                     conservativelyBlockedActiveOrders=existing.Count(x=>
                         x.Operations.Any(op=>!op.IsComplete))
