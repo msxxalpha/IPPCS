@@ -173,6 +173,9 @@ public static class ManufacturingExecutionEndpoints
     public static IEndpointRouteBuilder MapManufacturingExecution(this IEndpointRouteBuilder routes)
     {
         var api=routes.MapGroup("/api/v1").RequireAuthorization("IpProductionUser");
+        var planningApi=routes.MapGroup("/api/v1").RequireAuthorization("IpPlanningWrite");
+        var floorApi=routes.MapGroup("/api/v1").RequireAuthorization("IpShopFloorWrite");
+        var holdApi=routes.MapGroup("/api/v1").RequireAuthorization("IpProductionHold");
         api.MapGet("/manufacturing-orders",async(ProductionDb db,CancellationToken ct)=>{
             var orders=await db.ManufacturingOrders.AsNoTracking().Include(x=>x.Operations)
                 .OrderByDescending(x=>x.CreatedUtc).Take(200).ToListAsync(ct);
@@ -183,7 +186,7 @@ public static class ManufacturingExecutionEndpoints
                 .ThenInclude(x=>x.Confirmations).SingleOrDefaultAsync(x=>x.Id==id,ct);
             return order is null?Results.NotFound():Results.Ok(ToDto(order));
         });
-        api.MapPost("/manufacturing-orders",async(ManufacturingOrderInput input,ProductionDb db,CancellationToken ct)=>{
+        planningApi.MapPost("/manufacturing-orders",async(ManufacturingOrderInput input,ProductionDb db,CancellationToken ct)=>{
             if(string.IsNullOrWhiteSpace(input.Number)||input.Number.Trim().Length>64||input.PlannedQuantity<=0
                 ||input.PlannedQuantity>1_000_000_000m
                 ||!PersianPlanningDates.TryParse(input.PlannedStartJalali,out var start)
@@ -214,7 +217,7 @@ public static class ManufacturingExecutionEndpoints
             await db.SaveChangesAsync(ct);
             return Results.Created($"/api/v1/manufacturing-orders/{order.Id}",ToDto(order));
         });
-        api.MapPost("/manufacturing-orders/{id:guid}/release",async(Guid id,ProductionDb db,ILogger<ManufacturingOrder> logger,CancellationToken ct)=>{
+        planningApi.MapPost("/manufacturing-orders/{id:guid}/release",async(Guid id,ProductionDb db,ILogger<ManufacturingOrder> logger,CancellationToken ct)=>{
             await using var tx=await db.Database.BeginTransactionAsync(IsolationLevel.Serializable,ct);
             try{await FactoryCapacityReservations.LockOrder(db,id,ct);}
             catch(SqlException){return Results.Conflict(new{message="قفل دستور ساخت برای آزادسازی در دسترس نیست."});}
@@ -295,7 +298,7 @@ public static class ManufacturingExecutionEndpoints
             }
             return Results.Ok(ToDto(order));
         });
-        api.MapPost("/manufacturing-orders/{id:guid}/operations/{operationId:guid}/confirm",
+        floorApi.MapPost("/manufacturing-orders/{id:guid}/operations/{operationId:guid}/confirm",
             async(Guid id,Guid operationId,ManufacturingConfirmationInput input,ProductionDb db,CancellationToken ct)=>{
             if((input.LotCode?.Length??0)>100||(input.Note?.Length??0)>500)
                 return Results.BadRequest(new{message="شرح یا شناسه بچ بیش از حد مجاز است."});
@@ -339,7 +342,7 @@ public static class ManufacturingExecutionEndpoints
             catch(DbUpdateConcurrencyException){return Results.Conflict(new{message="ثبت هم‌زمان رخ داد؛ داده‌ها را بازخوانی کنید."});}
             return Results.Ok(ToDto(order));
         });
-        api.MapPost("/manufacturing-orders/{id:guid}/hold",async(Guid id,ManufacturingHoldInput input,ProductionDb db,CancellationToken ct)=>{
+        holdApi.MapPost("/manufacturing-orders/{id:guid}/hold",async(Guid id,ManufacturingHoldInput input,ProductionDb db,CancellationToken ct)=>{
             if(string.IsNullOrWhiteSpace(input.Reason)||input.Reason.Trim().Length>500)
                 return Results.BadRequest(new{message="علت توقف معتبر نیست."});
             var order=await db.ManufacturingOrders.FindAsync([id],ct);
@@ -352,7 +355,7 @@ public static class ManufacturingExecutionEndpoints
             catch(DbUpdateConcurrencyException){return Results.Conflict(new{message="وضعیت دستور هم‌زمان تغییر کرده است."});}
             return Results.Ok(new{order.Id,order.Status});
         });
-        api.MapPost("/manufacturing-orders/{id:guid}/resume",async(Guid id,ProductionDb db,CancellationToken ct)=>{
+        planningApi.MapPost("/manufacturing-orders/{id:guid}/resume",async(Guid id,ProductionDb db,CancellationToken ct)=>{
             var order=await db.ManufacturingOrders.FindAsync([id],ct);
             if(order is null)return Results.NotFound();
             if(order.Status!=ManufacturingOrderStatus.OnHold)return Results.Conflict(new{message="دستور معلق نیست."});
@@ -362,7 +365,7 @@ public static class ManufacturingExecutionEndpoints
             catch(DbUpdateConcurrencyException){return Results.Conflict(new{message="وضعیت دستور هم‌زمان تغییر کرده است."});}
             return Results.Ok(new{order.Id,order.Status});
         });
-        api.MapPost("/manufacturing-orders/{id:guid}/cancel",async(Guid id,ProductionDb db,CancellationToken ct)=>{
+        planningApi.MapPost("/manufacturing-orders/{id:guid}/cancel",async(Guid id,ProductionDb db,CancellationToken ct)=>{
             await using var tx=await db.Database.BeginTransactionAsync(IsolationLevel.Serializable,ct);
             try{await FactoryCapacityReservations.LockOrder(db,id,ct);}
             catch(SqlException){return Results.Conflict(new{message="قفل دستور ساخت در دسترس نیست."});}
@@ -388,7 +391,7 @@ public static class ManufacturingExecutionEndpoints
             catch(DbUpdateConcurrencyException){return Results.Conflict(new{message="وضعیت دستور هم‌زمان تغییر کرده است."});}
             return Results.Ok(new{order.Id,order.Status});
         });
-        api.MapPost("/manufacturing-orders/{id:guid}/downtime",async(Guid id,ManufacturingDowntimeInput input,ProductionDb db,CancellationToken ct)=>{
+        floorApi.MapPost("/manufacturing-orders/{id:guid}/downtime",async(Guid id,ManufacturingDowntimeInput input,ProductionDb db,CancellationToken ct)=>{
             if(input.DurationMinutes is <=0 or >1440||string.IsNullOrWhiteSpace(input.Reason)||input.Reason.Trim().Length>180)
                 return Results.BadRequest(new{message="مدت توقف (۱ تا ۱۴۴۰ دقیقه) و علت معتبر لازم است."});
             var order=await db.ManufacturingOrders.AsNoTracking().SingleOrDefaultAsync(x=>x.Id==id,ct);
