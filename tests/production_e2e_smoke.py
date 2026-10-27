@@ -313,6 +313,25 @@ operator_request("/api/v1/auth/change-password", "POST", {
 }, token=operator_csrf)
 request(f"/api/v1/system-users/{user['id']}/lock", "POST", status=204)
 request(f"/api/v1/system-users/{user['id']}/unlock", "POST", status=204)
+# Stage eight: explicit MPS to work-order pegging cannot double allocate plan quantity.
+peg_order = request("/api/v1/manufacturing-orders", "POST", {
+    "number": "CI-ORDER-MPS-PEG", "itemId": product["id"],
+    "plannedQuantity": 10, "plannedStartJalali": JALALI_NOW,
+    "dueOnJalali": JALALI_NOW
+}, 201)
+peg_report = request(f"/api/v1/production-pegging/mps/{mps['id']}")
+peg_line = peg_report["rows"][0]
+assert peg_line["unassignedQuantity"] == 10
+request(f"/api/v1/production-pegging/orders/{peg_order['id']}", "POST", {
+    "mpsLineId": peg_line["id"], "linkedQuantity": 10
+}, 201)
+request(f"/api/v1/production-pegging/orders/{peg_order['id']}", "POST", {
+    "mpsLineId": peg_line["id"], "linkedQuantity": 1
+}, 409)
+updated_report = request(f"/api/v1/production-pegging/mps/{mps['id']}")
+assert updated_report["rows"][0]["assignedQuantity"] == 10
+assert updated_report["rows"][0]["unassignedQuantity"] == 0
+print("PASS: approved MPS quantity links to work orders; duplicate allocations blocked.")
 print("PASS: isolated local operator account, permission boundary, material reporting, "
       "password change, administrator lock/unlock.")
 print("PASS: SQL demand, S&OP, approved MPS, finite APS no overlap, what-if, "
