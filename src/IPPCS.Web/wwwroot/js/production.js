@@ -1,24 +1,25 @@
 (() => {
   "use strict";
+  // Navigation reflects implemented test screens, not a plant acceptance claim.
   const modules = [
-    ["داده‌های پایه تولید","اقلام، BOM، مسیر ساخت و مراکز کاری","پایه در حال توسعه"],
-    ["مدیریت تقاضای تولید","ورود نیازهای تولید و پیش‌بینی برنامه‌ای","در دست توسعه"],
-    ["برنامه‌ریزی کلان S&OP","تراز تقاضا، ظرفیت و موجودی برنامه‌ای","در دست توسعه"],
-    ["برنامه اصلی تولید MPS","نسخه‌ها و برنامه تولید محصول نهایی","پایه در حال توسعه"],
-    ["نیازسنجی مواد MRP","انفجار BOM، کسری خالص و Pegging","فقط نیاز ناخالص"],
-    ["ظرفیت‌سنجی CRP","بارگذاری مراکز، محدودیت و تقویم","پایه تقویم منابع"],
-    ["زمان‌بندی پیشرفته APS","گانت، قیود، گلوگاه و بهینه‌سازی","در دست توسعه"],
-    ["دستورات تولید","صدور، آزادسازی و اختتام ساخت","در دست توسعه"],
-    ["کنترل نیمه‌ساخته","عملیات چندمرحله‌ای و جریان WIP","در دست توسعه"],
-    ["کنترل مونتاژ نهایی","برنامه خطوط و تأیید مونتاژ","در دست توسعه"],
-    ["مواد پای خط","تخصیص، مصرف و برگشت در عملیات تولید","در دست توسعه"],
-    ["تحقق برنامه تولید","انحراف برنامه، دلایل و اقدامات","در دست توسعه"],
-    ["کنترل کیفیت تولید","قرنطینه، ضایعات و دوباره‌کاری","در دست توسعه"],
-    ["توقفات و OEE","دسترس‌پذیری، عملکرد و کیفیت","در دست توسعه"],
-    ["ردیابی ساخت","ردیابی بچ، عملیات و محصول","در دست توسعه"],
-    ["سناریوسازی تولید","What-if و شبیه‌سازی محدودیت‌ها","در دست توسعه"],
-    ["تحلیل هزینه و بهره‌وری","هزینه تبدیل، ضایعات و ظرفیت","در دست توسعه"],
-    ["داشبورد و هوشمندسازی","شاخص‌ها، هشدارها و توصیه‌ها","در دست توسعه"]
+    ["اطلاعات پایه، BOM و Routing","ساختار مهندسی نسخه‌دار و تغییرات ECO","قابل آزمایش؛ UAT باز","/app.html"],
+    ["تقاضا و پیش‌بینی","تقاضای داخلی و ارزیابی دقت ماهانه","قابل آزمایش؛ UAT باز","/planning-advanced.html"],
+    ["برنامه‌ریزی کلان S&OP","سناریوهای تراز تقاضا و ظرفیت","قابل آزمایش؛ UAT باز","/planning-advanced.html"],
+    ["برنامه اصلی تولید MPS","برنامه مصوب و بازنگری کنترل‌شده","قابل آزمایش؛ UAT باز","/planning.html"],
+    ["نیازسنجی مواد MRP","پیشنهاد خالص چندسطحی و منشأ فرضیات","قابل آزمایش؛ UAT باز","/planning.html"],
+    ["ظرفیت‌سنجی CRP","ظرفیت روزانه، شیفت شب و گلوگاه","قابل آزمایش؛ UAT باز","/planning.html"],
+    ["زمان‌بندی APS","جدول محدود منابع و گانت با هشدار","قابل آزمایش؛ UAT باز","/planning-advanced.html"],
+    ["مدیریت دستورات ساخت","آزادسازی، تعلیق، پیگیری و تاریخچه","قابل آزمایش؛ UAT باز","/execution.html"],
+    ["جریان نیمه‌ساخته و WIP","تأیید عملیات، ضایعات و انتقال بچ","قابل آزمایش؛ UAT باز","/execution.html"],
+    ["مونتاژ نهایی و EOL","کنترل پایان خط و منشأ بچ مونتاژ","قابل آزمایش؛ UAT باز","/control-plan.html"],
+    ["مصرف مواد پای خط","گزارش محلی مصرف، مغایرت و اصلاح","قابل آزمایش؛ UAT باز","/execution.html"],
+    ["انحراف و CAPA","علت مرجع و اثربخشی مستقل اقدام","قابل آزمایش؛ UAT باز","/production-deviations.html"],
+    ["کنترل کیفیت و SPC","کنترل پلن، اندازه‌گیری و قرنطینه","قابل آزمایش؛ UAT باز","/control-plan.html"],
+    ["توقفات و OEE","توقف زمان‌دار و تطبیق شاخص‌ها","قابل آزمایش؛ UAT باز","/execution.html"],
+    ["شجره بچ و سریال","ردیابی، دامنه اثر و فراخوان محدود","قابل آزمایش؛ UAT باز","/factory-recall.html"],
+    ["What-if و سناریوها","سنجش فرضیات بدون تغییر برنامه مصوب","قابل آزمایش؛ UAT باز","/planning-advanced.html"],
+    ["هزینه تبدیل","نرخ داخلی و مغایرت هزینه واقعی/استاندارد","قابل آزمایش؛ UAT باز","/planning-advanced.html"],
+    ["داشبورد و شاخص‌ها","پایش منابع داخلی و هشدارهای کارخانه","قابل آزمایش؛ UAT باز","/factory-release-readiness.html"]
   ];
   const state={items:[],centers:[],routings:[],shifts:[],plans:[]};
   const $=sel=>document.querySelector(sel);
@@ -124,12 +125,14 @@
   }
   function start(){
     const grid=$("#module-grid");
-    modules.forEach(([title,description,status],i)=>{
-      const card=document.createElement("div");card.className="module-card";
+    modules.forEach(([title,description,status,page],i)=>{
+      const card=document.createElement("article");card.className="module-card";
       const h=document.createElement("b");h.textContent=`${String(i+1).padStart(2,"0")} · ${title}`;
       const p=document.createElement("span");p.textContent=description;
       const badge=document.createElement("span");badge.className="tag";badge.textContent=status;
-      card.append(h,p,document.createElement("br"),badge);grid.append(card);
+      const link=document.createElement("a");link.href=page;
+      link.className="factory-module-link";link.textContent="ورود به فرم آزمایشی";
+      card.append(h,p,document.createElement("br"),badge,link);grid.append(card);
     });
     $$("#primary-nav button").forEach(b=>b.addEventListener("click",()=>{
       const page=b.dataset.page;
