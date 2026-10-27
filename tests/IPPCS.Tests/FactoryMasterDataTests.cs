@@ -25,6 +25,9 @@ public sealed class FactoryMasterDataTests
         Assert.True(FactoryMasterData.ValidLabel("سرپرست شیفت"));
         Assert.False(FactoryMasterData.ValidLabel(" "));
         Assert.False(FactoryMasterData.ValidLabel(new string('x',101)));
+        Assert.False(FactoryMasterData.ValidLabel("Invalid|Delimiter"));
+        Assert.False(FactoryMasterData.ValidLabel("Invalid\nLine"));
+        Assert.False(FactoryMasterData.ValidLabel("Invalid\rLine"));
         Assert.True(FactoryMasterData.ValidSort(10000));
         Assert.False(FactoryMasterData.ValidSort(-1));
         Assert.False(FactoryMasterData.ValidSort(10001));
