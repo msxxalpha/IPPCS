@@ -53,9 +53,13 @@ async function reload(){
  select($("#draft-replan-order"),S.orders.filter(x=>x.status===0),x=>x.number+" • "+itemName(x.itemId));
  select($("#slot-order"),S.orders.filter(x=>[1,2].includes(x.status)),
   x=>x.number+" • "+status(x.status));
+ select($("#timed-stop-order"),S.orders.filter(x=>[1,2,3].includes(x.status)),
+  x=>x.number+" • "+status(x.status));
  select($("#clock-order"),S.orders.filter(x=>[1,2,3].includes(x.status)),
   x=>x.number+" • "+status(x.status));
  render();
+ const selected=S.orders.find(x=>x.id===$("#timed-stop-order").value);
+ select($("#timed-stop-operation"),selected?.operations||[],x=>x.sequence+" • "+x.name);
 }
 function render(){
  table("#orders-table",[
@@ -261,6 +265,67 @@ function boot(){
  $("#clock-start").onclick=()=>clockAction("start");
  $("#clock-stop").onclick=()=>clockAction("stop");
  $("#clock-refresh").onclick=()=>refreshClock().catch(ex=>flash(ex.message,true));
+ function timedOperations(){
+  const o=S.orders.find(x=>x.id===$("#timed-stop-order").value);
+  select($("#timed-stop-operation"),o?.operations||[],x=>x.sequence+" • "+x.name);
+ }
+ async function timedHistory(){
+  const id=$("#timed-stop-order").value;
+  if(!id)throw Error("دستور تولید را انتخاب کنید.");
+  const data=await request("/manufacturing-orders/"+id+"/timed-downtime");
+  const order=S.orders.find(x=>x.id===id);
+  table("#timed-stop-history",[
+   ["عملیات",x=>order?.operations.find(o=>o.id===x.operationId)?.name||x.operationId.slice(0,8)],
+   ["مرکز",x=>x.workCenterId.slice(0,8)],
+   ["شروع",x=>clockTime(x.startedUtc)],
+   ["پایان",x=>clockTime(x.stoppedUtc)],
+   ["مدت (دقیقه)",x=>x.stoppedUtc?
+     num((new Date(x.stoppedUtc)-new Date(x.startedUtc))/60000):"باز"],
+   ["علت","reason"],["ثبت‌کننده","recordedBy"]
+  ],data.rows);
+  flash(data.warning);
+ }
+ async function timedAction(action){
+  const id=$("#timed-stop-order").value,op=$("#timed-stop-operation").value;
+  if(!id||!op)throw Error("دستور و عملیات تولید لازم است.");
+  const start=action==="start";
+  const reason=$("#timed-stop-reason").value.trim();
+  if(start&&!reason)throw Error("علت توقف زمان‌دار اجباری است.");
+  const path="/manufacturing-orders/"+id+"/timed-downtime"+
+   (start?"/start":"/"+op+"/stop");
+  await request(path,"POST",start?{operationId:op,reason}:undefined);
+  await timedHistory();
+  flash(start?"شروع توقف زمان‌دار ثبت شد؛ ساعت کار تا خاتمه توقف قابل شروع نیست.":
+   "پایان توقف به صورت مستقل و تغییرناپذیر ثبت شد.");
+ }
+ $("#timed-stop-order").onchange=()=>{
+  timedOperations();$("#timed-stop-history").replaceChildren();
+ };
+ for(const action of ["start","end"]){
+  $("#timed-stop-"+action).onclick=()=>timedAction(action==="end"?"stop":"start")
+    .catch(e=>flash(e.message,true));
+ }
+ $("#timed-stop-review").onclick=()=>timedHistory().catch(e=>flash(e.message,true));
+ timedOperations();
+ $("#oee-reconciliation-review").onclick=async()=>{
+  try{
+   const date=$("#oee-date").value;
+   if(!date)throw Error("ابتدا تاریخ شمسی گزارش OEE را انتخاب کنید.");
+   const report=await request("/oee/downtime-reconciliation?dateJalali="+encodeURIComponent(date));
+   table("#oee-reconciliation-table",[
+    ["مرکز",x=>S.orders.flatMap(o=>o.operations)
+      .find(op=>op.workCenterId===x.workCenterId)?.name||x.workCenterId.slice(0,8)],
+    ["برنامه (دقیقه)",x=>x.plannedMinutes===null?"نامشخص":num(x.plannedMinutes)],
+    ["ساعت واقعی بسته‌شده",x=>num(x.closedRunningMinutes)],
+    ["توقف دقیق",x=>x.timedStopMinutes===null?"نامشخص":num(x.timedStopMinutes)],
+    ["توقف قدیمی بدون ساعت",x=>num(x.legacyUntimedMinutes)],
+    ["باقی‌مانده بدون طبقه‌بندی",x=>x.unclassifiedMinutes===null?"نامشخص":num(x.unclassifiedMinutes)],
+    ["وضعیت",x=>x.isTimeComparable?"قابل تطبیق زمانی":"نیازمند بررسی: "+x.status],
+    ["توضیحات","warning"]
+   ],report.rows);
+   flash(report.disclaimer);
+  }catch(e){flash(e.message,true);}
+ };
  register("#stop-form",f=>request("/manufacturing-orders/"+fval(f,"orderId")+"/downtime","POST",{
   operationId:fval(f,"operationId"),reason:fval(f,"reason"),durationMinutes:numeric(f,"duration")
  }));
