@@ -34,28 +34,16 @@ public static class FactoryCapacityReservations
         if(!TimeOnly.TryParseExact(textStart,"HH:mm",CultureInfo.InvariantCulture,
                 DateTimeStyles.None,out var from)||
            !TimeOnly.TryParseExact(textEnd,"HH:mm",CultureInfo.InvariantCulture,
-                DateTimeStyles.None,out var until)||until<=from)return false;
+                DateTimeStyles.None,out var until)||until==from)return false;
         start=date.ToDateTime(from);
         end=date.ToDateTime(until);
+        if(until<from)end=end.AddDays(1);
         return true;
     }
     public static bool WithinShift(Guid center,DateTime start,DateTime end,
         IReadOnlyList<WorkShift> shifts)
     {
-        if(start.Date!=end.Date)return false;
-        foreach(var shift in shifts.Where(x=>x.WorkCenterId==center &&
-            x.DayOfWeek==(int)start.DayOfWeek))
-        {
-            if(shift.EndTime<=shift.StartTime||shift.EffectiveCapacityPercent<=0||
-                shift.EffectiveCapacityPercent>100)continue;
-            var shiftStart=shift.StartTime.ToTimeSpan().TotalMinutes;
-            var shiftEnd=shift.EndTime.ToTimeSpan().TotalMinutes;
-            var effective=Math.Floor((decimal)(shiftEnd-shiftStart)*
-                shift.EffectiveCapacityPercent/100m);
-            if(start.TimeOfDay.TotalMinutes>=shiftStart &&
-               end.TimeOfDay.TotalMinutes<=shiftStart+(double)effective)return true;
-        }
-        return false;
+        return FactoryShiftCalendar.Fits(center,start,end,shifts);
     }
     public static string Encode(FactoryCapacityReservation x)
     {
@@ -83,8 +71,8 @@ public static class FactoryCapacityReservations
                    !DateTime.TryParseExact(parts[3],StampFormat,CultureInfo.InvariantCulture,
                        DateTimeStyles.None,out var start)||
                    !DateTime.TryParseExact(parts[4],StampFormat,CultureInfo.InvariantCulture,
-                       DateTimeStyles.None,out var end)||end<=start||start.Date!=end.Date||
-                   active.ContainsKey(id))
+                       DateTimeStyles.None,out var end)||end<=start||
+                   end-start>TimeSpan.FromDays(1)||active.ContainsKey(id))
                     throw new InvalidOperationException("رویداد رزرو ظرفیت نامعتبر یا تکراری است.");
                 active.Add(id,new(id,e.OrderId,op,center,
                     DateTime.SpecifyKind(start,DateTimeKind.Unspecified),
@@ -215,6 +203,8 @@ public static class FactoryCapacityReservations
                         dayJalali=PersianPlanningDates.Format(DateOnly.FromDateTime(x.StartLocal)),
                         startTime=x.StartLocal.ToString("HH:mm",CultureInfo.InvariantCulture),
                         endTime=x.EndLocal.ToString("HH:mm",CultureInfo.InvariantCulture),
+                        endDayJalali=PersianPlanningDates.Format(DateOnly.FromDateTime(x.EndLocal)),
+                        crossesMidnight=x.EndLocal.Date>x.StartLocal.Date,
                         comparison.PlannedMinutes,comparison.ActualMinutes,
                         comparison.DurationVarianceMinutes,comparison.StartVarianceMinutes,
                         actualStartJalali=comparison.ActualFirstStartLocal is null?null:
