@@ -50,6 +50,7 @@ async function reload(){
  select($("#order-item"),S.items.filter(x=>x.type===1||x.type===2),x=>x.code+" • "+x.name);
  $$("[data-order-active]").forEach(el=>select(el,S.orders.filter(x=>x.status===1||x.status===2),x=>x.number+" • "+status(x.status)));
  select($("#history-order"),S.orders,x=>x.number+" • "+status(x.status));
+ select($("#draft-replan-order"),S.orders.filter(x=>x.status===0),x=>x.number+" • "+itemName(x.itemId));
  select($("#slot-order"),S.orders.filter(x=>[1,2].includes(x.status)),
   x=>x.number+" • "+status(x.status));
  select($("#clock-order"),S.orders.filter(x=>[1,2,3].includes(x.status)),
@@ -124,6 +125,59 @@ function boot(){
   goodQuantity:numeric(f,"good"),scrapQuantity:numeric(f,"scrap"),reworkQuantity:numeric(f,"rework"),
   lotCode:fval(f,"lot")||null,note:fval(f,"note")||null
  }));
+ $("#draft-replan-order").addEventListener("change",()=>{
+  const selected=S.orders.find(x=>x.id===$("#draft-replan-order").value);
+  if(!selected)return;
+  const form=$("#draft-replan-form");
+  form.querySelector('[name="quantity"]').value=selected.plannedQuantity;
+  form.querySelector('[name="start"]').value=selected.plannedStartJalali;
+  form.querySelector('[name="due"]').value=selected.dueOnJalali;
+  $("#release-issues").replaceChildren();
+ });
+ async function releaseCheck(){
+  const id=$("#draft-replan-order").value;
+  if(!id)throw Error("یک دستور پیش‌نویس انتخاب کنید.");
+  const result=await request("/manufacturing-orders/"+id+"/release-check");
+  table("#release-issues",[["کد","code"],["موضوع","description"]],
+   result.issues.length?result.issues:[{code:"آماده",description:"شرایط ثبت‌شده برای آزادسازی مناسب است."}]);
+  flash(result.canRelease?
+   "مسیر ساخت با "+result.operations+" عملیات، BOM و ارتباط MPS بررسی شدند.":
+   "مشکلات آزادسازی را رفع کنید؛ آزادسازی اکنون مجاز نیست.",!result.canRelease);
+ }
+ $("#release-check").onclick=()=>releaseCheck().catch(e=>flash(e.message,true));
+ register("#draft-replan-form",async f=>{
+  const id=fval(f,"orderId");
+  const result=await request("/manufacturing-orders/"+id+"/replan-draft","POST",{
+   plannedQuantity:numeric(f,"quantity"),plannedStartJalali:fval(f,"start"),
+   dueOnJalali:fval(f,"due"),reason:fval(f,"reason")
+  });
+  flash("اصلاح برنامه و شناسه نسخه‌های معتبر ذخیره شد. دستور "+result.number+" هنوز پیش‌نویس است.");
+  await reload();
+  $("#draft-replan-order").value=id;
+  await releaseCheck();
+ });
+ register("#dispatch-form",async f=>{
+  const qs="?asOfJalali="+encodeURIComponent(fval(f,"from"))+
+    "&horizonDays="+encodeURIComponent(numeric(f,"horizon"));
+  const report=await request("/factory-dispatch/board"+qs);
+  table("#dispatch-summary",[["شاخص","name"],["مقدار","count"]],[
+   {name:"دستورات فعال داخل افق",count:report.ordersConsidered},
+   {name:"مراحل بدون مانع ترتیب و کیفیت",count:report.runnableOperations},
+   {name:"مراحل قابل شروع فاقد رزرو",count:report.missingReservationCount}
+  ]);
+  table("#dispatch-table",[
+   ["دستور","orderNumber"],["مرکز",x=>x.workCenterId.slice(0,8)],
+   ["مرحله",x=>x.sequence+" • "+x.operationName],
+   ["موعد",x=>new Date(x.dueOn+"T12:00:00Z").toLocaleDateString("fa-IR-u-ca-persian",{timeZone:"Asia/Tehran"})],
+   ["قابل شروع با گیت کیفیت",x=>x.canStartByRouteAndQuality?"بله":"خیر"],
+   ["قرنطینه باز",x=>x.hasOpenQualityHold?"دارد":"ندارد"],
+   ["رزرو در افق",x=>x.hasBookedMachineSlot?"دارد":"ندارد"],
+   ["ساعت باز",x=>x.hasRunningClock?"دارد":"ندارد"],
+   ["WIP",x=>num(x.workInProgress)],["قرنطینه مرحله",x=>num(x.qualityPending)],
+   ["توضیح","guidance"]
+  ],report.rows);
+  flash(report.disclaimer);
+ });
  const slotForm=$("#slot-form");
  $("#slot-order").addEventListener("change",()=>{
    refreshOperations("slot-form","slot-operation");
