@@ -71,7 +71,7 @@ try{
   Start-Sleep -Seconds 5
  }
  if(-not $migrated){throw "Isolated EF migration failed: inspect $logs"}
- $webArgs=@('run','--project',$project,'--no-build','-c','Release','--no-launch-profile','--urls',"http://127.0.0.1:$WebPort")
+ $webArgs=@('run','--project','src/IPPCS.Web/IPPCS.Web.csproj','--no-build','-c','Release','--no-launch-profile','--urls',"http://127.0.0.1:$WebPort")
  $web=Start-Process -FilePath 'dotnet' -PassThru -WorkingDirectory $root -ArgumentList $webArgs -RedirectStandardOutput (Join-Path $logs 'web.log') -RedirectStandardError (Join-Path $logs 'web-errors.log')
  $ready=$false
  for($attempt=1;$attempt -le 30;$attempt++){
