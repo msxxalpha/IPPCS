@@ -19,6 +19,7 @@
   <button class="nav-active" data-page="orders">دستورات ساخت</button>
   <button data-page="confirmations">ثبت عملکرد عملیات</button>
   <button data-page="clock">ساعت واقعی کارکرد مرکز</button>
+  <button data-page="slots">رزرو برنامه‌ای ظرفیت مراکز</button>
   <button data-page="stops">توقفات تولید</button>
   <button data-page="history">تاریخچه دستور تولید</button>
   <button data-page="quality">کنترل کیفیت و WIP</button>
@@ -71,6 +72,20 @@
   </form>
   <div class="callout">هر مرکز کاری در هر لحظه فقط یک عملیات زمان‌دار باز دارد. برای ثبت خروجی تولید، ابتدا ساعت باز را خاتمه دهید. ثبت ساعت واقعی جایگزین تأیید مقدار تولید یا ثبت توقف کیفی نیست.</div>
   <div class="panel"><h3>بازه‌های واقعی کارکرد عملیات منتخب</h3><div id="clock-history"></div></div>
+ </section>
+ <section class="page" id="slots" hidden>
+  <div class="section-title"><h3>رزرو زمان اجرای دستور در مرکز کاری</h3><small>برنامه‌ریز یک بازه مشخص داخل شیفت مؤثر را برای عملیات دستور ساخت رزرو می‌کند. رزروها با شروع/پایان واقعی مقایسه می‌شوند.</small></div>
+  <form class="panel form-grid" id="slot-form">
+    <label>دستور تولید<select name="orderId" id="slot-order" required></select></label>
+    <label>عملیات ساخت<select name="operationId" id="slot-operation" required></select></label>
+    <label>تاریخ رزرو<span class="jalali-field"><input name="date" data-jalali-date required placeholder="تاریخ شمسی"><button data-jalali-trigger type="button" class="date-trigger">▣</button></span></label>
+    <label>ساعت شروع<input name="startTime" type="time" step="60" required value="08:00"></label>
+    <label>ساعت پایان<input name="endTime" type="time" step="60" required value="09:00"></label>
+    <label>توضیحات<input name="note" maxlength="130" placeholder="اختیاری"></label>
+    <div class="form-actions"><button class="btn-main" type="submit">ثبت رزرو زمان</button><button id="slot-refresh" type="button" class="btn-outline">بازخوانی رزروها</button></div>
+  </form>
+  <div class="callout">رزرو فقط توسط برنامه‌ریز یا مدیر سامانه انجام می‌شود. بازه‌های یک مرکز کاری نباید همپوشانی داشته باشند. رزروهای لغوشده در تاریخچه ثبت باقی می‌مانند؛ ساعت واقعی را اپراتور جداگانه ثبت می‌کند. این بخش هیچ حواله یا گردش موجودی انبار ایجاد نمی‌کند.</div>
+  <div class="panel"><h3>رزروهای فعال و مقایسه برنامه با اجرای واقعی</h3><div id="slot-table"></div></div>
  </section>
  <section class="page" id="stops" hidden>
   <div class="section-title"><h3>مدیریت توقفات تولید</h3><small>توقفات عملیاتی ثبت می‌شوند؛ OEE واقعی هنوز محاسبه نمی‌شود.</small></div>
