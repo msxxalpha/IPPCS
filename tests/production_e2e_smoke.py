@@ -424,6 +424,28 @@ assert clock_final["recordedOperationClockSessions"] >= 1, clock_final
 assert clock_final["runningOperationClockSessions"] == 0, clock_final
 print("PASS: actual operation start-stop clock, duplicate prevention, immutable journal and capacity preview.")
 
+# Stage 9.8: SQL reservation and cancellation with conflicts.
+next_day = subprocess.check_output(["node", "-e",
+ "let p=new Intl.DateTimeFormat('en-US-u-ca-persian-nu-latn',{timeZone:'Asia/Tehran',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date(Date.now()+86400000)); console.log([p.find(x=>x.type==='year').value,p.find(x=>x.type==='month').value,p.find(x=>x.type==='day').value].join('/'))"],text=True).strip()
+request("/api/v1/work-shifts","POST",{"workCenterId":center["id"],
+ "dayOfWeek":(day_of_week+1)%7,"startTime":"08:00","endTime":"16:00",
+ "effectiveCapacityPercent":100},201)
+slot_path=f"/api/v1/manufacturing-orders/{clock_order_id}/capacity-reservations"
+reservation={"operationId":clock_op_id,"dateJalali":next_day,
+ "startTime":"08:00","endTime":"09:00"}
+booked=request(slot_path,"POST",reservation,201)
+assert booked["id"]
+check=request(slot_path)["rows"]
+assert len(check)==1 and check[0]["plannedMinutes"]==60
+assert check[0]["actualMinutes"] is not None
+request(slot_path,"POST",reservation,409)
+cancel_path=slot_path+"/"+booked["id"]+"/cancel"
+assert request(cancel_path,"POST")["cancelled"]
+request(cancel_path,"POST",status=409)
+assert not request(slot_path)["rows"]
+print("PASS: SQL machine reservations, replay, overlap blocking and cancellation.")
+
+
 
 
 
