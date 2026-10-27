@@ -110,7 +110,7 @@ public static class FactoryDeviationGovernance
                     Username=ctx.User.Identity?.Name??"unknown"};
                 db.ProductionDeviationEvents.Add(eventRow);
                 await db.SaveChangesAsync(ct);await tx.CommitAsync(ct);
-                return Results.Ok(new{id,item.Status,escalationCount=1+item.Events.Count(x=>
+                return Results.Ok(new{id,item.Status,escalationCount=item.Events.Count(x=>
                     x.Details.StartsWith(EscalationPrefix,StringComparison.Ordinal))});
             }).RequireAuthorization("IpPlanningWrite");
         api.MapPost("/production-deviations/{id:guid}/revise-action",
