@@ -137,6 +137,15 @@ function boot(){
     ["کسری خالص",r=>fmt(r.netShortage)],["مقدار پیشنهادی",r=>fmt(r.suggestedQuantity)],
     ["زمان آزادسازی",r=>r.suggestedReleaseJalali||"—"],["موجودی پایان",r=>fmt(r.closingAvailable)]
    ],result.rows);
+   table("#mrp-suggestions",[
+     ["قطعه",x=>name(x.itemId)],
+     ["تاریخ نیاز","neededOnJalali"],
+     ["کسری خالص",x=>fmt(x.netShortage)],
+     ["دریافت پیشنهادی",x=>fmt(x.suggestedReceipt)],
+     ["مازاد ناشی از بچ",x=>fmt(x.lotSizingSurplus)],
+     ["تاریخ آزادسازی",x=>x.releaseJalali||"—"],
+     ["هشدار",x=>x.warning||"—"]
+   ],result.explanations||[]);
    alertText("نتیجه MRP با تاریخچه ورودی/خروجی ذخیره شد.");
   }catch(e){alertText(e.message,true);}finally{btn.disabled=false;}
  };
