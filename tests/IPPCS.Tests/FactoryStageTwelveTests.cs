@@ -32,7 +32,7 @@ public sealed class FactoryStageTwelveTests
     [Fact]
     public void Trace_missing_root_dangling_edge_and_bad_quantities_fail_closed()
     {
-        var a=Guid.NewGuid(),b=Guid.NewGuid();
+        var a=Guid.NewGuid();var b=Guid.NewGuid();
         var nodes=new[]{new FactoryTraceNode(a,Guid.NewGuid(),"WO-A",
             Guid.NewGuid(),Guid.NewGuid(),10,"A",2,DateTime.UtcNow)};
         var edges=new[]{new FactoryTraceEdge(Guid.NewGuid(),a,b,1,Guid.NewGuid(),DateTime.UtcNow)};
