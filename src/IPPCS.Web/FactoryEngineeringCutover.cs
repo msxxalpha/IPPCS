@@ -126,8 +126,16 @@ public static class FactoryEngineeringCutover
                 try{await FactoryRevisionGovernance.LockRevisionItem(db,kind,owner.Value,ct);}
                 catch(SqlException){return Results.Conflict(new{message="قفل گراف مهندسی یا مسیر ساخت در دسترس نیست."});}
 
-                // An ECO reference identifies one immutable engineering decision.
-                // Reject re-use even across BOM / Routing to prevent audit ambiguity.
+                // Serialize all ECO-reference decisions globally, not only per item.
+                // The per-item revision lock above cannot prevent simultaneous
+                // cutovers of different products reusing the same reference.
+                var referenceLock=await db.Database.SqlQueryRaw<int>(
+                    "DECLARE @result int; EXEC @result = sp_getapplock " +
+                    "@Resource = N'IPPCS:ECO:ApprovalReferences', " +
+                    "@LockMode = N'Exclusive', @LockOwner = N'Transaction', " +
+                    "@LockTimeout = 10000; SELECT @result AS Value").SingleAsync(ct);
+                if(referenceLock<0)
+                    return Results.Conflict(new{message="قفل یکتایی مرجع ECO در دسترس نیست."});
                 var duplicateReference=await db.FactoryEngineeringCutoverEvents.AsNoTracking()
                     .AnyAsync(x=>x.ApprovalReference==input.ApprovalReference.Trim(),ct);
                 if(duplicateReference)
