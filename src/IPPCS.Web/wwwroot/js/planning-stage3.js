@@ -17,10 +17,7 @@ async function call(path,method="GET",body){
  return data;
 }
 function options(el,rows,format){
- const old=el.value;el.replaceChildren();
- const blank=document.createElement("option");blank.value="";blank.textContent="انتخاب کنید";el.append(blank);
- for(const row of rows){const option=document.createElement("option");option.value=row.id??row.itemId;option.textContent=format(row);el.append(option);}
- if([...el.options].some(o=>o.value===old))el.value=old;
+ IPPCSChoices.fill(el,rows,{value:x=>x.id??x.itemId,label:format});
 }
 function table(target,columns,rows,action){
  const root=$(target);root.replaceChildren();
