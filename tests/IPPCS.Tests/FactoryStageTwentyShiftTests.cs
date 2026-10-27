@@ -70,6 +70,30 @@ public sealed class FactoryStageTwentyShiftTests
         Assert.True(second.StartsAt>=first.FinishesAt);
     }
     [Fact]
+    public void APS_never_double_books_center_even_if_conflicting_weekly_shifts_are_supplied()
+    {
+        var center=Guid.NewGuid();var date=new DateOnly(2026,10,25);
+        var firstId=Guid.NewGuid();var secondId=Guid.NewGuid();
+        var lateSunday=new ApsTask(firstId,Guid.NewGuid(),date,1,Guid.NewGuid(),
+            10,center,300,"night production");
+        var earlyMonday=new ApsTask(secondId,Guid.NewGuid(),date.AddDays(1),1,
+            Guid.NewGuid(),10,center,60,"early production");
+        var overlappingShift=new WorkShift{WorkCenterId=center,DayOfWeek=1,
+            StartTime=new TimeOnly(1,0),EndTime=new TimeOnly(4,0),
+            EffectiveCapacityPercent=100};
+        var report=FiniteFactoryScheduler.Schedule(
+            [lateSunday,earlyMonday],[Night(center,0,22,6),overlappingShift],date,3);
+        Assert.Empty(report.Unscheduled);
+        Assert.Equal(2,report.Allocations.Count);
+        var first=report.Allocations.Single(x=>x.DemandLineId==firstId);
+        var second=report.Allocations.Single(x=>x.DemandLineId==secondId);
+        Assert.Equal(date.AddDays(1),first.FinishDate);
+        Assert.Equal(new TimeOnly(3,0),first.FinishesAt);
+        Assert.Equal(date.AddDays(1),second.StartDate);
+        Assert.Equal(new TimeOnly(3,0),second.StartsAt);
+    }
+
+    [Fact]
     public void CRP_includes_previous_night_capacity_in_next_local_day()
     {
         var center=Guid.NewGuid();var item=Guid.NewGuid();
