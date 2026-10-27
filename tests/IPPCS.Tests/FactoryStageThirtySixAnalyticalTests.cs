@@ -25,12 +25,12 @@ public sealed class FactoryStageThirtySixAnalyticalTests
     public void Real_example_data_changes_only_test_readiness_and_recorded_evidence()
     {
         var gates=FactoryAnalyticalVerification.Build(
-            confirmedDemand:3,confirmedMonths:2,sopRuns:1,approvedMps:1,
+            confirmedDemand:4,confirmedMonths:4,sopRuns:1,approvedMps:1,
             approvedBom:1,balances:2,mrpRuns:1,centers:1,routings:1,shifts:2,
             apsRuns:1,oeePlans:1,clockStops:1,closedTimedStops:1,costRates:1,
             frozenRates:2,orders:1);
         Assert.All(gates,x=>Assert.True(x.CanRun));
-        Assert.Equal(new[]{6,16},gates.Where(x=>!x.HasRecordedEvidence)
+        Assert.Equal(new[]{2,6,16},gates.Where(x=>!x.HasRecordedEvidence)
             .Select(x=>x.Number));
         Assert.All(gates.Where(x=>x.HasRecordedEvidence),
             x=>Assert.Equal("EvidenceAvailable",x.State));
@@ -54,5 +54,18 @@ public sealed class FactoryStageThirtySixAnalyticalTests
         Assert.False(cost.CanRun);
         Assert.False(cost.HasRecordedEvidence);
         Assert.Contains(cost.Checks,x=>x.Key=="frozen"&&!x.Ready);
+    }
+    [Fact]
+    public void Forecast_requires_four_recorded_months_for_two_month_backtest()
+    {
+        var gates=FactoryAnalyticalVerification.Build(
+            confirmedDemand:2,confirmedMonths:2,sopRuns:2,approvedMps:1,
+            approvedBom:1,balances:1,mrpRuns:2,centers:1,routings:1,shifts:1,
+            apsRuns:2,oeePlans:1,clockStops:1,closedTimedStops:2,costRates:1,
+            frozenRates:1,orders:3);
+        var forecast=gates.Single(x=>x.Number==2);
+        Assert.False(forecast.CanRun);
+        Assert.False(forecast.HasRecordedEvidence);
+        Assert.Contains(forecast.Checks,x=>x.Key=="months"&&x.Minimum==4&&!x.Ready);
     }
 }
