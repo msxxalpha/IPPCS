@@ -375,12 +375,13 @@ function register(){
   const d=await api("/factory-kpis/production-alerts?asOfJalali="+
     encodeURIComponent(formval(f,"date"))+"&daysAhead="+number(f,"days"));
   table("#production-alert-totals",[["وضعیت","name"],["تعداد","count"]],[
-    {name:"بحرانی؛ قرنطینه باز",count:format(d.criticalCount)},
-    {name:"مهم؛ دیرکرد",count:format(d.highCount)},
+    {name:"بحرانی؛ قرنطینه یا مدرک نامعتبر",count:format(d.criticalCount)},
+    {name:"مهم؛ دیرکرد یا اثربخشی تأییدنشده",count:format(d.highCount)},
     {name:"نزدیک به سررسید یا بدون اقدام",count:format(d.mediumCount)}
   ]);
   const kinds={QualityHold:"قرنطینه باز",OrderOverdue:"دستور معوق",
-    OrderDueSoon:"سررسید نزدیک",DeviationAction:"اقدام اصلاحی"};
+    OrderDueSoon:"سررسید نزدیک",DeviationAction:"اقدام اصلاحی",
+    DeviationEffectivenessPending:"تأیید اثربخشی معوق"};
   const levels={Critical:"بحرانی",High:"مهم",Medium:"پیگیری"};
   table("#production-alert-table",[
     ["نوع",x=>kinds[x.type]||x.type],
@@ -391,7 +392,7 @@ function register(){
     ["شرح","message"]
   ],d.alerts,{
    label:"پیگیری پرونده",
-   disabled:x=>x.type!=="DeviationAction",
+   disabled:x=>!["DeviationAction","DeviationEffectivenessPending"].includes(x.type),
    run:x=>{window.location.assign("/production-deviations.html?case="+
      encodeURIComponent(x.referenceId));}
   });
