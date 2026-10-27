@@ -149,6 +149,51 @@ function boot(){
    alertText("نتیجه MRP با تاریخچه ورودی/خروجی ذخیره شد.");
   }catch(e){alertText(e.message,true);}finally{btn.disabled=false;}
  };
+ $("#net-pegging-run").onclick=async()=>{
+  const id=$("#calculate-mps").value;
+  if(!id){alertText("نسخه مصوب MPS را انتخاب کنید.",true);return;}
+  const button=$("#net-pegging-run");button.disabled=true;
+  try{
+   const result=await call("/mrp/"+id+"/net-demand-pegging");
+   table("#net-pegging-lots",[
+    ["بچ پیشنهادی","lotKey"],
+    ["قطعه",x=>name(x.itemId)],
+    ["نوع پیشنهاد",x=>x.proposalType==="Manufacturing"?"ساخت داخلی":"تأمین پیشنهادی (بدون عملیات خرید)"],
+    ["تاریخ شروع","releaseOnJalali"],
+    ["تاریخ تکمیل","receiptOnJalali"],
+    ["بچ کل",x=>fmt(x.quantity)],
+    ["کسری خالص",x=>fmt(x.netShortage)],
+    ["مازاد اندازه بچ",x=>fmt(x.lotSizingSurplus)],
+    ["مانده تخصیص نیافته",x=>fmt(x.unallocatedQuantity)],
+    ["هشدار",x=>x.releaseBeforeBaseline?"آزادسازی قبل از مبنا":"—"]
+   ],result.plannedLots);
+   table("#net-pegging-demands",[
+    ["شناسه نیاز","demandKey"],
+    ["قطعه",x=>name(x.itemId)],
+    ["تاریخ نیاز","neededOnJalali"],
+    ["تعداد",x=>fmt(x.quantity)],
+    ["ردیف اصلی MPS",x=>x.mpsLineId?.slice(0,8)||"—"],
+    ["بچ بالادست",x=>x.parentLotKey||"—"],
+    ["نسخه BOM",x=>x.bomRevisionId?.slice(0,8)||"—"]
+   ],result.demands);
+   table("#net-pegging-allocations",[
+    ["شناسه نیاز","demandKey"],
+    ["کالا",x=>name(x.itemId)],
+    ["تاریخ نیاز","neededOnJalali"],
+    ["نوع منشأ",x=>({
+      PlanningOpeningBalance:"موجودی مبنای داخلی",
+      ExpectedReceipt:"دریافت فرضی ثبت‌شده",
+      ProposedManufacturingReceipt:"بچ پیشنهادی ساخت",
+      ProposedExternalReceipt:"کسری با تأمین پیشنهادی"
+    })[x.sourceType]||x.sourceType],
+    ["شناسه منشأ","sourceKey"],
+    ["تاریخ دسترسی","availableOnJalali"],
+    ["مقدار",x=>fmt(x.quantity)],
+    ["وضعیت",x=>x.isFirm?"فرض برنامه‌ریزی":"پیشنهاد محاسباتی"]
+   ],result.allocations);
+   alertText(result.warning);
+  }catch(e){alertText(e.message,true);}finally{button.disabled=false;}
+ };
  $("#phased-pegging-run").onclick=async()=>{
   const id=$("#calculate-mps").value;
   if(!id){alertText("نسخه مصوب MPS را انتخاب کنید.",true);return;}
