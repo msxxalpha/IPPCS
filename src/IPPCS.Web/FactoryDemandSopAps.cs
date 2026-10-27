@@ -359,6 +359,19 @@ public static class FactoryDemandApsEndpoints
                 if(unavailable.Any(x=>!validCenterIds.Contains(x.WorkCenterId)))
                     return Results.BadRequest(new{message="مرکز کاری انتخاب‌شده برای روز عدم‌دسترسی وجود ندارد."});
             }
+            var bomRevisions=await db.ManufacturingBomRevisions.AsNoTracking()
+                .Include(x=>x.Lines).Where(x=>x.State==ManufacturingRevisionState.Approved).ToListAsync(ct);
+            var balances=await db.PlanningBalances.AsNoTracking().ToListAsync(ct);
+            var expectedReceipts=await db.PlanningExpectedReceipts.AsNoTracking().ToListAsync(ct);
+            var itemTypes=await db.Items.AsNoTracking().ToDictionaryAsync(x=>x.Id,x=>x.Type,ct);
+            var material=MaterialConstrainedPlanning.Check(
+                plan.Lines,bomRevisions,balances,expectedReceipts,itemTypes,start);
+            var failedMaterial=material.Where(x=>!x.Feasible).ToList();
+            if(failedMaterial.Count>0)
+                return Results.UnprocessableEntity(new{
+                    message="برنامه از نظر تامین مواد اولیه قابل اجرا نیست. ابتدا موجودی‌ها و دریافت‌های برنامه‌ای را بازنگری کنید.",
+                    materialWarnings=failedMaterial
+                });
             var tasks=new List<ApsTask>();
             var errors=new List<string>();
             foreach(var line in plan.Lines.OrderBy(x=>x.NeededOn).ThenBy(x=>x.ItemId))
@@ -381,7 +394,7 @@ public static class FactoryDemandApsEndpoints
             catch(ArgumentException ex){return Results.BadRequest(new{message=ex.Message});}
             var snapshot=new FactoryApsRun{MpsVersionId=plan.Id,StartOn=start,HorizonDays=input.HorizonDays,
                 InputJson=JsonSerializer.Serialize(new{mps=plan.Lines.Select(x=>new{x.ItemId,x.Quantity,x.NeededOn}),
-                    tasks,shifts=shifts.Select(x=>new{x.WorkCenterId,x.DayOfWeek,x.StartTime,x.EndTime,
+                    tasks,materialFeasibility=material,shifts=shifts.Select(x=>new{x.WorkCenterId,x.DayOfWeek,x.StartTime,x.EndTime,
                         x.EffectiveCapacityPercent}),input.CapacityMultiplier,unavailableDays=unavailable.Select(x=>new{x.WorkCenterId,x.Date})}),
                 OutputJson=JsonSerializer.Serialize(result)};
             db.FactoryApsRuns.Add(snapshot);await db.SaveChangesAsync(ct);
