@@ -21,10 +21,14 @@ async function request(path,method="GET",data){
  return value;
 }
 function select(el,values,display){
- const old=el.value;el.replaceChildren();
- const zero=document.createElement("option");zero.value="";zero.textContent="انتخاب کنید";el.append(zero);
- values.forEach(v=>{const opt=document.createElement("option");opt.value=v.id;opt.textContent=display(v);el.append(opt);});
- if([...el.options].some(x=>x.value===old))el.value=old;
+ IPPCSChoices.fill(el,values,{value:"id",label:display});
+}
+async function loadStopReasons(){
+ const reasons=await request("/factory-master-options?kind=DowntimeReason");
+ for(const el of [$("#stop-reason-code"),$("#timed-stop-reason-code")])
+  IPPCSChoices.fill(el,reasons,{value:"code",label:x=>x.code+" — "+x.label,
+   placeholder:"دلیل توقف را انتخاب کنید"});
+ if(!reasons.length)flash("دلیل توقف تعریف نشده است؛ مدیر سامانه باید اطلاعات پایه را تکمیل کند.",true);
 }
 function table(target,cols,rows,actions=[]){
  const root=$(target);root.replaceChildren();
@@ -309,10 +313,11 @@ async function boot(){
   if(!id||!op)throw Error("دستور و عملیات تولید لازم است.");
   const start=action==="start";
   const reason=$("#timed-stop-reason").value.trim();
-  if(start&&!reason)throw Error("علت توقف زمان‌دار اجباری است.");
+  const reasonCode=$("#timed-stop-reason-code").value;
+  if(start&&!reasonCode)throw Error("دلیل توقف زمان‌دار را از اطلاعات پایه انتخاب کنید.");
   const path="/manufacturing-orders/"+id+"/timed-downtime"+
    (start?"/start":"/"+op+"/stop");
-  await request(path,"POST",start?{operationId:op,reason}:undefined);
+  await request(path,"POST",start?{operationId:op,reason:reason||"—",reasonCode}:undefined);
   await timedHistory();
   flash(start?"شروع توقف زمان‌دار ثبت شد؛ ساعت کار تا خاتمه توقف قابل شروع نیست.":
    "پایان توقف به صورت مستقل و تغییرناپذیر ثبت شد.");
@@ -346,7 +351,8 @@ async function boot(){
   }catch(e){flash(e.message,true);}
  };
  register("#stop-form",f=>request("/manufacturing-orders/"+fval(f,"orderId")+"/downtime","POST",{
-  operationId:fval(f,"operationId"),reason:fval(f,"reason"),durationMinutes:numeric(f,"duration")
+  operationId:fval(f,"operationId"),reason:fval(f,"reason")||"—",
+  reasonCode:fval(f,"reasonCode"),durationMinutes:numeric(f,"duration")
  }));
  $("#show-history").onclick=async()=>{
   const id=$("#history-order").value;if(!id){flash("یک دستور انتخاب کنید.",true);return;}
@@ -362,6 +368,7 @@ async function boot(){
    ],data.downtime);
   }catch(e){flash(e.message,true);}
  };
+ loadStopReasons().catch(e=>flash("اطلاعات پایه توقفات بارگذاری نشد: "+e.message,true));
  reload().catch(e=>flash("داده‌های توسعه بارگذاری نشد: "+e.message,true));
 }
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",boot);else boot();
