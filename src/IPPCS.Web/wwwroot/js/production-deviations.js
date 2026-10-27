@@ -6,7 +6,19 @@ function fill(el,arr,view){let old=el.value;el.replaceChildren();let empty=docum
 function refreshLine(){const v=mps.find(x=>x.id===$("#version").value);lines=v?.lines||[];fill($("#line"),lines,x=>x.itemId.slice(0,8)+" • "+x.neededOnJalali+" • "+x.quantity);refreshOrders();}
 function refreshOrders(){const l=lines.find(x=>x.id===$("#line").value);fill($("#order"),orders.filter(x=>!l||x.itemId===l.itemId).filter(x=>x.status!==5),x=>x.number);}
 async function render(){deviations=await api("/production-deviations");fill($("#action-case"),deviations.filter(x=>x.status!==2),x=>x.description.slice(0,65));fill($("#close-case"),deviations.filter(x=>x.status===1),x=>x.description.slice(0,65));fill($("#revise-case"),deviations.filter(x=>x.status===1),x=>x.description.slice(0,65));fill($("#escalate-case"),deviations.filter(x=>x.status!==2),x=>x.description.slice(0,65));fill($("#effectiveness-case"),deviations.filter(x=>x.status===2&&!x.effectiveness?.independentlyVerified),x=>x.description.slice(0,65));let host=$("#deviation-table");host.replaceChildren();const div=document.createElement("div");div.className="table-wrap";const t=document.createElement("table");let th=document.createElement("tr");["نوع","شرح","وضعیت","اثربخشی","علت","اقدام","مسئول","موعد شمسی","تشدیدها","سوابق"].forEach(n=>{let c=document.createElement("th");c.textContent=n;th.append(c);});let head=document.createElement("thead");head.append(th);t.append(head);let body=document.createElement("tbody");deviations.forEach(x=>{let tr=document.createElement("tr");[x.category,x.description,["باز","دارای اقدام","مختومه"][x.status],(x.effectiveness?.state==="Verified"?"تأیید مستقل":x.effectiveness?.state==="AwaitingIndependentReview"?"منتظر بازبینی":x.effectiveness?.state==="ReopenedForCorrection"?"رد اثربخشی؛ اصلاح مجدد":x.effectiveness?.state==="InvalidEvidence"?"شواهد نامعتبر":"—"),x.rootCause||"—",x.correctiveAction||"—",x.responsible||"—",x.actionDueJalali||"—",x.events.filter(e=>e.details.startsWith("ESCALATED:")).length,x.events.length].forEach(v=>{let td=document.createElement("td");td.textContent=String(v);tr.append(td);});body.append(tr);});t.append(body);div.append(t);host.append(div);}
-async function boot(){[mps,orders]=await Promise.all([api("/mps"),api("/manufacturing-orders")]);fill($("#version"),mps.filter(x=>x.state===1),x=>x.code);$("#version").onchange=refreshLine;$("#line").onchange=refreshOrders;
+async function boot(){
+const profileResponse=await IPPCSSecurity.secureFetch("/auth/me");
+if(profileResponse.status===401){IPPCSSecurity.goLogin();return;}
+if(!profileResponse.ok)throw Error("دریافت مجوز کاربر ممکن نیست.");
+const current=await profileResponse.json();
+const roles=Array.isArray(current.roles)?current.roles:[];
+const planner=roles.includes("Administrator")||roles.includes("Planner");
+const quality=roles.includes("Administrator")||roles.includes("QualityInspector");
+for(const selector of ["#create","#action","#revise","#escalate","#close"]){
+ const form=$(selector);if(form&&!planner)form.hidden=true;
+}
+const qaForm=$("#effectiveness-form");if(qaForm&&!quality)qaForm.hidden=true;
+[mps,orders]=await Promise.all([api("/mps"),api("/manufacturing-orders")]);fill($("#version"),mps.filter(x=>x.state===1),x=>x.code);$("#version").onchange=refreshLine;$("#line").onchange=refreshOrders;
 $("#create").onsubmit=async ev=>{ev.preventDefault();try{await api("/production-deviations","POST",{mpsLineId:$("#line").value,orderId:$("#order").value||null,category:Number($("#category").value),description:$("#description").value});notice("انحراف ثبت شد.");await render();}catch(e){notice(e.message,true);}};
 $("#action").onsubmit=async ev=>{ev.preventDefault();try{await api("/production-deviations/"+$("#action-case").value+"/action","POST",{rootCause:$("#cause").value,correctiveAction:$("#corrective").value,responsible:$("#responsible").value,actionDueJalali:$("#action-date").value});notice("اقدام اصلاحی ثبت شد.");await render();}catch(e){notice(e.message,true);}};
 function prefillRevision(){
