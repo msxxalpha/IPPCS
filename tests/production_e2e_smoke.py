@@ -332,6 +332,30 @@ updated_report = request(f"/api/v1/production-pegging/mps/{mps['id']}")
 assert updated_report["rows"][0]["assignedQuantity"] == 10
 assert updated_report["rows"][0]["unassignedQuantity"] == 0
 print("PASS: approved MPS quantity links to work orders; duplicate allocations blocked.")
+# Audited production deviation workflow tied to the approved MPS line and pegged order.
+deviation = request("/api/v1/production-deviations", "POST", {
+    "mpsLineId": peg_line["id"], "orderId": peg_order["id"],
+    "category": 1, "description": "CI due-date plan variance test"
+}, 201)
+deviation_id = deviation["id"]
+assert deviation["status"] == 0
+request(f"/api/v1/production-deviations/{deviation_id}/close", "POST", {
+    "verification": "Should be refused until action assigned"
+}, 409)
+assigned = request(f"/api/v1/production-deviations/{deviation_id}/action", "POST", {
+    "rootCause": "Equipment maintenance",
+    "correctiveAction": "Reschedule constrained center",
+    "responsible": "IPPCS CI planning operator",
+    "actionDueJalali": JALALI_NOW
+})
+assert assigned["status"] == 1
+closed = request(f"/api/v1/production-deviations/{deviation_id}/close", "POST", {
+    "verification": "Corrective action verified by CI"
+})
+assert closed["status"] == 2
+deviations = request(f"/api/v1/production-deviations?mpsLineId={peg_line['id']}")
+assert any(x["id"] == deviation_id and len(x["events"]) == 3 for x in deviations)
+print("PASS: approved MPS deviation root cause, assigned action, auditable closure and state validation.")
 print("PASS: isolated local operator account, permission boundary, material reporting, "
       "password change, administrator lock/unlock.")
 print("PASS: SQL demand, S&OP, approved MPS, finite APS no overlap, what-if, "
