@@ -59,7 +59,9 @@ async function loadMasters(){
   data.masters[kind]=await api("/factory-master-options?kind="+kind+"&includeInactive=true");
  }
  fillCode($("#category"),active("DeviationCategory"));
- fillCode($("#deviation-category"),data.masters.DeviationCategory,"همه انواع");
+ data.categoryPicker=IPPCSChoices.multiple($("#deviation-categories"),
+  data.masters.DeviationCategory,{value:"code",
+   label:x=>x.label+" ("+x.code+")",onChange:filtersChanged});
  fillCode($("#action-owner"),active("ActionOwner"),"انتخاب نقش مسئول");
  fillCode($("#revise-owner"),active("ActionOwner"),"انتخاب نقش مسئول");
  fillCode($("#cause-group"),active("RootCauseCategory"));
@@ -159,9 +161,11 @@ async function loadTable(){
  const token=++searchToken;
  const pageSize=Number($("#deviation-page-size").value);
  const params=new URLSearchParams({page:String(data.page),pageSize:String(pageSize)});
- for(const [input,key] of [["#deviation-search","text"],["#deviation-status","status"],["#deviation-category","category"]]){
+ for(const [input,key] of [["#deviation-search","text"],["#deviation-status","status"]]){
   const value=$(input).value.trim();if(value)params.set(key,value);
  }
+ const categories=data.categoryPicker?.values()||[];
+ if(categories.length)params.set("categories",categories.join(","));
  const page=await api("/production-deviations/search?"+params.toString());
  if(token!==searchToken)return;
  renderTable(page.rows);
@@ -259,7 +263,7 @@ async function boot(){
   clearTimeout(caseTimer);
   caseTimer=setTimeout(()=>loadCaseChoices().catch(e=>notice(e.message,true)),280);
  };
- for(const input of ["#deviation-search","#deviation-status","#deviation-category","#deviation-page-size"]){
+ for(const input of ["#deviation-search","#deviation-status","#deviation-page-size"]){
   $(input).addEventListener(input==="#deviation-search"?"input":"change",filtersChanged);
  }
  $("#deviation-prev").onclick=()=>{if(data.page>1){data.page--;loadTable().catch(e=>notice(e.message,true));}};
