@@ -77,3 +77,12 @@ As previously, the release gate is still Draft; no ERP module or integration is 
 | 18 Dashboards | Escalated cases flagged Critical when overdue and drill down into the referenced case, even when its due date is outside ordinary alert horizon | KPI benchmark signoff, alert acknowledgement, authorized drilldown by group, operator user testing |
 
 Strict isolation maintained: no warehouse, purchasing, sales or HR integration; no schema reset, no approval to merge main.
+
+## Stage 16 manufacturing closure increments (factory signoff still required)
+| Module | Real runtime process and tested evidence | Remaining factory acceptance |
+|---|---|---|
+| 09 Semi-finished stages | Internal per-lot handoff audit across adjacent operations; lot writer rejects unresolved quarantine, pending/quality-rejected quantities, failed frozen mandatory checks | Real station transfer forms, partial mixed-lot correction approval, operator validation and UAT |
+| 10 Final shock absorber assembly | Each finished lot must have frozen BOM-matched documented semi-finished order origins before internal EOL signature; genealogy locked afterward | Variant/serial labeling, 100% traceability policy, engineering BOM change control and EOL UAT |
+| 13 Quality | In-plant final signoff requires completed work order, inspected last operation, no open holds, complete operation-step provenance, per-lot semi-origin; local quality role/immutable audit | Approved inspection sample policy, MSA/gauge calibration, reaction plans, independent review and client-specific EOL test requirements |
+
+**Status:** Stage 16 CI can establish database and code regression only. It does not complete a plant-specific UAT or authorize production rollout; all 18 module release gates remain pending.
