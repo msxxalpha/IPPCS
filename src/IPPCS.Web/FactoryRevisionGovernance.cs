@@ -223,7 +223,7 @@ public static class FactoryRevisionGovernance
                 if(!PersianPlanningDates.TryParse(input.PlannedStartJalali,out var start)||
                     !PersianPlanningDates.TryParse(input.DueOnJalali,out var due)||
                     due<start||input.PlannedQuantity is <=0 or >1_000_000_000m||
-                    string.IsNullOrWhiteSpace(input.Reason)||input.Reason.Trim().Length>250)
+                    string.IsNullOrWhiteSpace(input.Reason)||input.Reason.Trim().Length>150)
                     return Results.BadRequest(new{message="مقدار، تاریخ شمسی یا علت اصلاح معتبر نیست."});
                 await using var tx=await db.Database.BeginTransactionAsync(IsolationLevel.Serializable,ct);
                 try{await FactoryCapacityReservations.LockOrder(db,id,ct);}
@@ -256,9 +256,12 @@ public static class FactoryRevisionGovernance
                 order.PlannedQuantity=input.PlannedQuantity;order.PlannedStart=start;order.DueOn=due;
                 order.RoutingRevisionId=routes[0].Id;order.BomRevisionId=boms[0].Id;
                 order.UpdatedUtc=DateTime.UtcNow;
+                var after=$"Qty={order.PlannedQuantity};Start={PersianPlanningDates.Format(start)};Due={PersianPlanningDates.Format(due)};Route={order.RoutingRevisionId:N};Bom={order.BomRevisionId:N}";
+                var actor=(ctx.User.Identity?.Name??"unknown").Replace(";","_").Replace("|","_");
+                if(actor.Length>40)actor=actor[..40];
                 db.ManufacturingOrderAudits.Add(new ManufacturingOrderAudit{
                     OrderId=id,Action="DraftReplanned",
-                    Details=before+";Reason="+input.Reason.Trim()
+                    Details="Before:"+before+";After:"+after+";By="+actor+";Reason="+input.Reason.Trim()
                 });
                 await db.SaveChangesAsync(ct);await tx.CommitAsync(ct);
                 return Results.Ok(new{order.Id,order.Number,order.PlannedQuantity,
