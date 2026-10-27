@@ -17,10 +17,7 @@ async function api(path,method="GET",payload){
  return data;
 }
 function fill(select,rows,label,getId=x=>x.id){
- const previous=select.value;select.replaceChildren();
- const none=document.createElement("option");none.textContent="انتخاب کنید";none.value="";select.append(none);
- for(const row of rows){const o=document.createElement("option");o.value=getId(row);o.textContent=label(row);select.append(o);}
- if([...select.options].some(o=>o.value===previous))select.value=previous;
+ IPPCSChoices.fill(select,rows,{value:getId,label});
 }
 function table(id,columns,records,action=null){
  const host=$(id);host.replaceChildren();
