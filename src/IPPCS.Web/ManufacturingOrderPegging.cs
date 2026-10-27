@@ -88,6 +88,10 @@ public static class ManufacturingOrderPegging
             if(input.LinkedQuantity<=0 || input.MpsLineId==Guid.Empty)
                 return Results.BadRequest(new{message="مقدار و ردیف برنامه معتبر لازم است."});
             await using var transaction=await db.Database.BeginTransactionAsync(IsolationLevel.Serializable,ct);
+            try{await FactoryCapacityReservations.LockOrder(db,orderId,ct);}
+            catch(Microsoft.Data.SqlClient.SqlException){
+                return Results.Conflict(new{message="قفل دستور تولید برای انتساب برنامه در دسترس نیست."});
+            }
             var order=await db.ManufacturingOrders.SingleOrDefaultAsync(x=>x.Id==orderId,ct);
             if(order is null)return Results.NotFound();
             var line=await db.MpsDemandLines.SingleOrDefaultAsync(x=>x.Id==input.MpsLineId,ct);
