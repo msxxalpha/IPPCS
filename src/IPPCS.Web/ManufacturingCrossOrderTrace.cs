@@ -95,7 +95,8 @@ public static class ManufacturingCrossOrderTrace
             return new FactoryOperationGate(op.Id,op.Sequence,op.Name,op.GoodQuantity,
                 op.ScrapQuantity,op.ReworkQuantity,
                 wip[op.Id].ForwardAvailable,op.QualityPendingQuantity,
-                mandatory.Length,missing,bad,op.IsComplete,upstream&&!op.IsComplete);
+                mandatory.Length,missing,bad,op.IsComplete,upstream&&!op.IsComplete &&
+                ManufacturingExecutionEndpoints.IsActive(order.Status));
         }).ToArray();
     }
 
@@ -166,6 +167,9 @@ public static class ManufacturingCrossOrderTrace
             }catch(Microsoft.Data.SqlClient.SqlException){
                 return Results.Conflict(new{message="قفل شجره تولید در دسترس نیست."});
             }
+            try{await FactoryCapacityReservations.LockOrder(db,id,ct);}
+            catch(Microsoft.Data.SqlClient.SqlException)
+            {return Results.Conflict(new{message="قفل دستور مونتاژ در دسترس نیست."});}
             var final=await db.ManufacturingOrders.AsNoTracking().Include(x=>x.Operations)
                 .ThenInclude(x=>x.InspectionRequirements).SingleOrDefaultAsync(x=>x.Id==id,ct);
             if(final is null)return Results.NotFound();
@@ -182,6 +186,9 @@ public static class ManufacturingCrossOrderTrace
                 .ThenInclude(x=>x.InspectionRequirements)
                 .SingleOrDefaultAsync(x=>x.Id==sourceOp.OrderId,ct);
             if(semi is null)return Results.NotFound();
+            try{await FactoryCapacityReservations.LockOrder(db,semi.Id,ct);}
+            catch(Microsoft.Data.SqlClient.SqlException)
+            {return Results.Conflict(new{message="قفل دستور نیمه‌ساخته در دسترس نیست."});}
             var bom=await db.ManufacturingBomRevisions.AsNoTracking()
                 .Include(x=>x.Lines).SingleOrDefaultAsync(x=>x.Id==final.BomRevisionId,ct);
             var line=bom?.Lines.SingleOrDefault(x=>x.ComponentItemId==semi.ItemId);
