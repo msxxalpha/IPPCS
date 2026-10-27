@@ -13,7 +13,7 @@ public sealed class FactoryStageTwentyShiftTests
         var sundayShift=Night(center,0,22,6);
         var shifts=new[]{previousSaturday,sundayShift};
         Assert.Equal(480,FactoryShiftCalendar.AvailableMinutes(center,sunday,shifts));
-        Assert.Equal(120,FactoryShiftCalendar.AvailableMinutes(center,sunday.AddDays(1),shifts));
+        Assert.Equal(360,FactoryShiftCalendar.AvailableMinutes(center,sunday.AddDays(1),shifts));
         Assert.True(FactoryShiftCalendar.ConflictsWeekly(
             new WorkShift{WorkCenterId=center,DayOfWeek=0,
                 StartTime=new TimeOnly(5,30),EndTime=new TimeOnly(7,0),
@@ -79,7 +79,7 @@ public sealed class FactoryStageTwentyShiftTests
                 Sequence=10,WorkCenterId=center,RunMinutesPerUnit=1,YieldPercent=100}]};
         var source=new MpsDemandLine{ItemId=item,NeededOn=monday,Quantity=100};
         var crp=Assert.Single(PlanningCalculators.RunRoughCutCrp([source],[routing],[Night(center,0,22,6)]));
-        Assert.Equal(360,crp.AvailableMinutes);
+        Assert.Equal(360,crp.CapacityMinutes);
         Assert.Equal(0,crp.OverloadMinutes);
     }
 }
