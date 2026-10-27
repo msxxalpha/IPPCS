@@ -63,13 +63,38 @@ public static class FiniteFactoryScheduler
         IReadOnlyList<WorkShift> shifts,DateOnly start,int horizonDays,decimal multiplier=1,
         IReadOnlySet<(Guid WorkCenterId,DateOnly Date)>? unavailableDays=null,
         IReadOnlyDictionary<Guid,DateOnly>? earliestStartDates=null,
-        IReadOnlyDictionary<Guid,IReadOnlyCollection<Guid>>? prerequisites=null)
+        IReadOnlyDictionary<Guid,IReadOnlyCollection<Guid>>? prerequisites=null,
+        IReadOnlyList<WorkCenterOccupiedInterval>? occupiedIntervals=null)
     {
         if(horizonDays is <1 or >90 || multiplier<=0 || multiplier>2)
             throw new ArgumentException("افق برنامه‌ریزی یا ضریب ظرفیت نامعتبر است.");
         var result=new List<ApsAllocation>();
         var missing=new List<ApsUnscheduled>();
         var occupied=new Dictionary<(Guid,DateOnly),List<(int start,int end)>>();
+        // Recorded actual center occupancy is measured in Tehran-local wall time.
+        // Half-open intervals [start,end) are rounded outward to whole minutes.
+        var horizonEnd=start.AddDays(horizonDays);
+        foreach(var record in occupiedIntervals??[])
+        {
+            if(record.WorkCenterId==Guid.Empty || record.StartLocal.Kind!=DateTimeKind.Unspecified ||
+               record.EndLocal.Kind!=DateTimeKind.Unspecified ||
+               record.EndLocal<=record.StartLocal)
+                throw new ArgumentException("بازه اشغال مرکز کاری نامعتبر است.");
+            var first=DateOnly.FromDateTime(record.StartLocal);
+            if(first<start)first=start;
+            for(var day=first;day<horizonEnd &&
+                day.ToDateTime(TimeOnly.MinValue)<record.EndLocal;day=day.AddDays(1))
+            {
+                var midnight=day.ToDateTime(TimeOnly.MinValue);
+                var from=(int)Math.Floor(Math.Max(0,(record.StartLocal-midnight).TotalMinutes));
+                var through=(int)Math.Ceiling(Math.Min(1440,(record.EndLocal-midnight).TotalMinutes));
+                if(from>=through)continue;
+                var key=(record.WorkCenterId,day);
+                if(!occupied.TryGetValue(key,out var windows))
+                    occupied[key]=windows=new();
+                windows.Add((from,through));
+            }
+        }
         // Topological lot order precedes due-date order: a manufactured component must finish
         // before its parent lot consumes it. Every lot remains non-preemptive per operation.
         var byChain=tasks.GroupBy(x=>x.DemandLineId)
