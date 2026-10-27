@@ -77,6 +77,7 @@ public static class ManufacturingFoundationEndpoints
     public static IEndpointRouteBuilder MapManufacturingFoundation(this IEndpointRouteBuilder routes)
     {
         var api = routes.MapGroup("/api/v1").RequireAuthorization("IpProductionUser");
+        var planningApi = routes.MapGroup("/api/v1").RequireAuthorization("IpPlanningWrite");
 
         api.MapGet("/calendar/convert", (string jalali) =>
             PersianPlanningDates.TryParse(jalali, out var date)
@@ -95,7 +96,7 @@ public static class ManufacturingFoundationEndpoints
             }));
         });
 
-        api.MapPost("/routings", async (RoutingInput input, ProductionDb db, CancellationToken ct) =>
+        planningApi.MapPost("/routings", async (RoutingInput input, ProductionDb db, CancellationToken ct) =>
         {
             if (string.IsNullOrWhiteSpace(input.RevisionCode) || input.RevisionCode.Length > 32 ||
                 !PersianPlanningDates.TryParse(input.EffectiveFromJalali, out var from))
@@ -118,7 +119,7 @@ public static class ManufacturingFoundationEndpoints
             return Results.Created($"/api/v1/routings/{route.Id}", new { route.Id, route.RevisionCode, route.State });
         });
 
-        api.MapPost("/routings/{id:guid}/operations", async (Guid id, OperationInput input, ProductionDb db, CancellationToken ct) =>
+        planningApi.MapPost("/routings/{id:guid}/operations", async (Guid id, OperationInput input, ProductionDb db, CancellationToken ct) =>
         {
             var owner=await db.RoutingRevisions.AsNoTracking().Where(x=>x.Id==id)
                 .Select(x=>(Guid?)x.ItemId).SingleOrDefaultAsync(ct);
@@ -149,7 +150,7 @@ public static class ManufacturingFoundationEndpoints
             });
         });
 
-        api.MapPost("/routings/{id:guid}/approve", async (Guid id, ProductionDb db, CancellationToken ct) =>
+        planningApi.MapPost("/routings/{id:guid}/approve", async (Guid id, ProductionDb db, CancellationToken ct) =>
         {
             // Read only the immutable revision owner before taking the SQL lock.
             // Lock before SELECT under Serializable to avoid shared-lock/app-lock deadlock.
