@@ -97,5 +97,8 @@ def stage11_acceptance(request, component_id, center_id, jalali):
     from stage21_engineering_rebind_checks import stage21_acceptance
     stage21_acceptance(request,jalali,tomorrow,component_id)
 
+    from stage22_engineering_cutover_checks import stage22_acceptance
+    stage22_acceptance(request,jalali,tomorrow,component_id)
+
     from stage17_mps_change_checks import stage17_acceptance
     stage17_acceptance(request,version["id"])
