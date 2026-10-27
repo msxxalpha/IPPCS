@@ -78,3 +78,9 @@ All changes are additive to existing APIs and audit records; no data reset or ne
 
 ### Stage 17 — MPS version governance and auditable MRP/CRP change evidence
 Modules **04, 05 and 06** now share a governed planning version lifecycle: an approved MPS can spawn an independently identified copy only with an explicit unique code and reason; original content remains unchanged. Every MPS writer uses a global `sp_getapplock` transaction lock to avoid approval/edit races. Draft-to-approved transition records a signed full-line snapshot. A controlled revision additionally requires successful same-transaction recalculation of net MRP and rough-cut CRP before the state can become Approved, preserving the complete demand/material/center-capacity difference as immutable JSON evidence. New Persian UI shows source history and before/after variance. No DB migration or external ERP integration is involved.
+
+### Stage 18 — production serial trace and engineering revision impact
+- **15**: `IpQualityApprove` only after internal final QC approval may register canonical unique serials against real finished-operation lots; globally serialized append-only audit, per-good-unit ceiling, search by serial returning bounded multi-order backward batch provenance. No external stock, shipment, sales or customer identifiers.
+- **01**: read-only BOM/Routing engineering delta vs approved baseline, effective-date conflict, component ratio/center/cycle-time changes and frozen affected orders, including currently active old-version work orders regardless of their original start date. No ECO approval mutation, no rewriting old revision dates.
+- UI: new serial trace screen on control-plan page and ECO comparison panel on BOM planning page, Persian RTL.
+No schema migration; all work remains on `feature/production-platform-foundation` Draft PR and is still subject to UAT of all 18 modules.
