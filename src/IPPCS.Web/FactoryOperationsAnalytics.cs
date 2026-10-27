@@ -139,6 +139,10 @@ public static class FactoryOperationsAnalyticsEndpoints
                 ||(input.Note?.Length??0)>400
                 ||!PersianPlanningDates.TryParse(input.EffectiveFromJalali,out var start))
                 return Results.BadRequest(new{message="نرخ‌های فرضی یا تاریخ شمسی اعتبار نامعتبر است."});
+            await using var tx=await db.Database.BeginTransactionAsync(IsolationLevel.Serializable,ct);
+            try{await FactoryCostRateHistory.LockRateSchedule(db,ct);}
+            catch(Microsoft.Data.SqlClient.SqlException)
+                {return Results.Conflict(new{message="قفل تغییر نرخ تبدیل در دسترس نیست."});}
             if(!await db.WorkCenters.AnyAsync(x=>x.Id==input.WorkCenterId,ct))return Results.NotFound();
             var rate=await db.FactoryCenterCostRates.FindAsync([input.WorkCenterId],ct);
             if(rate is null){rate=new FactoryCenterCostRate{WorkCenterId=input.WorkCenterId};
@@ -146,7 +150,9 @@ public static class FactoryOperationsAnalyticsEndpoints
             rate.ConversionRialsPerMinute=input.ConversionRialsPerMinute;
             rate.ScrapRialsPerUnit=input.ScrapRialsPerUnit;rate.EffectiveFrom=start;
             rate.Note=input.Note?.Trim()??"";
-            await db.SaveChangesAsync(ct);return Results.Ok(new{rate.WorkCenterId});
+            await db.SaveChangesAsync(ct);await tx.CommitAsync(ct);
+            return Results.Ok(new{rate.WorkCenterId,
+                warning="تغییر نرخ فقط بر دستورات آزادشونده جدید اثر دارد؛ نرخ‌های دستورات قبلی قبلاً منجمد شده‌اند."});
         }).RequireAuthorization("IpOeePlanning");
         api.MapGet("/factory-cost/orders/{orderId:guid}",async(Guid orderId,ProductionDb db,CancellationToken ct)=>{
             var order=await db.ManufacturingOrders.AsNoTracking().Include(x=>x.Operations)
