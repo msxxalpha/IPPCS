@@ -1,9 +1,6 @@
-name: IPPCS SQL schema integration
+name: IPPCS SQL manual diagnostic (fallback)
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - feature/production-platform-foundation
 jobs:
   sqlserver-schema:
     runs-on: ubuntu-latest
