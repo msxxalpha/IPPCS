@@ -48,11 +48,17 @@ api.MapGet("/items", async (ProductionDb db, CancellationToken ct) =>
     await db.Items.AsNoTracking().OrderBy(x => x.Code).Take(500).ToListAsync(ct));
 api.MapPost("/items", async (ItemInput input, ProductionDb db, CancellationToken ct) =>
 {
-    if (string.IsNullOrWhiteSpace(input.Code) || string.IsNullOrWhiteSpace(input.Name))
-        return Results.BadRequest("Item code and name are required.");
+    if (string.IsNullOrWhiteSpace(input.Code) || string.IsNullOrWhiteSpace(input.Name) ||
+        string.IsNullOrWhiteSpace(input.Unit) ||
+        input.Code.Trim().Length>64 || input.Name.Trim().Length>256 ||
+        !Enum.IsDefined(input.Type))
+        return Results.BadRequest(new{message="کد، نام، طبقه و واحد اندازه‌گیری معتبر لازم است."});
     var code = input.Code.Trim();
+    var unit=await FactoryMasterData.Active(db,FactoryMasterData.UnitOfMeasure,input.Unit,ct);
+    if(unit is null)return Results.Conflict(new{
+        message="واحد اندازه‌گیری در اطلاعات پایه تعریف نشده یا غیرفعال است."});
     if (await db.Items.AnyAsync(x => x.Code == code, ct)) return Results.Conflict("Duplicate item code.");
-    var item = new PlanningItem { Code = code, Name = input.Name.Trim(), Unit = input.Unit.Trim(), Type = input.Type };
+    var item = new PlanningItem { Code = code, Name = input.Name.Trim(), Unit = unit.Code, Type = input.Type };
     db.Items.Add(item); await db.SaveChangesAsync(ct);
     return Results.Created($"/api/v1/items/{item.Id}", item);
 });
