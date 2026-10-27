@@ -100,5 +100,8 @@ def stage11_acceptance(request, component_id, center_id, jalali):
     from stage22_engineering_cutover_checks import stage22_acceptance
     stage22_acceptance(request,jalali,tomorrow,component_id)
 
+    from stage23_deviation_effectiveness_checks import stage23_acceptance
+    stage23_acceptance(request,"http://127.0.0.1:5295",mps_line)
+
     from stage17_mps_change_checks import stage17_acceptance
     stage17_acceptance(request,version["id"])
