@@ -140,6 +140,32 @@ function boot(){
    alertText("نتیجه MRP با تاریخچه ورودی/خروجی ذخیره شد.");
   }catch(e){alertText(e.message,true);}finally{btn.disabled=false;}
  };
+ $("#phased-pegging-run").onclick=async()=>{
+  const id=$("#calculate-mps").value;
+  if(!id){alertText("نسخه مصوب MPS را انتخاب کنید.",true);return;}
+  const button=$("#phased-pegging-run");button.disabled=true;
+  try{
+   const result=await call("/mrp/"+id+"/time-phased-sources");
+   table("#phased-allocations",[
+    ["ردیف MPS",x=>x.mpsLineId.slice(0,8)],
+    ["قطعه",x=>name(x.itemId)],
+    ["تاریخ نیاز","neededOnJalali"],
+    ["منشأ تأمین",x=>x.sourceType==="PlanningOpeningBalance"?"مانده برنامه‌ریزی مبنا":"دریافت برنامه‌ای"],
+    ["تاریخ موجود شدن","availableOnJalali"],
+    ["شناسه دریافت",x=>x.receiptId||"—"],
+    ["مقدار تخصیص",x=>fmt(x.quantity)],
+    ["مسیر BOM","bomPath"]
+   ],result.allocations);
+   table("#phased-shortages",[
+    ["ردیف MPS",x=>x.mpsLineId.slice(0,8)],
+    ["قطعه",x=>name(x.itemId)],
+    ["موعد نیاز","neededOnJalali"],
+    ["مقدار کسری",x=>fmt(x.quantity)],
+    ["مسیر BOM","bomPath"]
+   ],result.shortages);
+   alertText(result.warning);
+  }catch(e){alertText(e.message,true);}finally{button.disabled=false;}
+ };
  $("#gross-trace-run").onclick=async()=>{
   const id=$("#calculate-mps").value;
   if(!id){alertText("نسخه مصوب MPS را انتخاب کنید.",true);return;}
