@@ -48,3 +48,8 @@
 
 ## Stage 17 addendum — governed MPS change lifecycle
 The production program (04) has a controlled-copy revision path: approved source is never edited, one open Draft per original is enforced, approved action freezes actor and all program lines. Approving the revision captures actual recalculated MRP (05) and CRP (06) differences in immutable SQL JSON evidence and fails if the planning model is incomplete. The revised program remains an **internal** factory planning output until the S&OP/MPS owner formally authorizes its use. This stage supplies testable software evidence, **not** a signed factory planning change-control SOP.
+
+## Stage 18 addendum — engineering and finished serial evidence
+**Module 01** now offers an explicit engineering impact preflight (BOM part ratios/alternatives not yet authorized, routing center/cycle time and affected frozen work orders), but a signed change order/ECO release authority and controlled retirement/cutover are **still required** before final signoff.
+
+**Module 15** now supports local, globally unique serial registration per *whole good finished unit* after internal EOL QA, with bounded reverse batch genealogy and no hidden stock/shipment assertion. Actual label issuance, scanning/serialization policy, customer fitment identifiers and recall drill remain unapproved/untested in a physical factory. The presence of the code and a green SQL CI is not permission to call serial recall ready.
