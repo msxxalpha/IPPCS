@@ -15,9 +15,10 @@
 <div class="app-shell">
   <aside class="sidebar" id="side">
     <div class="brand"><div class="brand-logo">IP</div><div><strong>ایندامین سایپا</strong><small>سامانه جامع برنامه‌ریزی و کنترل تولید</small></div></div>
-    <div class="side-caption">بخش‌های عملیاتی نسخه پایه</div>
+    <div class="side-caption">ابزارهای توسعه و آزمون کارخانه</div>
     <nav id="primary-nav" aria-label="بخش‌های سامانه">
       <button data-page="overview" class="nav-active">نمای کلی سامانه</button>
+      <a class="planning-link" href="/factory-release-readiness.html">آمادگی آزمون ۱۸ ماژول و راهنمای شروع</a>
       <a class="planning-link" href="/factory-master-data.html">اطلاعات پایه · فهرست‌های مرجع</a>
       <button data-page="items">اقلام و محصولات تولیدی</button>
       <button data-page="centers">مراکز کاری</button>
@@ -35,17 +36,17 @@
       <a class="planning-link" href="/planning-advanced.html">تقاضا، S&OP، APS و تحلیل تولید</a>
       <a class="planning-link" href="/system-users.html">حساب شخصی و کاربران سامانه</a>
     </nav>
-    <div class="sidebar-foot">IPPCS • Execution 0.4.0<br>نسخه آزمایشی توسعه؛ بدون اتصال به سایر سامانه‌ها</div>
+    <div class="sidebar-foot">IPPCS • Stage 35 development preview<br>بدون اتصال به انبار، خرید، فروش یا منابع انسانی<br>پذیرش کارخانه و مجوز انتشار هنوز انجام نشده است</div>
   </aside>
   <div class="main">
     <header class="topbar"><button id="menu-toggle" class="menu-toggle" type="button" aria-label="فهرست">☰</button><div><span class="eyebrow">مدیریت یکپارچه عملیات تولید</span><h1 id="page-title">نمای کلی سامانه</h1></div><span class="environment-pill">محیط توسعه</span><button type="button" class="btn-outline" data-ip-logout>خروج از سامانه</button></header>
     <main class="content">
       <div id="message" class="notice" hidden role="status" aria-live="polite"></div>
       <section id="overview" class="page">
-        <div class="hero"><div><span class="eyebrow">سامانه تولید تخصصی صنعت کمک‌فنر</span><h2>برنامه‌ریزی دقیق؛ کنترل هوشمند تولید</h2><p>ساختار مبتنی بر ERP، برنامه‌ریزی چندسطحی، مدیریت مسیر ساخت و ظرفیت مراکز کاری. تکمیل ۱۸ ماژول، هدف مصوب محصول است و امکانات در دست توسعه مشخص شده‌اند.</p></div><div class="hero-emblem">IPPCS</div></div>
-        <div class="callout">این نسخه صرفاً نمونه اولیه اجرایی است. تا قبل از تکمیل امنیت، مهاجرت دیتابیس، آزمون‌ها و سایر کنترل‌های ضروری در محیط واقعی کارخانه استفاده نشود.</div>
-        <div class="summary-stats"><div><span>ماژول‌های مصوب</span><strong>۱۸</strong></div><div><span>ماژول‌های کامل و تحویل‌شده</span><strong>۰</strong></div><div><span>بخش‌های پایه قابل آزمایش</span><strong>۶</strong></div></div>
-        <div class="section-title"><h3>نقشه ماژول‌های جامع تولید</h3><small>کارت‌های در دست توسعه صرفاً معرفی محدوده‌اند و فرم عملیاتی ندارند.</small></div>
+        <div class="hero"><div><span class="eyebrow">سامانه تولید تخصصی صنعت کمک‌فنر</span><h2>برنامه‌ریزی دقیق؛ کنترل هوشمند تولید</h2><p>۱۸ حوزهٔ نرم‌افزاری شامل برنامه‌ریزی، اجرای ساخت، کیفیت، ردیابی، هزینه و شاخص‌ها قابلیت‌های قابل آزمایش دارند. راه‌اندازی در Visual Studio و پذیرش واقعی هر بخش هنوز جداگانه لازم است.</p></div><div class="hero-emblem">IPPCS</div></div>
+        <div class="callout">این نسخه برای بررسی و تست در پایگاه دادهٔ مستقل توسعه است و هنوز مجوز استفادهٔ واقعی در خط تولید ندارد. <a href="/factory-release-readiness.html">پیش‌نیازهای داده و گیت‌های پذیرش ۱۸ ماژول را اینجا ببینید.</a></div>
+        <div class="summary-stats"><div><span>ماژول‌های دارای مسیر آزمایش</span><strong>۱۸</strong></div><div><span>پذیرش نهایی ثبت‌شدهٔ کارخانه</span><strong>۰</strong></div><div><span>پیش‌نیازها و سناریوها</span><strong><a href="/factory-release-readiness.html">بررسی آمادگی</a></strong></div></div>
+        <div class="section-title"><h3>نقشه ماژول‌های جامع تولید</h3><small>هر کارت به فرم آزمایشی مرتبط وصل است. «دارای قابلیت» به معنی «تأیید تولید» نیست.</small></div>
         <div class="module-grid" id="module-grid"></div>
       </section>
       <section id="items" class="page" hidden>
