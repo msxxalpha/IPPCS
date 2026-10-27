@@ -482,6 +482,13 @@ assert backtest["wapePercent"] is not None, backtest
 assert request(f"/api/v1/factory-demand/backtest/{product['id']}?throughJalali={JALALI_NOW}&lookback=3&months=2",status=400)
 print("PASS: SQL completed Jalali-month forecast backtest, WAPE guard and future-period rejection.")
 
+# Stage 10: approved MPS pegged adherence is not aggregate-product inference.
+peg_adherence=request(f"/api/v1/factory-kpis/peg-adherence/{mps['id']}")
+peg_row=next(x for x in peg_adherence["rows"] if x["lineId"]==peg_line["id"])
+assert peg_row["assigned"]==10 and peg_row["required"]==10,peg_row
+assert peg_row["unassigned"]==0 and peg_row["shortage"]>=0,peg_row
+print("PASS: SQL linked MPS row adherence uses only assigned production orders.")
+
 # Stage 10: measured operations cost report preserves missing data.
 real_cost=request(f"/api/v1/factory-cost/orders/{clock_order_id}/actual-variance")
 assert real_cost["orderId"]==clock_order_id
