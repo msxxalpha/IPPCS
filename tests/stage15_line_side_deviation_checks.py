@@ -10,6 +10,10 @@ def stage15_acceptance(request,today,tomorrow,component_item,mps_line):
     confirmations=request(f"/api/v1/manufacturing-orders/{order['id']}/confirmations")
     lot=next(x for x in confirmations if x["lotCode"]=="CI-ST15-ONE")
     path=f"/api/v1/factory-material/{order['id']}"
+    request(path+"/consumption","POST",{
+      "componentItemId":component_item,"quantity":1,
+      "reference":"IPLOT:"+lot["id"].replace("-","")+"|forged manual lot"
+    },400)
     original=request(path+"/lot-consumption","POST",{
       "confirmationId":lot["id"],"componentItemId":component_item,
       "quantity":1,"reference":"CI-ST15 real lot consumption"},201)
