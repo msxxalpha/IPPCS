@@ -54,6 +54,9 @@ public sealed class ControlPlanAndGenealogyTests
     public void Lot_links_require_next_stage_and_non_overallocated_good_units()
     {
         var order=Order();var a=order.Operations[0];var b=order.Operations[1];
+        // Persisted confirmation totals belong to frozen operation aggregates.
+        // Stage16 quality-gated provenance must not trust only child lot values.
+        a.GoodQuantity=12;b.GoodQuantity=10;
         var source=new ManufacturingConfirmation{OperationId=a.Id,LotCode="W-01",GoodQuantity=12,
             OccurredUtc=new DateTime(2026,10,26,10,0,0,DateTimeKind.Utc)};
         var target=new ManufacturingConfirmation{OperationId=b.Id,LotCode="A-01",GoodQuantity=10,
