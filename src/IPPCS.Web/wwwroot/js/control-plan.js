@@ -38,6 +38,8 @@ async function load(){[state.routes,state.plans,state.orders]=await Promise.all(
  select($("#assembly-order"),state.orders.filter(x=>x.kind===1&&x.status!==0&&x.status!==5),x=>x.number);
  select($("#semi-source-order"),state.orders.filter(x=>x.kind===0&&x.status===4),x=>x.number);
  select($("#readiness-order"),state.orders.filter(x=>x.status!==0&&x.status!==5),x=>x.number);
+ select($("#spc-order"),state.orders.filter(x=>x.status!==0&&x.status!==5),x=>x.number);
+ select($("#trace-order"),state.orders.filter(x=>x.status!==0&&x.status!==5),x=>x.number);
 
  table("#plan-table",[["کد","code"],["مسیر",x=>x.routingRevisionId.slice(0,8)],["شروع","validFromJalali"],
  ["پایان",x=>x.validUntilJalali||"بدون پایان"],["وضعیت",x=>x.state===1?"مصوب":"پیش‌نویس"],
@@ -141,6 +143,67 @@ async function readiness(){
   " | مجموع بازرسی‌ها: "+quality.resultsCount+
   " | نتیجه نهایی ثبت‌شده: "+(report.isFinalQualityReady?"بدون مانع در داده‌ها":"نیازمند بررسی"));
 }
+async function reloadSpcRequirements(){
+ const order=$("#spc-order").value;
+ if(!order){select($("#spc-requirement"),[],x=>x.code);return;}
+ const data=await api("/manufacturing-orders/"+order+"/inspection-requirements");
+ select($("#spc-requirement"),data.requirements,
+  x=>x.operationSequence+" • "+x.code+" • "+x.description);
+}
+async function spcReport(){
+ const order=$("#spc-order").value,req=$("#spc-requirement").value;
+ if(!order||!req)throw Error("دستور و مشخصه بازرسی انتخاب نشده است.");
+ const r=await api("/manufacturing-orders/"+order+"/spc/"+req);
+ const fmt=x=>x===null||x===undefined?"نامشخص":x;
+ table("#spc-summary",[["شاخص","name"],["مقدار","value"]],[
+  {name:"تعداد نمونه",value:r.sampleCount},
+  {name:"میانگین",value:fmt(r.mean)},
+  {name:"میانگین دامنه متحرک",value:fmt(r.movingRangeMean)},
+  {name:"حد کنترل پایین برآوردی",value:fmt(r.lowerControlLimit)},
+  {name:"حد کنترل بالا برآوردی",value:fmt(r.upperControlLimit)},
+  {name:"مردود مشخصات فنی",value:r.specificationFailures},
+  {name:"خارج از حدود کنترل",value:r.controlLimitViolations}
+ ]);
+ table("#spc-samples",[
+  ["زمان",x=>new Date(x.recordedUtc).toLocaleString("fa-IR-u-ca-persian",{timeZone:"Asia/Tehran"})],
+  ["مقدار","value"],["نتیجه",x=>x.passed?"قبول":"مردود"]
+ ],r.samples);
+ alertTo(r.warning);
+}
+async function reloadTraceLots(){
+ const order=$("#trace-order").value;
+ if(!order){select($("#trace-confirmation"),[],x=>x.lotCode);return;}
+ const records=await api("/manufacturing-orders/"+order+"/confirmations");
+ select($("#trace-confirmation"),records.filter(x=>x.lotCode&&x.goodQuantity>0),
+   x=>x.operationSequence+" • "+x.lotCode+" / سالم "+x.goodQuantity);
+}
+async function traceGraph(){
+ const id=$("#trace-confirmation").value;
+ if(!id)throw Error("ابتدا بچ ثبت‌شده را انتخاب کنید.");
+ const dir=$("#trace-direction").value,depth=Number($("#trace-depth").value);
+ if(!Number.isInteger(depth)||depth<1||depth>16)throw Error("عمق ردیابی معتبر نیست.");
+ const r=await api("/manufacturing-genealogy/explore/"+id+
+   "?direction="+encodeURIComponent(dir)+"&depth="+depth);
+ const lookup=new Map(r.nodes.map(x=>[x.confirmationId,x]));
+ table("#trace-summary",[["شاخص","name"],["مقدار","value"]],[
+  {name:"بچ‌های ثبت‌شده",value:r.batchCount},
+  {name:"دستورات مرتبط",value:r.orderCount},
+  {name:"پیوندهای مستند",value:r.edges.length},
+  {name:"عمق مشاهده‌شده",value:r.depthReached}
+ ]);
+ table("#trace-nodes",[
+  ["دستور","orderNumber"],["بچ","lotCode"],
+  ["ترتیب","sequence"],["سالم","goodQuantity"],
+  ["زمان",x=>new Date(x.occurredUtc).toLocaleString("fa-IR-u-ca-persian",{timeZone:"Asia/Tehran"})]
+ ],r.nodes);
+ table("#trace-edges",[
+  ["بچ مبدأ",x=>lookup.get(x.sourceId)?.lotCode||x.sourceId.slice(0,8)],
+  ["بچ مقصد",x=>lookup.get(x.targetId)?.lotCode||x.targetId.slice(0,8)],
+  ["مقدار","quantity"],
+  ["زمان پیوند",x=>new Date(x.linkedUtc).toLocaleString("fa-IR-u-ca-persian",{timeZone:"Asia/Tehran"})]
+ ],r.edges);
+ alertTo(r.disclaimer);
+}
 function register(id,fn){const f=$(id);f.addEventListener("submit",async e=>{
  e.preventDefault();if(!f.reportValidity())return;
  const b=f.querySelector('button[type="submit"]');b.disabled=true;
@@ -186,6 +249,10 @@ function boot(){
  });
  $("#assembly-refresh").onclick=()=>assemblyOrigins().catch(e=>alertTo(e.message,true));
  $("#readiness-refresh").onclick=()=>readiness().catch(e=>alertTo(e.message,true));
+ $("#spc-order").onchange=()=>reloadSpcRequirements().catch(e=>alertTo(e.message,true));
+ $("#spc-refresh").onclick=()=>spcReport().catch(e=>alertTo(e.message,true));
+ $("#trace-order").onchange=()=>reloadTraceLots().catch(e=>alertTo(e.message,true));
+ $("#trace-refresh").onclick=()=>traceGraph().catch(e=>alertTo(e.message,true));
  $("#inspection-refresh").onclick=()=>inspections().catch(e=>alertTo(e.message,true));
  $("#link-refresh").onclick=()=>confirmations().catch(e=>alertTo(e.message,true));
  load().catch(e=>alertTo(e.message,true));
