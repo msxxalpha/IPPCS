@@ -10,7 +10,7 @@ public record FactoryTraceEdge(Guid Id,Guid SourceId,Guid TargetId,
     decimal Quantity,Guid RecordedOrderId,DateTime LinkedUtc);
 public record FactoryTraceResult(Guid RootId,string Direction,int DepthReached,
     IReadOnlyList<FactoryTraceNode> Nodes,IReadOnlyList<FactoryTraceEdge> Edges,
-    int BatchCount,int OrderCount,bool HasLinks,string Disclaimer);
+    int BatchCount,int OrderCount,bool HasLinks,bool HasMoreBeyondDepth,string Disclaimer);
 
 public static class FactoryGenealogyExplorer
 {
@@ -46,6 +46,9 @@ public static class FactoryGenealogyExplorer
             if(matched.Length>0)depth=level;
             frontier=next;
         }
+        var hasMore=frontier.Any(id=>links.Any(edge=>direction=="ancestors"?
+            edge.TargetId==id&&!seen.Contains(edge.SourceId):
+            edge.SourceId==id&&!seen.Contains(edge.TargetId)));
         var reported=nodes.Where(x=>seen.Contains(x.ConfirmationId))
             .OrderBy(x=>x.OccurredUtc).ThenBy(x=>x.ConfirmationId).ToArray();
         var selectedEdges=links.Where(x=>selected.Contains(x.Id))
@@ -54,7 +57,7 @@ public static class FactoryGenealogyExplorer
             reported.Select(x=>x.LotCode).Where(x=>!string.IsNullOrWhiteSpace(x))
                 .Distinct(StringComparer.Ordinal).Count(),
             reported.Select(x=>x.OrderId).Distinct().Count(),
-            selectedEdges.Length>0,
+            selectedEdges.Length>0,hasMore,
             "فقط پیوندهای صریح ثبت‌شده ساخت در IPPCS نشان داده می‌شوند. نبود پیوند به معنی نبود قطعه یا اثبات عدم مصرف نیست. این گزارش جایگزین سامانه انبار یا فراخوان محصول نیست.");
     }
 
