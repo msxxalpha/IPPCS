@@ -170,6 +170,9 @@ public static class ManufacturingCrossOrderTrace
             try{await FactoryCapacityReservations.LockOrder(db,id,ct);}
             catch(Microsoft.Data.SqlClient.SqlException)
             {return Results.Conflict(new{message="قفل دستور مونتاژ در دسترس نیست."});}
+            if(await db.ManufacturingOrderAudits.AsNoTracking().AnyAsync(x=>
+                x.OrderId==id && x.Action==FactoryEndOfLineAcceptance.ApprovedAction,ct))
+                return Results.Conflict(new{message="گواهی کنترل نهایی صادر شده؛ منشأ بچ مصوب دیگر قابل افزودن نیست."});
             var final=await db.ManufacturingOrders.AsNoTracking().Include(x=>x.Operations)
                 .ThenInclude(x=>x.InspectionRequirements).SingleOrDefaultAsync(x=>x.Id==id,ct);
             if(final is null)return Results.NotFound();
