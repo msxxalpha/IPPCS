@@ -297,6 +297,14 @@ public static class ManufacturingControlPlanEndpoints
                 order.CompletedUtc=DateTime.UtcNow;
             }
             order.UpdatedUtc=DateTime.UtcNow;
+            if(order.Status==ManufacturingOrderStatus.Completed)
+            {
+                try{await FactoryCapacityReservations.ReleaseOperations(db,id,
+                    order.Operations.Select(x=>x.Id).ToHashSet(),"QualityInspectionCompleted",ct);}
+                catch(InvalidOperationException ex){return Results.Conflict(new{message=ex.Message});}
+                catch(Microsoft.Data.SqlClient.SqlException)
+                {return Results.Conflict(new{message="قفل مرکز کاری برای تکمیل کیفیت در دسترس نیست."});}
+            }
             try{await db.SaveChangesAsync(ct);await tx.CommitAsync(ct);}
             catch(DbUpdateConcurrencyException){return Results.Conflict(new{message="ثبت هم‌زمان بازرسی رخ داد؛ بازخوانی کنید."});}
             return Results.Ok(new{requirementId=req.Id,passed,orderStatus=order.Status});
