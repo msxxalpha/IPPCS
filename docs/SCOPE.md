@@ -59,7 +59,7 @@ All remain development/partial until factory UAT, data control, security hardeni
 ### Stage 14 — controlled approval and work-order lifecycle, operational dispatch
 
 Modules **01/07/08** received integrated changes:
-- 01: Protected effective-date BOM/Routing revisions with serializable per-item approval locks, same-transaction validation, cycle/overlap/duplicate rejection and human-readable approval preflight API/UI.
+- 01: Protected effective-date BOM/Routing revisions with serializable global BOM-graph and per-routing-item approval locks, same-transaction validation, cycle/overlap/duplicate rejection and human-readable approval preflight API/UI.
 - 08: Actual release enforces approved frozen revisions and approved MPS peg invariants under a shared order lock. Draft orders can be rescheduled with mandatory cause, checked effective revision rebind, before/after audit and prohibition after release.
 - 07: Read-only Jalali-window dispatch queue gives quality-and-previous-step readiness, open holds, measured running clock, booked machine slots and missing-slot warnings without issuing production instructions.
 No new database schema or integration with existing ERP warehouse/purchasing/sales/HR modules. All modules remain subject to factory validation.
