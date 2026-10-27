@@ -37,7 +37,7 @@ public sealed class FactoryStageThirtySevenApsTests
         var operation=order.Operations.Single();
         var from=start.ToDateTime(new TimeOnly(8,0));
         var booked=new FactoryCapacityReservation(Guid.NewGuid(),order.Id,operation.Id,
-            center,from,from.AddHours(1),"CI TEST",DateTime.UtcNow);
+            center,from,from.AddHours(1),DateTime.UtcNow,"CI TEST","planned slot");
         var guard=FactoryApsExecutionGuard.Evaluate([order],[],[booked],start,2);
         Assert.Empty(guard.ReservedDays);
         Assert.Single(guard.OccupiedIntervals);
