@@ -15,8 +15,8 @@ public sealed class ManufacturingDemandTraceTests
             ValidFrom=date.AddDays(-1),Lines=[new ManufacturingBomLine{ComponentItemId=raw,QuantityPer=3}]};
         var traces=ManufacturingDemandTrace.Trace([a,b],[top,inner]);
         Assert.Equal(4,traces.Count);
-        Assert.Equal(60m,Assert.Single(traces.Where(x=>x.MpsLineId==a.Id&&x.ComponentItemId==raw)).GrossQuantity);
-        Assert.Equal(30m,Assert.Single(traces.Where(x=>x.MpsLineId==b.Id&&x.ComponentItemId==raw)).GrossQuantity);
+        Assert.Equal(60m,Assert.Single(traces,x=>x.MpsLineId==a.Id&&x.ComponentItemId==raw).GrossQuantity);
+        Assert.Equal(30m,Assert.Single(traces,x=>x.MpsLineId==b.Id&&x.ComponentItemId==raw).GrossQuantity);
         Assert.All(traces.Where(x=>x.ComponentItemId==raw),x=>Assert.Equal(2,x.Level));
     }
     [Fact]
