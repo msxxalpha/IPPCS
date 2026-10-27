@@ -113,7 +113,7 @@ public static class FactoryEndOfLineAcceptance
             .Join(db.ManufacturingOrderOperations.AsNoTracking(),x=>x.OperationId,x=>x.Id,
                 (confirmation,operation)=>new{confirmation.Id,operation.OrderId})
             .Join(db.ManufacturingOrders.AsNoTracking(),x=>x.OrderId,x=>x.Id,
-                (entry,sourceOrder)=>new{ConfirmationId=entry.Id,sourceOrder.ItemId})
+                (entry,sourceOrder)=>new{ConfirmationId=entry.Id,entry.OrderId,sourceOrder.ItemId})
             .Where(x=>sourceIds.Contains(x.ConfirmationId)).ToListAsync(ct);
         var sourceItems=sourceConfirmations.ToDictionary(x=>x.ConfirmationId,x=>x.ItemId);
         var componentIds=bom?.Lines.Select(x=>x.ComponentItemId).Distinct().ToArray()??[];
