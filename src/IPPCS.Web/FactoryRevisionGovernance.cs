@@ -117,7 +117,10 @@ public static class FactoryRevisionGovernance
 
     internal static async Task LockRevisionItem(ProductionDb db,string category,Guid item,CancellationToken ct)
     {
-        var resource="IPPCS:RevisionApproval:"+category+":"+item.ToString("N");
+        // BOM cycles can involve two different parent items. Serialize the entire
+        // approved BOM graph, not merely revisions belonging to one item.
+        var resource=category=="BOM"?"IPPCS:RevisionApproval:BOM:Graph":
+            "IPPCS:RevisionApproval:"+category+":"+item.ToString("N");
         await db.Database.ExecuteSqlInterpolatedAsync(
             $@"DECLARE @res int;
                EXEC @res = sys.sp_getapplock @Resource={resource},
