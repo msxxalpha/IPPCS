@@ -35,6 +35,10 @@ async function load(){[state.routes,state.plans,state.orders]=await Promise.all(
  select($("#plan-routing"),state.routes.filter(x=>x.state===1),x=>x.revisionCode+" | "+x.itemId.slice(0,8));
  select($("#draft-plan"),state.plans.filter(x=>x.state===0),x=>x.code);
  for(const el of [$("#inspection-order"),$("#link-order")])select(el,state.orders.filter(x=>x.status!==0&&x.status!==5),x=>x.number);
+ select($("#assembly-order"),state.orders.filter(x=>x.kind===1&&x.status!==0&&x.status!==5),x=>x.number);
+ select($("#semi-source-order"),state.orders.filter(x=>x.kind===0&&x.status===4),x=>x.number);
+ select($("#readiness-order"),state.orders.filter(x=>x.status!==0&&x.status!==5),x=>x.number);
+
  table("#plan-table",[["کد","code"],["مسیر",x=>x.routingRevisionId.slice(0,8)],["شروع","validFromJalali"],
  ["پایان",x=>x.validUntilJalali||"بدون پایان"],["وضعیت",x=>x.state===1?"مصوب":"پیش‌نویس"],
  ["مشخصه‌ها",x=>x.characteristics.map(c=>c.operationSequence+"-"+c.code+" ("+label(c.minimum)+" تا "+label(c.maximum)+")").join("، ")]],
@@ -73,6 +77,70 @@ async function confirmations(){
  ["مقصد",x=>lookup(x.destinationConfirmationId)?.lotCode||x.destinationConfirmationId.slice(0,8)],
  ["مقدار",x=>x.quantity],["ثبت‌کننده","linkedBy"]],links);
 }
+async function assemblyOrigins(){
+ const targetId=$("#assembly-order").value;
+ const sourceId=$("#semi-source-order").value;
+ if(!targetId)throw Error("دستور مونتاژ نهایی انتخاب نشده است.");
+ const [targetOrder,details]=await Promise.all([
+   api("/manufacturing-orders/"+targetId),
+   api("/manufacturing-orders/"+targetId+"/assembly-genealogy")
+ ]);
+ const lastTarget=[...targetOrder.operations].sort((a,b)=>b.sequence-a.sequence)[0];
+ const targets=(await api("/manufacturing-orders/"+targetId+"/confirmations"))
+   .filter(x=>x.operationId===lastTarget?.id&&x.goodQuantity>0&&x.lotCode);
+ select($("#assembly-destination-confirmation"),targets,
+   x=>x.lotCode+" / سالم "+x.goodQuantity);
+ if(sourceId){
+  const sourceOrder=await api("/manufacturing-orders/"+sourceId);
+  const lastSource=[...sourceOrder.operations].sort((a,b)=>b.sequence-a.sequence)[0];
+  const sources=(await api("/manufacturing-orders/"+sourceId+"/confirmations"))
+    .filter(x=>x.operationId===lastSource?.id&&x.goodQuantity>0&&x.lotCode);
+  select($("#assembly-source-confirmation"),sources,
+    x=>x.lotCode+" / سالم "+x.goodQuantity);
+ }else select($("#assembly-source-confirmation"),[],x=>x.lotCode);
+ table("#assembly-coverage",[
+  ["کد نیمه‌ساخته",x=>x.componentItemId.slice(0,8)],
+  ["نیاز محاسباتی BOM",x=>x.requiredForReportedOutput],
+  ["انتساب قطعی شجره",x=>x.linkedProductionQuantity],
+  ["مانده بدون شجره",x=>x.missingProductionQuantity],
+  ["انتساب مازاد",x=>x.overlinkedProductionQuantity]
+ ],details.coverage);
+ table("#assembly-links",[
+  ["دستور نیمه‌ساخته","sourceOrderNumber"],
+  ["بچ نیمه‌ساخته","sourceLot"],["بچ مونتاژ","assemblyLot"],
+  ["قطعه",x=>x.componentItemId.slice(0,8)],
+  ["مقدار مستند","componentQuantity"],
+  ["ثبت",x=>new Date(x.linkedUtc).toLocaleString("fa-IR-u-ca-persian",{timeZone:"Asia/Tehran"})]
+ ],details.links);
+}
+async function readiness(){
+ const id=$("#readiness-order").value;
+ if(!id)throw Error("دستور تولید انتخاب نشده است.");
+ const [report,quality]=await Promise.all([
+   api("/manufacturing-orders/"+id+"/production-readiness"),
+   api("/manufacturing-orders/"+id+"/inspection-summary")
+ ]);
+ table("#readiness-steps",[
+  ["ترتیب","sequence"],["عملیات","name"],["سالم","good"],
+  ["ضایعات","scrap"],["دوباره‌کاری","rework"],
+  ["قابل انتقال به مرحله بعد","forwardAvailable"],
+  ["قرنطینه","pendingQuality"],
+  ["کنترل اجباری","mandatoryCharacteristics"],
+  ["اندازه‌گیری ثبت‌نشده","missingMandatory"],
+  ["کنترل مردود","failedMandatory"],
+  ["تکمیل مرحله",x=>x.isComplete?"بله":"خیر"],
+  ["شروع مرحله مجاز",x=>x.canProceed?"بله":"خیر"]
+ ],report.rows);
+ table("#readiness-inspections",[
+  ["مشخصه","code"],["دفعات آزمون","sampleCount"],
+  ["قبول","passedSamples"],["مردود","failedSamples"],
+  ["آخرین نتیجه",x=>x.lastPassed===null?"ثبت نشده":x.lastPassed?"قبول":"مردود"],
+  ["کنترل اجباری ناتمام",x=>x.awaitingMandatory?"بله":"خیر"]
+ ],quality.characteristics);
+ alertTo("موارد کیفیت باز: "+report.openQualityHolds+
+  " | مجموع بازرسی‌ها: "+quality.resultsCount+
+  " | نتیجه نهایی ثبت‌شده: "+(report.isFinalQualityReady?"بدون مانع در داده‌ها":"نیازمند بررسی"));
+}
 function register(id,fn){const f=$(id);f.addEventListener("submit",async e=>{
  e.preventDefault();if(!f.reportValidity())return;
  const b=f.querySelector('button[type="submit"]');b.disabled=true;
@@ -106,6 +174,18 @@ function boot(){
  sourceConfirmationId:val(f,"from"),destinationConfirmationId:val(f,"to"),quantity:num(val(f,"quantity"))
  });await confirmations();
  });
+ register("#assembly-origin-form",async f=>{
+  const id=$("#assembly-order").value;
+  if(!id)throw Error("دستور مونتاژ انتخاب نشده است.");
+  await api("/manufacturing-orders/"+id+"/assembly-genealogy","POST",{
+    semiFinishedConfirmationId:val(f,"source"),
+    assemblyConfirmationId:val(f,"target"),
+    componentQuantity:num(val(f,"quantity"))
+  });
+  await assemblyOrigins();
+ });
+ $("#assembly-refresh").onclick=()=>assemblyOrigins().catch(e=>alertTo(e.message,true));
+ $("#readiness-refresh").onclick=()=>readiness().catch(e=>alertTo(e.message,true));
  $("#inspection-refresh").onclick=()=>inspections().catch(e=>alertTo(e.message,true));
  $("#link-refresh").onclick=()=>confirmations().catch(e=>alertTo(e.message,true));
  load().catch(e=>alertTo(e.message,true));
