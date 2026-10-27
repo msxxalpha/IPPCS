@@ -100,6 +100,67 @@ namespace IPPCS.Web.Migrations.CI
                     b.ToTable("ControlPlanCharacteristics");
                 });
 
+            modelBuilder.Entity("FactoryEngineeringCutoverEvent", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Actor")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("ApprovalReference")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime>("AtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("BaselineId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateOnly>("BaselineNewEnd")
+                        .HasColumnType("date");
+
+                    b.Property<DateOnly?>("BaselinePreviousEnd")
+                        .HasColumnType("date");
+
+                    b.Property<Guid>("CandidateId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateOnly>("CutoverOn")
+                        .HasColumnType("date");
+
+                    b.Property<int>("DraftOrdersToRebind")
+                        .HasColumnType("int");
+
+                    b.Property<int>("FrozenOrdersPreserved")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("ItemId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Kind", "CandidateId")
+                        .IsUnique();
+
+                    b.ToTable("FactoryEngineeringCutoverEvents");
+                });
+
             modelBuilder.Entity("FactoryApsRun", b =>
                 {
                     b.Property<Guid>("Id")
