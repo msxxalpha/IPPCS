@@ -78,3 +78,6 @@ def stage11_acceptance(request, component_id, center_id, jalali):
 
     from stage14_factory_governance_checks import stage14_acceptance
     stage14_acceptance(request,jalali,tomorrow,semi["id"],component_id,center_id)
+
+    from stage15_line_side_deviation_checks import stage15_acceptance
+    stage15_acceptance(request,jalali,tomorrow,component_id,mps_line)
