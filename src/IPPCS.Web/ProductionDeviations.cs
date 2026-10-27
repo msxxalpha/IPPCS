@@ -111,6 +111,12 @@ public static class ProductionDeviationEndpoints
                 rows=rows.Select(Dto).ToArray(),
                 disclaimer="جست‌وجوی سروری و صفحه‌بندی بر اساس کدهای ثابت دسته/مسئول؛ برای سوابق قدیمیِ فاقد کد، متن قبلی حفظ می‌شود."});
         });
+        api.MapGet("/production-deviations/{id:guid}",async(Guid id,
+            ProductionDb db,CancellationToken ct)=>{
+            var row=await db.ProductionDeviations.AsNoTracking().Include(x=>x.Events)
+                .SingleOrDefaultAsync(x=>x.Id==id,ct);
+            return row is null?Results.NotFound():Results.Ok(Dto(row));
+        });
         api.MapPost("/production-deviations",async(DeviationInput input,ProductionDb db,
             HttpContext ctx,CancellationToken ct)=>{
             if(!Enum.IsDefined(input.Category)||string.IsNullOrWhiteSpace(input.Description)
