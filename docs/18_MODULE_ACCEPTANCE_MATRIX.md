@@ -31,3 +31,9 @@
 
 ## Current release gate
 Until all relevant functional, cybersecurity, SQL Server/IIS, backup-restore, performance and factory user-acceptance tests pass, the Draft PR must not be merged or considered an approved production release.
+
+## Stage 9.9 acceptance progress
+- Auto-release of future capacity reservations when a routing step completes or a non-executed manufacturing order is cancelled, with preserved immutable audit and transaction atomicity.
+- Shared order-level + center-level SQL Server application locks protect booking, live clock and manufacturing lifecycle mutations.
+- Upstream slot cannot be manually cancelled while a later unfinished routing stage remains booked.
+- Completed-operation and order-cancellation regression coverage added. **Still pending:** factory UAT, held-order dispatch decisions, field repair of legacy audit inconsistencies, plant authorization and full 18-module sign-off.
