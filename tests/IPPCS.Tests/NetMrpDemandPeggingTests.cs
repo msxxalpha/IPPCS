@@ -95,6 +95,27 @@ public sealed class NetMrpDemandPeggingTests
     }
 
     [Fact]
+    public void Batch_surplus_is_reused_for_later_demand_without_duplicate_build_or_component_usage()
+    {
+        var finished = Guid.NewGuid(); var component = Guid.NewGuid();
+        var first = new MpsDemandLine { ItemId = finished, Quantity = 3, NeededOn = Start.AddDays(5) };
+        var second = new MpsDemandLine { ItemId = finished, Quantity = 2, NeededOn = Start.AddDays(6) };
+        var (_, report) = Run([first, second], [Revision(finished, component)],
+            [Balance(finished, 0, 1, 5, 5), Balance(component, 0)], [],
+            new() { [finished] = PlanningItemType.Finished,
+                    [component] = PlanningItemType.RawMaterial });
+        var lot = Assert.Single(report.PlannedLots.Where(x => x.ItemId == finished));
+        Assert.Equal(5m, lot.Quantity);
+        Assert.Equal(3m, lot.NetShortage);
+        Assert.Equal(2m, lot.LotSizingSurplus);
+        Assert.Equal(0m, lot.UnallocatedQuantity);
+        Assert.Equal(2m, Assert.Single(report.Allocations.Where(x =>
+            x.DemandKey == "MPS:" + second.Id.ToString("N"))).Quantity);
+        var componentNeed = Assert.Single(report.Demands.Where(x => x.ParentLotKey == lot.LotKey));
+        Assert.Equal(5m, componentNeed.Quantity);
+    }
+
+    [Fact]
     public void Child_need_before_planning_baseline_fails_closed()
     {
         var finished = Guid.NewGuid(); var raw = Guid.NewGuid();
