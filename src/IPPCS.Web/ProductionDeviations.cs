@@ -80,6 +80,37 @@ public static class ProductionDeviationEndpoints
             var list=await q.OrderByDescending(x=>x.CreatedUtc).Take(300).ToListAsync(ct);
             return Results.Ok(list.Select(Dto));
         });
+        // Filter and page on SQL Server. The historical /production-deviations
+        // list is retained for older clients; high-volume factory screens use
+        // this bounded query so entries past the first 300 remain searchable.
+        api.MapGet("/production-deviations/search",async(string? text,int? status,
+            int? category,int page,int pageSize,ProductionDb db,CancellationToken ct)=>{
+            if(page is <1 or >100000||pageSize is <1 or >100||
+                text is {Length:>120}||
+                status is not null&&!Enum.IsDefined((ProductionDeviationStatus)status.Value)||
+                category is not null&&!Enum.IsDefined((ProductionDeviationCategory)category.Value))
+                return Results.BadRequest(new{message="فیلتر، شماره صفحه یا تعداد ردیف نامعتبر است."});
+            var query=db.ProductionDeviations.AsNoTracking().AsQueryable();
+            if(status.HasValue)query=query.Where(x=>(int)x.Status==status.Value);
+            if(category.HasValue)query=query.Where(x=>(int)x.Category==category.Value);
+            var term=text?.Trim();
+            if(!string.IsNullOrWhiteSpace(term))
+                query=query.Where(x=>x.Description.Contains(term)||
+                    (x.RootCause!=null&&x.RootCause.Contains(term))||
+                    (x.CorrectiveAction!=null&&x.CorrectiveAction.Contains(term))||
+                    (x.Responsible!=null&&x.Responsible.Contains(term))||
+                    (x.ResponsibleCode!=null&&x.ResponsibleCode.Contains(term))||
+                    (x.RootCauseCategoryCode!=null&&x.RootCauseCategoryCode.Contains(term)));
+            var total=await query.CountAsync(ct);
+            var rows=await query.Include(x=>x.Events)
+                .OrderByDescending(x=>x.CreatedUtc).ThenByDescending(x=>x.Id)
+                .Skip((page-1)*pageSize).Take(pageSize).ToListAsync(ct);
+            return Results.Ok(new{total,page,pageSize,
+                totalPages=total==0?0:(total+pageSize-1)/pageSize,
+                hasPrevious=page>1,hasNext=(long)page*pageSize<total,
+                rows=rows.Select(Dto).ToArray(),
+                disclaimer="جست‌وجوی سروری و صفحه‌بندی بر اساس کدهای ثابت دسته/مسئول؛ برای سوابق قدیمیِ فاقد کد، متن قبلی حفظ می‌شود."});
+        });
         api.MapPost("/production-deviations",async(DeviationInput input,ProductionDb db,
             HttpContext ctx,CancellationToken ct)=>{
             if(!Enum.IsDefined(input.Category)||string.IsNullOrWhiteSpace(input.Description)
