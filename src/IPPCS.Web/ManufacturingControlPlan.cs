@@ -224,11 +224,39 @@ public static class ManufacturingControlPlanEndpoints
         api.MapPost("/control-plans/{id:guid}/approve",async(Guid id,ProductionDb db,
             HttpContext ctx,CancellationToken ct)=>{
             await using var tx=await db.Database.BeginTransactionAsync(IsolationLevel.Serializable,ct);
+            // Approval is rare and must be ordered globally, including when two
+            // different draft plans overlap on the same routing revision.
+            try
+            {
+                await db.Database.ExecuteSqlRawAsync(
+                    "DECLARE @rc int; EXEC @rc=sys.sp_getapplock " +
+                    "@Resource=N'IPPCS:ControlPlans:Approval', " +
+                    "@LockMode=N'Exclusive', @LockOwner=N'Transaction', " +
+                    "@LockTimeout=10000; " +
+                    "IF @rc<0 THROW 51082, 'Control plan approval lock unavailable', 1;",ct);
+            }
+            catch(Microsoft.Data.SqlClient.SqlException)
+            {
+                return Results.Conflict(new{message="قفل تصویب کنترل پلن در دسترس نیست؛ دوباره تلاش کنید."});
+            }
             var plan=await db.ManufacturingControlPlans.Include(x=>x.Characteristics)
                 .SingleOrDefaultAsync(x=>x.Id==id,ct);
             if(plan is null)return Results.NotFound();
             if(plan.State!=ControlPlanState.Draft)return Results.Conflict(new{message="این کنترل پلن قبلاً تأیید شده است."});
             if(plan.Characteristics.Count==0)return Results.BadRequest(new{message="کنترل پلن بدون مشخصه قابل تأیید نیست."});
+            var route=await db.RoutingRevisions.AsNoTracking().Include(x=>x.Operations)
+                .SingleOrDefaultAsync(x=>x.Id==plan.RoutingRevisionId,ct);
+            if(route is null||route.State!=RoutingState.Approved)
+                return Results.Conflict(new{message="پیش از تصویب کنترل پلن، مسیر ساخت مربوطه باید مصوب باشد."});
+            if(plan.ValidFrom<route.EffectiveFrom||
+                (route.EffectiveTo.HasValue&&
+                    (!plan.ValidUntil.HasValue||plan.ValidUntil.Value>route.EffectiveTo.Value)))
+                return Results.Conflict(new{message="بازه کنترل پلن باید در محدوده اعتبار مسیر ساخت مصوب باشد."});
+            var sequences=route.Operations.Select(x=>x.Sequence).ToHashSet();
+            if(plan.Characteristics.Any(x=>!sequences.Contains(x.OperationSequence)||
+                (x.Minimum.HasValue&&x.Maximum.HasValue&&x.Minimum>x.Maximum)||
+                string.IsNullOrWhiteSpace(x.Code)))
+                return Results.Conflict(new{message="یک یا چند مشخصه کنترل پلن با عملیات مسیر ساخت منطبق نیست."});
             var overlap=await db.ManufacturingControlPlans.AsNoTracking().AnyAsync(x=>
                 x.Id!=id && x.RoutingRevisionId==plan.RoutingRevisionId && x.State==ControlPlanState.Approved
                 && x.ValidFrom<=(plan.ValidUntil??DateOnly.MaxValue)
