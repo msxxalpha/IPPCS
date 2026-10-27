@@ -265,6 +265,30 @@ function register(){
     format(data.totalScrapRials)+" ریال. مراکز بدون نرخ: "+data.missingRates);
   }catch(e){flash(e.message,true);}
  };
+ addForm("#mps-peg-adherence-form",async f=>{
+  const result=await api("/factory-kpis/peg-adherence/"+formval(f,"mpsId"));
+  table("#peg-adherence-summary",[["شاخص","name"],["مقدار","value"]],[
+    {name:"نیاز کل MPS",value:format(result.totals.required)},
+    {name:"مقدار تخصیص‌یافته",value:format(result.totals.assigned)},
+    {name:"تولید سالم تکمیل‌شده",value:format(result.totals.completed)},
+    {name:"تولید سالم به‌موقع",value:format(result.totals.onTime)},
+    {name:"تولید سالم دیرهنگام",value:format(result.totals.late)},
+    {name:"کسری تحقق برنامه",value:format(result.totals.shortage)}
+  ]);
+  table("#peg-adherence-table",[
+    ["کالا",x=>item(x.itemId)],["نیاز شمسی","neededOnJalali"],
+    ["ردیف MPS",x=>x.lineId.slice(0,8)],
+    ["نیاز",x=>format(x.required)],["تخصیص",x=>format(x.assigned)],
+    ["سالم نهایی",x=>format(x.completedGood)],
+    ["به‌موقع",x=>format(x.onTimeGood)],["دیرهنگام",x=>format(x.lateGood)],
+    ["تاریخ پایان نامشخص",x=>format(x.undatedGood)],
+    ["در انتظار تکمیل",x=>format(x.pendingAssigned)],
+    ["تخصیص‌نیافته",x=>format(x.unassigned)],
+    ["کسری",x=>format(x.shortage)],
+    ["تحقق",x=>x.fulfilmentPercent===null?"نامشخص":format(x.fulfilmentPercent)+"٪"]
+  ],result.rows);
+  flash("گزارش براساس ارتباط صریح دستورهای تولید با ردیف‌های MPS مصوب محاسبه شد.");
+ });
  addForm("#adherence-form",async f=>{
   const data=await api("/factory-kpis/adherence/"+formval(f,"mpsId")+
    "?fromJalali="+encodeURIComponent(formval(f,"from"))+
