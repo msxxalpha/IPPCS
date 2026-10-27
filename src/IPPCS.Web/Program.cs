@@ -146,6 +146,7 @@ app.MapCrossOrderTrace();
 app.MapGenealogyExplorer();
 app.MapFactoryExecutionInsights();
 app.MapPlanningReconciliation();
+app.MapFactoryRevisionGovernance();
 app.MapOrderPegging();
 app.MapProductionDeviations();
 app.MapDemandTrace();
