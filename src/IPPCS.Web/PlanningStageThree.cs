@@ -269,14 +269,18 @@ public static class PlanningStageThreeEndpoints
             return Results.Created($"/api/v1/bom-revisions/{id}",new{part.Id});
         });
         api.MapPost("/bom-revisions/{id:guid}/approve",async(Guid id,ProductionDb db,CancellationToken ct)=>{
+            var owner=await db.ManufacturingBomRevisions.AsNoTracking()
+                .Where(x=>x.Id==id).Select(x=>(Guid?)x.ParentItemId).SingleOrDefaultAsync(ct);
+            if(owner is null)return Results.NotFound();
             await using var tx=await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable,ct);
+            // Serialize by item BEFORE acquiring repeatable-read row locks.
+            try{await FactoryRevisionGovernance.LockRevisionItem(db,"BOM",owner.Value,ct);}
+            catch(Microsoft.Data.SqlClient.SqlException){return Results.Conflict(new{message="قفل تصویب BOM در دسترس نیست."});}
             var rev=await db.ManufacturingBomRevisions.Include(x=>x.Lines)
                 .SingleOrDefaultAsync(x=>x.Id==id,ct);
             if(rev is null)return Results.NotFound();
             if(rev.State!=ManufacturingRevisionState.Draft)return Results.Conflict(new{message="نسخه پیش‌نویس نیست."});
             if(rev.Lines.Count==0)return Results.BadRequest(new{message="BOM بدون جزء قابل تأیید نیست."});
-            try{await FactoryRevisionGovernance.LockRevisionItem(db,"BOM",rev.ParentItemId,ct);}
-            catch(Microsoft.Data.SqlClient.SqlException){return Results.Conflict(new{message="قفل تصویب BOM در دسترس نیست."});}
             var other=await db.ManufacturingBomRevisions.AsNoTracking().Include(x=>x.Lines)
                 .Where(x=>x.State==ManufacturingRevisionState.Approved).ToListAsync(ct);
             var issues=FactoryRevisionGovernance.BomIssues(rev,other);
