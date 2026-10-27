@@ -111,13 +111,16 @@ public static class FactoryExecutionInsights
             var overdue=days.HasValue && days.Value<0;
             var noAction=deviation.Status==ProductionDeviationStatus.Open;
             if(!overdue && !noAction && !(days.HasValue&&days<=daysAhead))continue;
-            var sev=overdue?"High":"Medium";
+            var escalated=deviation.Events.Any(x=>x.Details.StartsWith(
+                FactoryDeviationGovernance.EscalationPrefix,StringComparison.Ordinal));
+            var sev=escalated&&overdue?"Critical":overdue||escalated?"High":"Medium";
             alerts.Add(new("DeviationAction",sev,deviation.Id,
                 deviation.Responsible??deviation.MpsLineId.ToString("N"),due,
                 overdue?-days!.Value:0,
-                overdue?"اقدام اصلاحی انحراف از موعد گذشته است.":
+                (escalated?"پیگیری تشدیدشده ثبت شده است. ":"")+
+                (overdue?"اقدام اصلاحی انحراف از موعد گذشته است.":
                 noAction?"انحراف هنوز اقدام اصلاحی تخصیص‌یافته ندارد.":
-                "سررسید اقدام اصلاحی نزدیک است."));
+                "سررسید اقدام اصلاحی نزدیک است.")));
         }
         var sorted=alerts.OrderBy(x=>x.Severity=="Critical"?0:x.Severity=="High"?1:2)
             .ThenBy(x=>x.DueDate).ThenBy(x=>x.ReferenceId).ToArray();
@@ -175,7 +178,7 @@ public static class FactoryExecutionInsights
             var holds=await db.ManufacturingQualityHolds.AsNoTracking()
                 .Where(x=>x.Status==ManufacturingQualityStatus.Open)
                 .Take(5001).ToListAsync(ct);
-            var deviations=await db.ProductionDeviations.AsNoTracking()
+            var deviations=await db.ProductionDeviations.AsNoTracking().Include(x=>x.Events)
                 .Where(x=>x.Status!=ProductionDeviationStatus.Closed)
                 .Take(5001).ToListAsync(ct);
             if(orders.Count>5000||holds.Count>5000||deviations.Count>5000)
