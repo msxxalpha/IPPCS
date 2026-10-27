@@ -152,7 +152,9 @@ public static class FactoryRevisionGovernance
                     DateOnly.FromDateTime(x.StartLocal)<until);
                 var clock=clocks.Any(x=>x.OrderId==order.Id&&x.OperationId==op.Id&&
                     x.StoppedUtc is null);
-                var ready=gate.CanProceed&&!quality;
+                // A stopped manufacturing order is never dispatch-ready, even when
+                // route, quality quantities and future machine bookings look valid.
+                var ready=gate.CanProceed&&!quality&&order.Status!=ManufacturingOrderStatus.OnHold;
                 rows.Add(new(order.Id,order.Number,order.ItemId,order.Status,order.DueOn,
                     op.Id,op.Sequence,op.Name,op.WorkCenterId,ready,quality,slot,clock,
                     gate.ForwardAvailable,gate.PendingQuality,gate.Good,
