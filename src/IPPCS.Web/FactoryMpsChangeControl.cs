@@ -31,6 +31,8 @@ public static class FactoryMpsChangeControl
 {
     public const string RevisionAlgorithm="MPS-CONTROLLED-REVISION-1";
     public const string ApprovalAlgorithm="MPS-APPROVAL-AUDIT-1";
+    private static readonly JsonSerializerOptions AuditJsonOptions=new(){
+        PropertyNamingPolicy=JsonNamingPolicy.CamelCase,PropertyNameCaseInsensitive=true};
 
     internal static async Task LockMps(ProductionDb db,CancellationToken ct)
     {
@@ -134,7 +136,7 @@ public static class FactoryMpsChangeControl
                     .Select(x=>new{x.MpsVersionId,x.InputSnapshotJson}).ToListAsync(ct);
                 foreach(var evidence in revisions)
                 {
-                    var e=JsonSerializer.Deserialize<FactoryMpsRevisionEvidence>(evidence.InputSnapshotJson);
+                    var e=JsonSerializer.Deserialize<FactoryMpsRevisionEvidence>(evidence.InputSnapshotJson,AuditJsonOptions);
                     if(e?.SourceVersionId==id&&await db.MpsVersions.AsNoTracking()
                         .AnyAsync(x=>x.Id==evidence.MpsVersionId&&x.State==PlanningApproval.Draft,ct))
                         return Results.Conflict(new{message="بازنگری پیش‌نویس باز از همین نسخه وجود دارد؛ ابتدا آن را تعیین تکلیف کنید."});
@@ -151,7 +153,7 @@ public static class FactoryMpsChangeControl
                         new FactoryMpsSnapshotLine(x.ItemId,x.NeededOn,x.Quantity,x.Reference)).ToArray());
                 db.PlanningCalculations.Add(new PlanningCalculation{
                     MpsVersionId=draft.Id,AlgorithmVersion=RevisionAlgorithm,
-                    InputSnapshotJson=JsonSerializer.Serialize(immutable),
+                    InputSnapshotJson=JsonSerializer.Serialize(immutable,AuditJsonOptions),
                     ResultSnapshotJson=JsonSerializer.Serialize(new{
                         status="Draft",lineCount=original.Lines.Count,
                         important="نسخه مصوب اصلی تغییری نکرده است."})});
@@ -175,7 +177,7 @@ public static class FactoryMpsChangeControl
                     .Where(x=>x.MpsVersionId==candidateId&&x.AlgorithmVersion==RevisionAlgorithm)
                     .ToListAsync(ct);
                 if(!revisions.Any(x=>JsonSerializer.Deserialize<FactoryMpsRevisionEvidence>(
-                    x.InputSnapshotJson)?.SourceVersionId==sourceId))
+                    x.InputSnapshotJson,AuditJsonOptions)?.SourceVersionId==sourceId))
                     return Results.Conflict(new{message="نسخه انتخابی از بازنگری مستند این MPS منشأ نگرفته است."});
                 var routings=await db.RoutingRevisions.AsNoTracking().Include(x=>x.Operations)
                     .ToListAsync(ct);
