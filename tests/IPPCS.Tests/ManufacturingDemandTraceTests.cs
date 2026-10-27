@@ -22,7 +22,7 @@ public sealed class ManufacturingDemandTraceTests
     [Fact]
     public void Invalid_scrap_and_bom_cycles_are_rejected()
     {
-        var date=new DateOnly(2026,10,30);var root=Guid.NewGuid(),raw=Guid.NewGuid();
+        var date=new DateOnly(2026,10,30);var root=Guid.NewGuid();var raw=Guid.NewGuid();
         var line=new MpsDemandLine{Id=Guid.NewGuid(),ItemId=root,Quantity=2,NeededOn=date};
         var rev=new ManufacturingBomRevision{ParentItemId=root,State=ManufacturingRevisionState.Approved,
             ValidFrom=date,Lines=[new ManufacturingBomLine{ComponentItemId=raw,QuantityPer=1,ScrapPercent=100}]};
