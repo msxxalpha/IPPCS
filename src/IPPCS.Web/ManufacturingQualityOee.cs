@@ -25,7 +25,7 @@ public sealed class ManufacturingOeePlan
     public string? Note { get; set; }
     public DateTime UpdatedUtc { get; set; } = DateTime.UtcNow;
 }
-public record ManufacturingQualityHoldInput(Guid OperationId, decimal Quantity, string Reason);
+public record ManufacturingQualityHoldInput(Guid OperationId, decimal Quantity, string Reason,string? ReasonCode=null);
 public record ManufacturingQualityDecisionInput(string Note);
 public record ManufacturingOeePlanInput(Guid WorkCenterId, string ProductionDateJalali, decimal PlannedMinutes, string? Note);
 public record ManufacturingOeeResult(decimal? AvailabilityPercent, decimal? PerformancePercent,
@@ -168,6 +168,10 @@ public static class ManufacturingQualityAndOeeEndpoints
             async(Guid id,ManufacturingQualityHoldInput input,ProductionDb db,HttpContext ctx,CancellationToken ct)=>{
             if(string.IsNullOrWhiteSpace(input.Reason)||input.Reason.Length>500)
                 return Results.BadRequest(new{message="علت عدم‌انطباق معتبر لازم است."});
+            var categorized=await FactoryMasterData.ResolveReason(db,
+                FactoryMasterData.QualityHoldReason,input.ReasonCode,input.Reason,500,ct);
+            if(categorized is null)return Results.Conflict(new{
+                message="دلیل قرنطینه در اطلاعات پایه معتبر یا فعال نیست."});
             await using var tx=await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable,ct);
             try{await FactoryCapacityReservations.LockOrder(db,id,ct);}
             catch(Microsoft.Data.SqlClient.SqlException)
@@ -180,7 +184,7 @@ public static class ManufacturingQualityAndOeeEndpoints
             operation.QualityPendingQuantity+=input.Quantity;
             order.UpdatedUtc=DateTime.UtcNow;
             var hold=new ManufacturingQualityHold{
-                OrderId=id,OperationId=input.OperationId,Quantity=input.Quantity,Reason=input.Reason.Trim(),
+                OrderId=id,OperationId=input.OperationId,Quantity=input.Quantity,Reason=categorized,
                 RaisedBy=ctx.User.Identity?.Name??"unknown"};
             db.ManufacturingQualityHolds.Add(hold);
             db.ManufacturingOrderAudits.Add(new ManufacturingOrderAudit{
