@@ -116,13 +116,29 @@ function renderAps(data){
 }
 async function reloadMaterial(){
  const id=$("#material-order").value;
- if(!id){table("#material-table",[["قطعه","componentItemId"],["مصرف","recordedConsumed"]],[]);return;}
+ if(!id){
+  table("#material-table",[["قطعه","componentItemId"],["مصرف","recordedConsumed"]],[]);
+  table("#material-reconciliation",[["قطعه","componentItemId"]],[]);
+  return;
+ }
  const data=await api("/factory-material/"+id);
  fill($("#material-component"),data.rows.filter(x=>x.plannedRequired>0),
   x=>item(x.componentItemId)+" | برنامه: "+format(x.plannedRequired),x=>x.componentItemId);
  table("#material-table",[["جزء",x=>item(x.componentItemId)],
   ["استاندارد",x=>format(x.plannedRequired)],["ثبت‌شده",x=>format(x.recordedConsumed)],
   ["انحراف",x=>format(x.variance)]],data.rows);
+ const actual=await api("/factory-material/"+id+"/execution-reconciliation");
+ const fmt=x=>x===null||x===undefined?"نامشخص":format(x);
+ table("#material-reconciliation",[
+  ["قطعه",x=>item(x.componentItemId)],
+  ["مقدار برنامه",x=>fmt(x.standardForPlannedQuantity)],
+  ["خروجی ثبت‌شده آخرین مرحله",x=>fmt(x.reportedFinalOperationQuantity)],
+  ["استاندارد برای خروجی واقعی",x=>fmt(x.standardForReportedOutput)],
+  ["مصرف ثبت‌شده",x=>fmt(x.actualLoggedConsumption)],
+  ["اختلاف مصرف",x=>fmt(x.outputBasedVariance)],
+  ["درصد اختلاف",x=>x.outputBasedVariancePercent===null?"نامشخص":fmt(x.outputBasedVariancePercent)+"٪"],
+  ["دفعات ثبت مصرف","recordedEntries"]
+ ],actual.rows);
 }
 function register(){
  $$("nav [data-view]").forEach(btn=>btn.onclick=()=>{
@@ -265,6 +281,27 @@ function register(){
     format(data.totalScrapRials)+" ریال. مراکز بدون نرخ: "+data.missingRates);
   }catch(e){flash(e.message,true);}
  };
+ addForm("#production-alert-form",async f=>{
+  const d=await api("/factory-kpis/production-alerts?asOfJalali="+
+    encodeURIComponent(formval(f,"date"))+"&daysAhead="+number(f,"days"));
+  table("#production-alert-totals",[["وضعیت","name"],["تعداد","count"]],[
+    {name:"بحرانی؛ قرنطینه باز",count:format(d.criticalCount)},
+    {name:"مهم؛ دیرکرد",count:format(d.highCount)},
+    {name:"نزدیک به سررسید یا بدون اقدام",count:format(d.mediumCount)}
+  ]);
+  const kinds={QualityHold:"قرنطینه باز",OrderOverdue:"دستور معوق",
+    OrderDueSoon:"سررسید نزدیک",DeviationAction:"اقدام اصلاحی"};
+  const levels={Critical:"بحرانی",High:"مهم",Medium:"پیگیری"};
+  table("#production-alert-table",[
+    ["نوع",x=>kinds[x.type]||x.type],
+    ["اهمیت",x=>levels[x.severity]||x.severity],
+    ["شناسه","identifier"],
+    ["تاریخ موعد",x=>x.dueDate?new Date(x.dueDate+"T12:00:00Z").toLocaleDateString("fa-IR-u-ca-persian",{timeZone:"Asia/Tehran"}):"نامشخص"],
+    ["روز دیرکرد",x=>x.daysOverdue===null?"—":format(x.daysOverdue)],
+    ["شرح","message"]
+  ],d.alerts);
+  flash(d.disclaimer);
+ });
  addForm("#mps-peg-adherence-form",async f=>{
   const result=await api("/factory-kpis/peg-adherence/"+formval(f,"mpsId"));
   table("#peg-adherence-summary",[["شاخص","name"],["مقدار","value"]],[
