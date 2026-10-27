@@ -113,7 +113,7 @@ public static class NetMrpDemandPegging
                     var release = row.SuggestedRelease!.Value;
                     if (release != date.AddDays(-balance.LeadDays))
                         throw new InvalidOperationException("تاریخ آزادسازی پیشنهاد MRP صحیح نیست.");
-                    var lotKey = "PLAN:" + item.ToString("N") + ":" + date.ToString("yyyyMMdd");
+                    var lotKey = "PLAN:" + item.ToString("N") + ":" + date.ToString("yyyyMMdd", System.Globalization.CultureInfo.InvariantCulture);
                     var manufactured = types[item] is PlanningItemType.Finished or PlanningItemType.SemiFinished;
                     ManufacturingBomRevision? revision = null;
                     if (manufactured)
