@@ -97,6 +97,55 @@ public sealed class FactoryCapacityReservationTests
         Assert.Equal(new TimeOnly(9,0),Assert.Single(after.Allocations).StartsAt);
     }
     [Fact]
+    public void Lifecycle_release_selects_only_completed_operations_and_replays_without_duplicate()
+    {
+        var order=Guid.NewGuid();
+        var center=Guid.NewGuid();
+        var op10=Guid.NewGuid();
+        var op20=Guid.NewGuid();
+        var first=Slot(Guid.NewGuid(),order,op10,center,At(8),At(9));
+        var second=Slot(Guid.NewGuid(),order,op20,center,At(9),At(10));
+        var events=new List<ManufacturingOrderAudit>{
+            Event(order,FactoryCapacityReservations.Reserved,
+                FactoryCapacityReservations.Encode(first)),
+            Event(order,FactoryCapacityReservations.Reserved,
+                FactoryCapacityReservations.Encode(second),1)
+        };
+        var eligible=FactoryCapacityReservations.PendingLifecycleRelease(events,order,
+            new HashSet<Guid>{op10});
+        Assert.Equal(first.Id,Assert.Single(eligible).Id);
+        events.Add(Event(order,FactoryCapacityReservations.Cancelled,
+            first.Id.ToString("N"),2));
+        Assert.Empty(FactoryCapacityReservations.PendingLifecycleRelease(events,order,
+            new HashSet<Guid>{op10}));
+        Assert.Equal(second.Id,Assert.Single(FactoryCapacityReservations.Read(events)).Id);
+        // Cancelling the entire work order must release all remaining slots.
+        var remainder=FactoryCapacityReservations.PendingLifecycleRelease(events,order,
+            new HashSet<Guid>{op10,op20});
+        Assert.Equal(second.Id,Assert.Single(remainder).Id);
+    }
+
+    [Fact]
+    public void Lifecycle_release_never_selects_unrelated_orders_or_operations()
+    {
+        var order=Guid.NewGuid();
+        var center=Guid.NewGuid();
+        var op=Guid.NewGuid();
+        var unrelated=Guid.NewGuid();
+        var first=Slot(Guid.NewGuid(),order,op,center,At(8),At(9));
+        var second=Slot(Guid.NewGuid(),unrelated,Guid.NewGuid(),center,At(9),At(10));
+        var events=new[]{
+            Event(order,FactoryCapacityReservations.Reserved,FactoryCapacityReservations.Encode(first)),
+            Event(unrelated,FactoryCapacityReservations.Reserved,FactoryCapacityReservations.Encode(second),1)
+        };
+        Assert.Empty(FactoryCapacityReservations.PendingLifecycleRelease(events,unrelated,
+            new HashSet<Guid>{op}));
+        Assert.Equal(first.Id,Assert.Single(
+            FactoryCapacityReservations.PendingLifecycleRelease(events,order,
+                new HashSet<Guid>{op})).Id);
+    }
+
+    [Fact]
     public void Clock_comparison_calculates_start_and_duration_variances()
     {
         var order=Guid.NewGuid();var op=Guid.NewGuid();
