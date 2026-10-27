@@ -19,4 +19,18 @@
 </form>
 <div class="panel"><h3>وضعیت پیگیری پرونده منتخب</h3>
 <div class="form-actions"><button id="followup-review" type="button" class="btn-outline">نمایش تعداد پیگیری‌ها و سابقه</button></div><div id="followup-summary"></div></div>
-<form id="close" class="panel form-grid"><h3 class="wide">بررسی اثربخشی و اختتام</h3><label>پرونده دارای اقدام<select id="close-case" required></select></label><label class="wide">مستند نتیجه و اثربخشی<textarea id="verification" maxlength="1000" required></textarea></label><div class="form-actions"><button type="submit" class="btn-outline">بستن پرونده</button></div></form></main></div></div></body></html>
+<form id="close" class="panel form-grid"><h3 class="wide">ثبت تکمیل اقدام و اختتام اولیه</h3><p class="wide">اختتام اولیه به معنی تأیید اثربخشی نیست؛ باید کاربر مستقل با نقش کیفیت، مستندات و نتیجه را بازبینی کند.</p><label>پرونده دارای اقدام<select id="close-case" required></select></label><label class="wide">مستند نتیجه و اثربخشی<textarea id="verification" maxlength="1000" required></textarea></label><div class="form-actions"><button type="submit" class="btn-outline">ثبت اختتام اولیه</button></div></form>
+<section class="panel">
+<h3>تأیید مستقل اثربخشی اقدامات اصلاحی</h3>
+<p>فقط کاربر دارای نقش بازرس کیفیت یا مدیر سامانه که در ایجاد، تعیین اقدام، بازنگری یا اختتام پرونده مشارکت نداشته است می‌تواند نتیجه را ثبت کند. رد اثربخشی، پرونده را با حفظ سوابق برای اصلاح مجدد باز می‌کند؛ هیچ ارتباطی با منابع انسانی ایجاد نمی‌شود.</p>
+<div class="form-actions"><button id="effectiveness-load" class="btn-outline" type="button">بارگذاری پرونده‌های منتظر تأیید</button></div>
+<div id="effectiveness-pending"></div>
+<form id="effectiveness-form" class="form-grid">
+<label>پرونده مختومه در انتظار بازبینی مستقل<select id="effectiveness-case" required></select></label>
+<label>نتیجه بازبینی<select id="effectiveness-result" required><option value="true">مؤثر ـ تأیید</option><option value="false">نامؤثر ـ رد و بازگشایی</option></select></label>
+<label>شناسه سند و مدرک<input id="effectiveness-ref" maxlength="100" minlength="4" required placeholder="QMS-EFF-1405-001"></label>
+<label class="wide">مشاهدات واقعی و دلیل نتیجه<textarea id="effectiveness-observation" minlength="10" maxlength="400" required rows="3"></textarea></label>
+<div class="form-actions"><button type="submit" class="btn-main">ثبت نتیجه بازبینی مستقل</button></div>
+</form>
+<div id="effectiveness-summary" role="status" aria-live="polite"></div>
+</section></main></div></div></body></html>
