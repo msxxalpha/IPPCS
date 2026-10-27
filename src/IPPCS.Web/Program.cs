@@ -143,6 +143,7 @@ app.MapManufacturingExecution();
 app.MapQualityAndOee();
 app.MapControlPlanEndpoints();
 app.MapCrossOrderTrace();
+app.MapEndOfLineAcceptance();
 app.MapGenealogyExplorer();
 app.MapFactoryExecutionInsights();
 app.MapPlanningReconciliation();
