@@ -182,7 +182,13 @@ function register(){
   const result=await api(query);
   table("#forecast-table",[["سال شمسی","jalaliYear"],["ماه شمسی","jalaliMonth"],
    ["مقدار پیشنهادی",x=>format(x.forecastQuantity)]],result.rows);
-  flash("پیش‌بینی صرفاً بر اساس میانگین نیازهای قطعی ثبت‌شده است؛ تعداد سوابق: "+result.historySamples);
+  const coverage=result.historyComplete?
+    "تمام ماه‌های مبنا دارای رکورد تقاضای قطعی هستند.":
+    "هشدار: ماه‌های فاقد رکورد تقاضا "+(result.missingHistoryMonths||[]).join("، ")+
+    "؛ عدد صفر در آن ماه‌ها به معنای صفر تأییدشده نیست.";
+   flash("پیش‌بینی میانگین متحرک: "+result.historySamples+
+    " رکورد؛ "+result.historyMonthsWithRecords+" ماه دارای داده. "+coverage,
+    !result.historyComplete);
  });
  addForm("#forecast-backtest-form",async f=>{
   const result=await api("/factory-demand/backtest/"+formval(f,"itemId")+
