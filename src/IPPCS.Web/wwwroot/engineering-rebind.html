@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>IPPCS | انتقال کنترل‌شده نسخه دستورات پیش‌نویس</title>
+<link rel="stylesheet" href="/css/production.css">
+<script defer src="/js/security-client.js"></script>
+<script defer src="/js/engineering-rebind.js"></script>
+</head>
+<body>
+<div class="app-shell">
+<aside class="sidebar">
+<div class="brand"><div class="brand-logo">IP</div><div><strong>ایندامین سایپا</strong><small>مدیریت نسخه‌های مهندسی</small></div></div>
+<nav>
+<a class="planning-link" href="/app.html">صفحه اصلی</a>
+<a class="planning-link" href="/planning.html">BOM و مسیر ساخت</a>
+<a class="planning-link" href="/execution.html">دستورات تولید</a>
+<a class="planning-link" href="/control-plan.html">کنترل پلن</a>
+<a class="planning-link" href="/engineering-rebind.html" aria-current="page">انتقال کنترل‌شده نسخه پیش‌نویس</a>
+</nav>
+<div class="sidebar-foot">IPPCS • مرحله ۲۱<br>قابل بررسی در شاخه توسعه، نه مجوز بهره‌برداری</div>
+</aside>
+<div class="main">
+<header class="topbar">
+<div><span class="eyebrow">BOM / Routing · کنترل تغییرات مهندسی</span>
+<h1>انتقال نسخه دستورات پیش‌نویس</h1></div>
+<button type="button" class="btn-outline" data-ip-logout>خروج</button>
+</header>
+<main class="content">
+<div class="callout">این فرایند فقط مرجع BOM یا Routing دستورات <strong>پیش‌نویس و بدون عملیات</strong> را به نسخه مصوب جدید انتقال می‌دهد. دستورات آزادشده، تولیدشده و سوابق تاریخی دست‌نخورده باقی می‌مانند. این قابلیت جایگزین گردش امضا و تصویب رسمی ECO نیست.</div>
+<div id="engineering-message" class="notice" role="status" aria-live="polite" hidden></div>
+<section class="panel">
+<h3>۱. انتخاب نوع و نسخه‌های تغییر</h3>
+<div class="form-grid">
+<label>نوع نسخه
+<select id="engineering-kind"><option value="BOM">ساختار مواد BOM</option><option value="Routing">مسیر ساخت Routing</option></select>
+</label>
+<label>نسخه مبدأ فعلی<select id="engineering-baseline" required></select></label>
+<label>نسخه مقصد مصوب<select id="engineering-candidate" required></select></label>
+<label class="wide">دلیل قابل پیگیری انتقال
+<input id="engineering-reason" maxlength="300" placeholder="شماره درخواست مهندسی و شرح دلیل تغییر" required></label>
+</div>
+<p class="muted">نسخه مقصد باید قبلاً تصویب شده و در تاریخ شروع برنامه هر دستور معتبر باشد. نسخه‌های مصوب با بازه‌های متداخل مجاز نیستند.</p>
+</section>
+<section class="panel">
+<h3>۲. انتخاب دستورات پیش‌نویس</h3>
+<p class="muted">فقط دستورهای پیش‌نویس مربوط به نسخه مبدأ نشان داده می‌شوند؛ این فهرست از ۲۰۰ دستور آخر سامانه ساخته می‌شود. برای دستورات قدیمی‌تر یا انتقال بیش از ۱۰۰ دستور، از فهرست/API با کنترل دقیق شناسه استفاده کنید.</p>
+<div id="engineering-orders"></div>
+<p id="engineering-selected" class="muted"></p>
+<div class="form-actions">
+<button type="button" id="engineering-preview" class="btn-outline">۳. کنترل و پیش‌نمایش</button>
+<button type="button" id="engineering-apply" class="btn-main" disabled>۴. ثبت انتقال تأییدشده</button>
+</div>
+</section>
+<section class="panel"><h3>نتیجه کنترل</h3><div id="engineering-results" aria-live="polite"></div></section>
+<div class="callout">انتقال ثبت‌شده در تاریخچه مستقل هر دستور با شناسه نسخه قبلی، نسخه جدید، کاربر و دلیل تغییر قابل بازیابی است. برای تصویب تغییر مهندسی اصل BOM یا Routing از فرایندهای نسخه‌دار استفاده می‌شود.</div>
+</main></div></div>
+</body></html>
