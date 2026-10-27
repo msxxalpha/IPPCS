@@ -129,31 +129,17 @@ public static class FactoryEngineeringCutover
                 // Serialize all ECO-reference decisions globally, not only per item.
                 // The per-item revision lock above cannot prevent simultaneous
                 // cutovers of different products reusing the same reference.
-                int referenceLock;
-                try
-                {
-                    // ExecuteSqlRaw is non-composable, unlike SqlQueryRaw with
-                    // a DECLARE/EXEC batch. A negative sp_getapplock result raises
-                    // a SQL error and is translated to a safe 409 below.
-                    await db.Database.ExecuteSqlRawAsync(
-                        "DECLARE @result int; EXEC @result = sp_getapplock " +
-                        "@Resource = N'IPPCS:ECO:ApprovalReferences', " +
-                        "@LockMode = N'Exclusive', @LockOwner = N'Transaction', " +
-                        "@LockTimeout = 10000; " +
-                        "IF @result < 0 THROW 51029, 'ECO reference lock unavailable', 1;",
-                        ct);
-                    referenceLock=0;
-                }
+                try{await FactoryEcoApprovalWorkflow.LockGlobal(db,ct);}
                 catch(SqlException)
                 {
                     return Results.Conflict(new{message="دریافت قفل مرجع ECO با خطا مواجه شد."});
                 }
-                if(referenceLock<0)
-                    return Results.Conflict(new{message="قفل یکتایی مرجع ECO در دسترس نیست."});
                 var duplicateReference=await db.FactoryEngineeringCutoverEvents.AsNoTracking()
                     .AnyAsync(x=>x.ApprovalReference==input.ApprovalReference.Trim(),ct);
                 if(duplicateReference)
                     return Results.Conflict(new{message="شماره مرجع ECO قبلاً در سابقه برش مهندسی استفاده شده است."});
+                var authorization=await db.FactoryEcoApprovals
+                    .SingleOrDefaultAsync(x=>x.ApprovalReference==input.ApprovalReference.Trim(),ct);
                 var issues=new List<FactoryRevisionIssue>();
                 DateOnly? previousEnd;
                 if(kind=="Routing")
@@ -170,6 +156,11 @@ public static class FactoryEngineeringCutover
                     previousEnd=source.EffectiveTo;
                     if(issues.Count==0&&!input.DryRun)
                     {
+                        if(!FactoryEcoApprovalWorkflow.CanExecute(
+                            authorization,kind,input.BaselineId,input.CandidateId,
+                            cutover,input.ApprovalReference.Trim(),input.Reason.Trim(),
+                            FactoryEcoApprovalWorkflow.RoutingDigest(source,target)))
+                            return Results.Conflict(new{message="برش مسیر ساخت نیازمند درخواست ECO و تأیید مستقل کیفیتِ مطابق نسخه و تاریخ فعلی است."});
                         source.EffectiveTo=cutover.AddDays(-1);
                         target.State=RoutingState.Approved;
                     }
@@ -188,6 +179,11 @@ public static class FactoryEngineeringCutover
                     previousEnd=source.ValidUntil;
                     if(issues.Count==0&&!input.DryRun)
                     {
+                        if(!FactoryEcoApprovalWorkflow.CanExecute(
+                            authorization,kind,input.BaselineId,input.CandidateId,
+                            cutover,input.ApprovalReference.Trim(),input.Reason.Trim(),
+                            FactoryEcoApprovalWorkflow.BomDigest(source,target)))
+                            return Results.Conflict(new{message="برش BOM نیازمند درخواست ECO و تأیید مستقل کیفیتِ مطابق نسخه و تاریخ فعلی است."});
                         source.ValidUntil=cutover.AddDays(-1);
                         target.State=ManufacturingRevisionState.Approved;
                     }
@@ -221,7 +217,9 @@ public static class FactoryEngineeringCutover
                         cutoverOnJalali=PersianPlanningDates.Format(cutover),
                         newBaselineEndJalali=PersianPlanningDates.Format(cutover.AddDays(-1)),
                         staleDraftOrders=impacted,protectedFrozenOrders=frozen,
-                        disclaimer="بدون تغییر دیتابیس؛ دستورات قدیمی آزادشده محفوظ و پیش‌نویس‌ها نیازمند انتقال جداگانه‌اند."
+                        ecoApprovalStatus=authorization?.Status.ToString()??"Missing",
+                        qualityReviewedBy=authorization?.QualityReviewedBy,
+                        disclaimer="بدون تغییر دیتابیس؛ برش فقط پس از تأیید مستقل کیفیت و تطبیق نسخه مجاز است. دستورات قدیمی محفوظ و پیش‌نویس‌ها نیازمند انتقال جداگانه‌اند."
                     });
                 static string Clean(string s)=>s.Replace("\r"," ").Replace("\n"," ")
                     .Replace(";","،").Replace("|"," ").Trim();
@@ -237,6 +235,10 @@ public static class FactoryEngineeringCutover
                     DraftOrdersToRebind=drafts.Length,FrozenOrdersPreserved=frozen
                 };
                 db.FactoryEngineeringCutoverEvents.Add(journal);
+                if(authorization is null)
+                    return Results.Conflict(new{message="درخواست ECO دارای تأیید مستقل یافت نشد."});
+                authorization.Status=FactoryEcoApprovalStatus.Executed;
+                authorization.ExecutedUtc=DateTime.UtcNow;
                 try{await db.SaveChangesAsync(ct);await tx.CommitAsync(ct);}
                 catch(DbUpdateConcurrencyException){
                     return Results.Conflict(new{message="تغییر هم‌زمان نسخه مهندسی رخ داد."});
@@ -250,7 +252,9 @@ public static class FactoryEngineeringCutover
                     cutoverOnJalali=PersianPlanningDates.Format(cutover),
                     newBaselineEndJalali=PersianPlanningDates.Format(cutover.AddDays(-1)),
                     staleDraftOrders=impacted,protectedFrozenOrders=frozen,
-                    disclaimer="تصویب مؤثر از تاریخ برش با سابقه مستقل ثبت شد. مرجع تأیید ارائه‌شده هنوز امضای دیجیتال/دو امضایی ECO نیست."
+                    ecoApprovalStatus=authorization.Status.ToString(),
+                    qualityReviewedBy=authorization.QualityReviewedBy,
+                    disclaimer="برش با دو تصمیم هویتی مستقل در IPPCS اجرا شد؛ این شواهد امضای رمزنگاری‌شده یا مجوز خروج محصول نیست."
                 });
             });
         return routes;

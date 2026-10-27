@@ -148,6 +148,7 @@ app.MapSerialGenealogy();
 app.MapEngineeringChangeImpact();
 app.MapEngineeringDraftRebind();
 app.MapEngineeringCutover();
+app.MapFactoryEcoApprovals();
 app.MapInProcessHandoffs();
 app.MapGenealogyExplorer();
 app.MapFactoryRecallImpact();
@@ -210,6 +211,7 @@ public sealed class ProductionDb(DbContextOptions<ProductionDb> options) : Ident
     public DbSet<FactoryMaterialUsage> FactoryMaterialUsages => Set<FactoryMaterialUsage>();
     public DbSet<FactoryCenterCostRate> FactoryCenterCostRates => Set<FactoryCenterCostRate>();
     public DbSet<FactoryEngineeringCutoverEvent> FactoryEngineeringCutoverEvents => Set<FactoryEngineeringCutoverEvent>();
+    public DbSet<FactoryEcoApproval> FactoryEcoApprovals => Set<FactoryEcoApproval>();
     protected override void OnModelCreating(ModelBuilder model)
     {
         base.OnModelCreating(model);
@@ -243,6 +245,17 @@ public sealed class ProductionDb(DbContextOptions<ProductionDb> options) : Ident
         model.Entity<FactoryEngineeringCutoverEvent>().Property(x => x.Actor).HasMaxLength(100);
         model.Entity<FactoryEngineeringCutoverEvent>().Property(x => x.ApprovalReference).HasMaxLength(100);
         model.Entity<FactoryEngineeringCutoverEvent>().Property(x => x.Reason).HasMaxLength(300);
+        model.Entity<FactoryEcoApproval>().HasKey(x => x.Id);
+        model.Entity<FactoryEcoApproval>().HasIndex(x => x.ApprovalReference).IsUnique();
+        model.Entity<FactoryEcoApproval>().HasIndex(x => new { x.Kind, x.CandidateId });
+        model.Entity<FactoryEcoApproval>().Property(x => x.Kind).HasMaxLength(16);
+        model.Entity<FactoryEcoApproval>().Property(x => x.ApprovalReference).HasMaxLength(100);
+        model.Entity<FactoryEcoApproval>().Property(x => x.CandidateDigest).HasMaxLength(64);
+        model.Entity<FactoryEcoApproval>().Property(x => x.Reason).HasMaxLength(300);
+        model.Entity<FactoryEcoApproval>().Property(x => x.RequestedBy).HasMaxLength(100);
+        model.Entity<FactoryEcoApproval>().Property(x => x.QualityReviewedBy).HasMaxLength(100);
+        model.Entity<FactoryEcoApproval>().Property(x => x.QualityEvidenceReference).HasMaxLength(100);
+        model.Entity<FactoryEcoApproval>().Property(x => x.QualityObservation).HasMaxLength(400);
     }
 }
 public enum PlanningItemType { RawMaterial, SemiFinished, Finished, Consumable }
