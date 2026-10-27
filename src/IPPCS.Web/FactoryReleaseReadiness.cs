@@ -84,7 +84,7 @@ public static class FactoryReleaseReadiness
                 var routing=await db.RoutingRevisions.AsNoTracking()
                     .CountAsync(x=>x.State==RoutingState.Approved,ct);
                 var bom=await db.ManufacturingBomRevisions.AsNoTracking()
-                    .CountAsync(x=>x.State==BomRevisionState.Approved,ct);
+                    .CountAsync(x=>x.State==ManufacturingRevisionState.Approved,ct);
                 var shifts=await db.WorkShifts.AsNoTracking().CountAsync(ct);
                 var mps=await db.MpsVersions.AsNoTracking()
                     .CountAsync(x=>x.State==PlanningApproval.Approved,ct);
