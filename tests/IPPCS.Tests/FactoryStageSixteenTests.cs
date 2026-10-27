@@ -73,6 +73,35 @@ public sealed class FactoryStageSixteenTests
     }
 
     [Fact]
+    public void Final_certificate_cannot_hide_corrupted_quantity_or_duplicate_eol_signoff()
+    {
+        var (order,bom,lot,link,semi,origin)=Assembly();
+        var source=new Dictionary<Guid,Guid>{{origin,semi}};
+        var valid=new ManufacturingOrderAudit{OrderId=order.Id,
+            Action=FactoryEndOfLineAcceptance.ApprovedAction,
+            Details="By=qa-inspector;Lots=1;Good=2"};
+        Assert.True(FactoryEndOfLineAcceptance.CertificateMatches(valid.Details,[lot]));
+        Assert.False(FactoryEndOfLineAcceptance.CertificateMatches(
+            "By=qa-inspector;Lots=1;Good=3",[lot]));
+        Assert.False(FactoryEndOfLineAcceptance.CertificateMatches(
+            "By=qa-inspector;Lots=2;Good=2",[lot]));
+        Assert.False(FactoryEndOfLineAcceptance.CertificateMatches(
+            "By=;Lots=1;Good=2",[lot]));
+        Assert.False(FactoryEndOfLineAcceptance.CertificateMatches(
+            "By=qa-inspector;Lots=1;Good=2;Extra=forged",[lot]));
+        var damaged=new ManufacturingOrderAudit{OrderId=order.Id,
+            Action=FactoryEndOfLineAcceptance.ApprovedAction,
+            Details="By=qa-inspector;Lots=1;Good=3"};
+        var report=FactoryEndOfLineAcceptance.Evaluate(order,bom,[lot],[link],
+            source,new HashSet<Guid>{semi},[],[damaged]);
+        Assert.Contains(report.Issues,x=>x.Code=="InvalidFinalCertificate");
+        Assert.False(report.CanApprove);
+        var duplicate=FactoryEndOfLineAcceptance.Evaluate(order,bom,[lot],[link],
+            source,new HashSet<Guid>{semi},[],[valid,valid]);
+        Assert.Contains(duplicate.Issues,x=>x.Code=="InvalidFinalCertificate");
+    }
+
+    [Fact]
     public void Internal_stage_handoff_preserves_unlinked_wip_and_requires_lot_receipt_evidence()
     {
         var order=new ManufacturingOrder{Status=ManufacturingOrderStatus.Completed,
