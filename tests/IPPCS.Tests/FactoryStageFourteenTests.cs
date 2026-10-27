@@ -100,6 +100,11 @@ public sealed class FactoryStageFourteenTests
         Assert.False(blocked.CanStartByRouteAndQuality);
         Assert.Equal(0,quarantined.MissingReservationCount);
         Assert.False(result.Rows.Single(x=>x.OrderNumber=="HELD").CanStartByRouteAndQuality);
+        // The dispatcher must respect the manufacturing state even when the
+        // suspended order has a perfectly valid work center and route gate.
+        var heldRow=Assert.Single(result.Rows,x=>x.OrderNumber=="HELD");
+        Assert.False(heldRow.CanStartByRouteAndQuality);
+        Assert.Equal(1,result.RunnableOperations);
         Assert.Throws<ArgumentOutOfRangeException>(()=>
             FactoryRevisionGovernance.DispatchBoard(today,31,[],[],[],[]));
     }
