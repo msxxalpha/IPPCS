@@ -103,3 +103,11 @@ All 18 modules continue to require line-specific scenario approval and staged de
 | 15 Traceability | Globally unique factory product serial bound to finished actual confirmed output **after EOL QA**, immutable journal, bound per-lot quantities, serial-to-batch multi-order ancestors | Approved serial coding standard, verified label/scanning, unit split/merge trace, sampling/recall exercise, customer requirement alignment |
 
 Nothing connects to warehouse, purchasing, sales or HR. Plant decision makers have not yet signed the full set of 18 module acceptance gates.
+
+## Stage 19 — additional implementation, release not yet proven
+| Module | Stage 19 additions | Open gate |
+|---|---|---|
+| 14 OEE | Start/end timed center stoppages, operation clock interlock, conservative daily reconciliation across Tehran midnight, distinguish unlocated legacy durations | Representative multi-shift UAT, reason-coded approved downtime taxonomy, known machine data, proof of source clock accuracy; exact-head CI has yet to execute |
+| 17 Cost conversion | Frozen operation standard rate and explicit missing-rate evidence at work-order release, protected from later center-rate updates, separate historical audit endpoint and UI | Factory finance-approved rates and historical changes, overhead allocation/revaluation policy, cost-vs-output signoff and operational UAT; exact-head CI has yet to execute |
+
+Still strictly no external warehouse, purchasing, sales or HR connections or modules. A failed-to-start CI is not equivalent to a validated failed compilation; both need to be distinguished.
