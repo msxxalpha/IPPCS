@@ -104,8 +104,21 @@ public static class FactoryExecutionInsights
                 alerts.Add(new("OrderDueSoon","Medium",order.Id,order.Number,order.DueOn,
                     0,"موعد برنامه دستور ساخت نزدیک است."));
         }
-        foreach(var deviation in deviations.Where(x=>x.Status!=ProductionDeviationStatus.Closed))
+        foreach(var deviation in deviations)
         {
+            if(deviation.Status==ProductionDeviationStatus.Closed)
+            {
+                var verification=FactoryDeviationEffectiveness.Evaluate(deviation);
+                if(!verification.IndependentlyVerified)
+                    alerts.Add(new("DeviationEffectivenessPending",
+                        verification.State=="InvalidEvidence"?"Critical":"High",
+                        deviation.Id,deviation.Responsible??
+                            deviation.MpsLineId.ToString("N"),null,null,
+                        verification.State=="InvalidEvidence"?
+                            "سابقه بررسی اثربخشی اقدام اصلاحی نامعتبر است؛ بازبینی مدیریتی لازم است.":
+                            "اقدام اصلاحی مختومه شده، اما اثربخشی آن هنوز به‌صورت مستقل تأیید نشده است."));
+                continue;
+            }
             var due=deviation.ActionDueOn;
             var days=due.HasValue?due.Value.DayNumber-today.DayNumber:(int?)null;
             var overdue=days.HasValue && days.Value<0;
@@ -128,7 +141,7 @@ public static class FactoryExecutionInsights
             sorted.Count(x=>x.Severity=="Critical"),
             sorted.Count(x=>x.Severity=="High"),
             sorted.Count(x=>x.Severity=="Medium"),sorted,
-            "هشدارها فقط از داده‌های عملیاتی IPPCS به دست آمده‌اند؛ هیچ پیامک یا اقدام خودکار و ارتباط با سامانه‌های بیرونی انجام نمی‌شود.");
+            "هشدارها از داده‌های داخلی IPPCS محاسبه می‌شوند و پرونده مختومه تا تأیید مستقل اثربخشی باز می‌ماند؛ هیچ پیامک، اقدام خودکار یا ارتباط با سامانه بیرونی ایجاد نمی‌شود.");
     }
 
     public static IEndpointRouteBuilder MapFactoryExecutionInsights(
@@ -178,8 +191,10 @@ public static class FactoryExecutionInsights
             var holds=await db.ManufacturingQualityHolds.AsNoTracking()
                 .Where(x=>x.Status==ManufacturingQualityStatus.Open)
                 .Take(5001).ToListAsync(ct);
+            // Include closed-but-unverified CAPAs: closure alone must not
+            // remove a real unresolved effectiveness alert from dashboards.
+            // Refuse incomplete reports rather than silently truncating results.
             var deviations=await db.ProductionDeviations.AsNoTracking().Include(x=>x.Events)
-                .Where(x=>x.Status!=ProductionDeviationStatus.Closed)
                 .Take(5001).ToListAsync(ct);
             if(orders.Count>5000||holds.Count>5000||deviations.Count>5000)
                 return Results.Conflict(new{message="داده هشدار بیشتر از ظرفیت گزارش است؛ خروجی ناقص ارائه نمی‌شود."});
