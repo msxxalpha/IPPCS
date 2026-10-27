@@ -64,3 +64,6 @@ Branch `feature/production-platform-foundation`, Draft PR #1. `main` is not modi
 
 ## Database schema verification
 The committed baseline migration is located in `src/IPPCS.Web/Migrations/CI/`. GitHub CI enforces `has-pending-model-changes`, and a separate disposable SQL Server migration workflow lives at `.github/workflows/sql-schema.yml`. Follow the [developer guide](docs/DEVELOPER_GUIDE.md) rather than scaffolding another initial migration.
+
+### APS maintenance-day restrictions
+The APS preview now supports work-center-specific unavailability days entered with the shared Persian calendar. Such restrictions are local to each scheduling run, included in its stored input snapshot, and do **not** change actual shift master data or any existing maintenance/ERP application. See `docs/DEVELOPER_GUIDE.md` for setup and limitations.
