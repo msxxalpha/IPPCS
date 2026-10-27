@@ -266,6 +266,13 @@ public static class FactoryProductionIntelligence
                 .Include(x=>x.Operations).SingleOrDefaultAsync(x=>x.Id==orderId,ct);
             if(order is null)return Results.NotFound();
             var rates=await db.FactoryCenterCostRates.AsNoTracking().ToListAsync(ct);
+            var frozenEvents=await db.ManufacturingOrderAudits.AsNoTracking()
+                .Where(x=>x.OrderId==orderId&&x.Action==FactoryCostRateHistory.Action).ToListAsync(ct);
+            IReadOnlyList<FactoryCostRateSnapshot> frozen;
+            try{frozen=FactoryCostRateHistory.Read(order.Operations,frozenEvents);}
+            catch(InvalidOperationException ex){return Results.Conflict(new{message=ex.Message});}
+            var ratesAreFrozen=frozenEvents.Count>0;
+            var frozenByOperation=frozen.ToDictionary(x=>x.OperationId);
             var events=await db.ManufacturingOrderAudits.AsNoTracking()
                 .Where(x=>x.OrderId==orderId&&
                     (x.Action==FactoryOperationClock.Started||
@@ -273,11 +280,24 @@ public static class FactoryProductionIntelligence
             IReadOnlyList<FactoryClockSession> clocks;
             try{clocks=FactoryOperationClock.Read(events);}
             catch(InvalidOperationException ex){return Results.Conflict(new{message=ex.Message});}
-            var rows=order.Operations.OrderBy(x=>x.Sequence).Select(op=>
-                OperationCost(order,op,rates.SingleOrDefault(x=>x.WorkCenterId==op.WorkCenterId),clocks))
-                .ToArray();
+            var rows=order.Operations.OrderBy(x=>x.Sequence).Select(op=>{
+                FactoryCenterCostRate? selected;
+                if(ratesAreFrozen){
+                    var snapshot=frozenByOperation[op.Id];
+                    selected=snapshot.ConversionRialsPerMinute is null?null:
+                        new FactoryCenterCostRate{
+                            WorkCenterId=op.WorkCenterId,
+                            ConversionRialsPerMinute=snapshot.ConversionRialsPerMinute.Value,
+                            ScrapRialsPerUnit=snapshot.ScrapRialsPerUnit!.Value,
+                            EffectiveFrom=snapshot.EffectiveFrom!.Value};
+                }else selected=rates.SingleOrDefault(x=>x.WorkCenterId==op.WorkCenterId);
+                return OperationCost(order,op,selected,clocks);
+            }).ToArray();
             return Results.Ok(new{orderId,rows,totals=TotalCosts(rows),
-                disclaimer="مقایسه هزینه تبدیل استاندارد و دقیقه‌های واقعی ثبت‌شده بر پایه نرخ فرضی معتبر در شروع دستور؛ مقادیر ناموجود Null هستند. بدون حسابداری، سربار و ارزش‌گذاری انبار."});
+                hasFrozenCostRates=ratesAreFrozen,
+                disclaimer=ratesAreFrozen?
+                  "نرخ‌های هزینه تبدیل هنگام آزادسازی دستور منجمد شده‌اند؛ هزینه واقعی فقط بر ساعت عملیات بسته‌شده و همان نرخ داخلی ثابت استوار است. نه حسابداری، سربار یا هزینه انبار.":
+                  "این دستور قدیمی سند نرخ منجمد ندارد؛ نرخ جاری فقط برآورد آزمایشی است و نرخ تاریخی قطعی قابل اثبات نیست."});
         });
 
         api.MapGet("/oee/clock-verified",async(string dateJalali,ProductionDb db,CancellationToken ct)=>{
