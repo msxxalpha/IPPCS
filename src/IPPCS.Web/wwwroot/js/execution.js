@@ -142,6 +142,9 @@ async function boot(){
   $("#title").textContent=btn.textContent;
   $("#flash").hidden=true;
  });
+ const initialTab=decodeURIComponent(location.hash.slice(1));
+ const tabButton=$("nav [data-page]").find(x=>x.dataset.page===initialTab);
+ if(tabButton)tabButton.click();
  register("#order-form",f=>request("/manufacturing-orders","POST",{
   number:fval(f,"number"),itemId:fval(f,"itemId"),plannedQuantity:numeric(f,"quantity"),
   plannedStartJalali:fval(f,"start"),dueOnJalali:fval(f,"due")
