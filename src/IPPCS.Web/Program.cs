@@ -162,6 +162,7 @@ app.MapDeviationEffectiveness();
 app.MapOrderPegging();
 app.MapProductionDeviations();
 app.MapFactoryMasterData();
+app.MapFactoryReleaseReadiness();
 app.MapDemandTrace();
 app.MapTimePhasedPegging();
 app.MapNetMrpDemandPegging();
