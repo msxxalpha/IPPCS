@@ -61,10 +61,10 @@
     t.append(body);box.append(t);host.append(box);
   }
   function fillSelect(select,rows,placeholder="انتخاب کنید"){
-    const prev=select.value;select.replaceChildren();
-    const blank=document.createElement("option");blank.value="";blank.textContent=placeholder;select.append(blank);
-    rows.forEach(row=>{const opt=document.createElement("option");opt.value=row.id;opt.textContent=`${row.code||row.revisionCode||row.name} — ${row.name||row.revisionCode||""}`;select.append(opt);});
-    if([...select.options].some(o=>o.value===prev))select.value=prev;
+    IPPCSChoices.fill(select,rows,{
+      placeholder,value:"id",
+      label:row=>`${row.code||row.revisionCode||row.name} — ${row.name||row.revisionCode||""}`
+    });
   }
   const stringDate=iso=>{
     const date=new Date(iso);
