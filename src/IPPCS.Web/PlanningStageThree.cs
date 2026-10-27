@@ -320,7 +320,7 @@ public static class PlanningStageThreeEndpoints
                 lines=x.Lines.OrderBy(y=>y.NeededOn).Select(y=>new{y.Id,y.ItemId,y.Quantity,
                     neededOnJalali=PersianPlanningDates.Format(y.NeededOn),y.Reference})}));
         });
-        api.MapPost("/mps",async(MpsVersionInput input,ProductionDb db,CancellationToken ct)=>{
+        planningApi.MapPost("/mps",async(MpsVersionInput input,ProductionDb db,CancellationToken ct)=>{
             if(string.IsNullOrWhiteSpace(input.Code)||input.Code.Trim().Length>64)
                 return Results.BadRequest(new{message="کد نسخه برنامه معتبر نیست."});
             var code=input.Code.Trim();
@@ -333,7 +333,7 @@ public static class PlanningStageThreeEndpoints
             await tx.CommitAsync(ct);
             return Results.Created($"/api/v1/mps/{version.Id}",new{version.Id,version.Code});
         });
-        api.MapPost("/mps/{id:guid}/lines",async(Guid id,MpsLineInput input,ProductionDb db,CancellationToken ct)=>{
+        planningApi.MapPost("/mps/{id:guid}/lines",async(Guid id,MpsLineInput input,ProductionDb db,CancellationToken ct)=>{
             await using var tx=await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable,ct);
             try{await FactoryMpsChangeControl.LockMps(db,ct);}
             catch(Microsoft.Data.SqlClient.SqlException){return Results.Conflict(new{message="قفل تغییر ردیف MPS در دسترس نیست."});}
@@ -352,7 +352,7 @@ public static class PlanningStageThreeEndpoints
             await tx.CommitAsync(ct);
             return Results.Created($"/api/v1/mps/{id}",new{line.Id});
         });
-        api.MapPost("/mps/{id:guid}/approve",async(Guid id,ProductionDb db,HttpContext ctx,CancellationToken ct)=>{
+        planningApi.MapPost("/mps/{id:guid}/approve",async(Guid id,ProductionDb db,HttpContext ctx,CancellationToken ct)=>{
             await using var tx=await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable,ct);
             try{await FactoryMpsChangeControl.LockMps(db,ct);}
             catch(Microsoft.Data.SqlClient.SqlException){return Results.Conflict(new{message="قفل تصویب MPS در دسترس نیست."});}
@@ -415,7 +415,7 @@ public static class PlanningStageThreeEndpoints
                 x.SafetyQuantity,x.LeadDays,x.MinimumBatch,x.BatchMultiple,
                 snapshotDateJalali=PersianPlanningDates.Format(x.SnapshotDate)}));
         });
-        api.MapPut("/planning-balances/{itemId:guid}",async(Guid itemId,PlanningBalanceInput input,ProductionDb db,CancellationToken ct)=>{
+        planningApi.MapPut("/planning-balances/{itemId:guid}",async(Guid itemId,PlanningBalanceInput input,ProductionDb db,CancellationToken ct)=>{
             if(itemId!=input.ItemId||!PersianPlanningDates.TryParse(input.SnapshotDateJalali,out var on)
                 ||input.PhysicalQuantity<0||input.ReservedQuantity<0||input.QuarantinedQuantity<0
                 ||input.SafetyQuantity<0||input.LeadDays is <0 or >3650
@@ -436,7 +436,7 @@ public static class PlanningStageThreeEndpoints
             return Results.Ok(data.Select(x=>new{x.Id,x.ItemId,x.Quantity,x.Reference,
                 availableOnJalali=PersianPlanningDates.Format(x.AvailableOn)}));
         });
-        api.MapPost("/planning-receipts",async(PlanningReceiptInput input,ProductionDb db,CancellationToken ct)=>{
+        planningApi.MapPost("/planning-receipts",async(PlanningReceiptInput input,ProductionDb db,CancellationToken ct)=>{
             if(input.Quantity<=0||!PersianPlanningDates.TryParse(input.AvailableOnJalali,out var date)
                 ||(input.Reference?.Length??0)>120)
                 return Results.BadRequest(new{message="تاریخ و مقدار دریافت برنامه‌ای معتبر نیست."});
@@ -446,7 +446,7 @@ public static class PlanningStageThreeEndpoints
             db.PlanningExpectedReceipts.Add(receipt);await db.SaveChangesAsync(ct);
             return Results.Created($"/api/v1/planning-receipts/{receipt.Id}",new{receipt.Id});
         });
-        api.MapPost("/mrp/{id:guid}/calculate",async(Guid id,ProductionDb db,CancellationToken ct)=>{
+        planningApi.MapPost("/mrp/{id:guid}/calculate",async(Guid id,ProductionDb db,CancellationToken ct)=>{
             var version=await db.MpsVersions.AsNoTracking().Include(x=>x.Lines).SingleOrDefaultAsync(x=>x.Id==id,ct);
             if(version is null)return Results.NotFound();
             if(version.State!=PlanningApproval.Approved)return Results.Conflict(new{message="ابتدا نسخه MPS را تأیید کنید."});
@@ -483,13 +483,13 @@ public static class PlanningStageThreeEndpoints
                     x.ClosingAvailable})});
         });
         // Correct mistaken independent planning assumptions without changing saved MRP snapshots.
-        api.MapDelete("/planning-receipts/{id:guid}",async(Guid id,ProductionDb db,CancellationToken ct)=>{
+        planningApi.MapDelete("/planning-receipts/{id:guid}",async(Guid id,ProductionDb db,CancellationToken ct)=>{
             var receipt=await db.PlanningExpectedReceipts.FindAsync([id],ct);
             if(receipt is null)return Results.NotFound();
             db.PlanningExpectedReceipts.Remove(receipt);await db.SaveChangesAsync(ct);
             return Results.NoContent();
         });
-        api.MapDelete("/mps/{versionId:guid}/lines/{lineId:guid}",async(Guid versionId,Guid lineId,ProductionDb db,CancellationToken ct)=>{
+        planningApi.MapDelete("/mps/{versionId:guid}/lines/{lineId:guid}",async(Guid versionId,Guid lineId,ProductionDb db,CancellationToken ct)=>{
             await using var tx=await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable,ct);
             try{await FactoryMpsChangeControl.LockMps(db,ct);}
             catch(Microsoft.Data.SqlClient.SqlException){return Results.Conflict(new{message="قفل تغییر ردیف MPS در دسترس نیست."});}
