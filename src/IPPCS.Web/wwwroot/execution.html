@@ -5,6 +5,7 @@
 <link rel="stylesheet" href="/css/production.css">
 <script defer src="/js/security-client.js"></script>
 <script defer src="/js/jalali-datepicker.js"></script>
+<script defer src="/js/factory-choices.js"></script>
 <script defer src="/js/execution.js"></script>
 <script defer src="/js/quality-oee.js"></script>
 </head><body>
@@ -116,7 +117,8 @@
   <form class="panel form-grid" id="stop-form">
    <label>دستور<select name="orderId" data-order-active required></select></label>
    <label>عملیات<select name="operationId" id="stop-operation" required></select></label>
-   <label>علت توقف<input name="reason" maxlength="180" required placeholder="خرابی تجهیز، نبود ابزار، کیفیت..."></label>
+   <label>دلیل توقف (اطلاعات پایه)<select name="reasonCode" id="stop-reason-code" required></select></label>
+<label>شرح تکمیلی (اختیاری)<input name="reason" maxlength="110" placeholder="توضیح کوتاه برای این توقف"></label>
    <label>مدت توقف (دقیقه)<input name="duration" type="number" min="1" max="1440" step="1" required></label>
    <div class="form-actions"><button class="btn-main" type="submit">ثبت توقف</button></div>
   </form>
@@ -128,7 +130,8 @@
  <div class="panel form-grid">
   <label>دستور فعال<select id="timed-stop-order"></select></label>
   <label>عملیات<select id="timed-stop-operation"></select></label>
-  <label>علت توقف<input id="timed-stop-reason" maxlength="150" placeholder="تنظیم ابزار، خرابی، تعمیر ..."></label>
+  <label>دلیل توقف (اطلاعات پایه)<select id="timed-stop-reason-code" required></select></label>
+<label>شرح تکمیلی<input id="timed-stop-reason" maxlength="80" placeholder="اختیاری"></label>
   <div class="form-actions">
    <button id="timed-stop-start" type="button" class="btn-main">شروع توقف زمان‌دار</button>
    <button id="timed-stop-end" type="button" class="btn-outline">پایان توقف زمان‌دار</button>
@@ -150,7 +153,8 @@
    <label>دستور تولید فعال<select name="orderId" id="quality-order" required></select></label>
    <label>عملیات محل عدم‌انطباق<select name="operationId" id="quality-operation" required></select></label>
    <label>مقدار قرنطینه<input name="quantity" required type="number" min="0.0001" step="any"></label>
-   <label>علت / شرح عدم‌انطباق<input name="reason" maxlength="500" required></label>
+   <label>دلیل قرنطینه (اطلاعات پایه)<select name="reasonCode" id="quality-reason-code" required></select></label>
+<label>شرح جزئیات عدم‌انطباق<input name="reason" maxlength="250" placeholder="اختیاری؛ برای بررسی کیفیت"></label>
    <div class="form-actions"><button type="submit" class="btn-main">ثبت عدم‌انطباق و قرنطینه</button></div>
   </form>
   <div class="panel form-grid">
