@@ -43,7 +43,13 @@ try {
         foreach ($Script in $Scripts) {
             Invoke-Gate "Node syntax: $($Script.Name)" 'node' @('--check', $Script.FullName)
         }
-        Invoke-Gate 'Jalali calendar unit tests' 'node' @('--test', $JalaliTests)
+        $BrowserTests = @(
+            $JalaliTests,
+            (Join-Path $Root 'tests/factory-recall-ui.test.cjs'),
+            (Join-Path $Root 'tests/eco-ui.test.cjs'),
+            (Join-Path $Root 'tests/factory-master-ui.test.cjs')
+        )
+        Invoke-Gate 'Jalali and accessible factory UI browser contract tests' 'node' (@('--test') + $BrowserTests)
     }
 
     if (-not $SkipEfCheck) {
