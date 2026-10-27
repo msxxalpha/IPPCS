@@ -391,11 +391,9 @@ public static class FactoryDemandApsEndpoints
             }
             var workCenterCapacity=new Dictionary<Guid,decimal>();
             for(var d=from;d<=through;d=d.AddDays(1))
-                foreach(var shift in shifts.Where(x=>x.DayOfWeek==(int)d.DayOfWeek))
-                    workCenterCapacity[shift.WorkCenterId]=
-                        workCenterCapacity.GetValueOrDefault(shift.WorkCenterId)
-                        +(decimal)(shift.EndTime-shift.StartTime).TotalMinutes*
-                            shift.EffectiveCapacityPercent/100m;
+                foreach(var center in shifts.Select(x=>x.WorkCenterId).Distinct())
+                    workCenterCapacity[center]=workCenterCapacity.GetValueOrDefault(center)+
+                        FactoryShiftCalendar.AvailableMinutes(center,d,shifts);
             var centerIds=workCenterLoad.Keys.Union(workCenterCapacity.Keys).OrderBy(x=>x).ToList();
             var byCenter=centerIds.Select(id=>new{
                 workCenterId=id,requiredMinutes=workCenterLoad.GetValueOrDefault(id),
