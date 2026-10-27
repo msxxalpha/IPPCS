@@ -392,7 +392,7 @@ public static class PlanningStageThreeEndpoints
                         approvedUtc=DateTime.UtcNow,
                         lines=version.Lines.OrderBy(x=>x.NeededOn).ThenBy(x=>x.ItemId)
                             .Select(x=>new{x.Id,x.ItemId,x.NeededOn,x.Quantity,x.Reference})}),
-                    ResultSnapshotJson=JsonSerializer.Serialize(impact)});
+                    ResultSnapshotJson=JsonSerializer.Serialize(impact,new JsonSerializerOptions{PropertyNamingPolicy=JsonNamingPolicy.CamelCase})});
             }
             db.PlanningCalculations.Add(new PlanningCalculation{
                 MpsVersionId=version.Id,AlgorithmVersion=FactoryMpsChangeControl.ApprovalAlgorithm,
