@@ -2,12 +2,8 @@
 "use strict";
 const $=id=>document.getElementById(id);
 const state={routings:[],boms:[],orders:[],selected:new Set(),previewSignature:null};
-const byId=rows=>new Map(rows.map(x=>[x.id,x]));
-const kinds={BOM:"BOM",Routing:"مسیر ساخت"};
 const revisionList=()=> $("engineering-kind").value==="BOM"?state.boms:state.routings;
 const ownerOf=rev=>$("engineering-kind").value==="BOM"?rev?.parentItemId:rev?.itemId;
-const revTitle=x=>($("engineering-kind").value==="BOM"?x.revision:x.revisionCode)+
-  " | "+x.validFromJalali??"";
 function title(rev){
  const first=rev.validFromJalali||rev.effectiveFromJalali||"";
  const last=rev.validUntilJalali||rev.effectiveToJalali||"باز";
@@ -151,8 +147,8 @@ async function apply(){
   if(!window.confirm("انتقال نسخه این دستورات پیش‌نویس ثبت شود؟ این اقدام در تاریخچه ثبت می‌شود."))return;
   $("engineering-apply").disabled=true;
   const response=await api("/factory-engineering/draft-rebind","POST",request);
-  renderResult(response);notice(response.applied+" دستور با تاریخچه حسابرسی به نسخه مصوب منتقل شد.");
-  await refresh();
+  await refresh();renderResult(response);
+  notice(response.applied+" دستور با تاریخچه حسابرسی به نسخه مصوب منتقل شد.");
  }catch(e){renderResult(e.details);notice(e.message,true);clearPreview();}
 }
 document.addEventListener("DOMContentLoaded",async()=>{
