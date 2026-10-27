@@ -63,3 +63,9 @@ Modules **01/07/08** received integrated changes:
 - 08: Actual release enforces approved frozen revisions and approved MPS peg invariants under a shared order lock. Draft orders can be rescheduled with mandatory cause, checked effective revision rebind, before/after audit and prohibition after release.
 - 07: Read-only Jalali-window dispatch queue gives quality-and-previous-step readiness, open holds, measured running clock, booked machine slots and missing-slot warnings without issuing production instructions.
 No new database schema or integration with existing ERP warehouse/purchasing/sales/HR modules. All modules remain subject to factory validation.
+
+### Stage 15 — line-side material and deviation-control workflow
+- **11**: audited internal finished/semi-finished confirmation GUID lot usage constrained by frozen BOM ratios, standard-vs-actual lot report, legacy unattributed classification, and append-only equal/opposite-signed one-time correction with mandatory reason and shared work-order SQL lock.
+- **12**: first-assignment-only corrective action; documented, immutable before/after action revisions; manual repeated-incident escalation and reproducible overdue case follow-up. SQL lock serializes competing case changes.
+- **18**: exceptional escalation evidence raises overdue open-case priority and links KPI row directly to the in-portal deviation workbench.
+No new EF schema, stock posting or connection to external systems. Formal 18-module acceptance remains gated by plant/UAT/security validation.
