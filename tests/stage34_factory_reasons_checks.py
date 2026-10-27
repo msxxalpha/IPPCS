@@ -5,15 +5,17 @@ from urllib.parse import quote
 
 def stage34_acceptance(request, product_id, jalali):
     base="/api/v1/factory-master-options"
-    for kind,code,label in [
-        ("DowntimeReason","EQUIPMENT","خرابی تجهیز"),
-        ("DowntimeReason","SETUP","تنظیم و آماده سازی"),
-        ("QualityHoldReason","MEASUREMENT","مغایرت اندازه گیری"),
-        ("QualityHoldReason","PROCESS","عدم انطباق فرایند")
+    # Seeded defaults live in basic data and can be administered.
+    for kind,codes in [
+        ("DowntimeReason",{"EQUIPMENT","SETUP","TOOLING","QUALITY","CAPACITY","OTHER"}),
+        ("QualityHoldReason",{"MEASUREMENT","PROCESS","APPEARANCE","MATERIAL","ASSEMBLY","OTHER"})
     ]:
-        result=request(base,"POST",{
-            "kind":kind,"code":code,"label":label,"sortOrder":10},201)
-        assert result["isActive"] and result["code"]==code,result
+        options=request(base+"?kind="+kind)
+        assert codes.issubset({x["code"] for x in options}),options
+        assert all(x["isActive"] for x in options),options
+    request(base,"POST",{
+        "kind":"DowntimeReason","code":"EQUIPMENT",
+        "label":"duplicate seeded code","sortOrder":10},409)
     route=next(x for x in request("/api/v1/routings")
         if x["itemId"]==product_id and x["state"]==1)
     order=request("/api/v1/manufacturing-orders","POST",{
