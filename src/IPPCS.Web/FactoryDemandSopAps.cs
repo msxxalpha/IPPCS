@@ -40,7 +40,7 @@ public sealed class FactoryApsRun
 }
 public record FactoryDemandInput(Guid ItemId,string Reference,string DueOnJalali,decimal Quantity,string Category);
 public record FactorySopInput(string Code,string FromJalali,string ThroughJalali);
-public record FactoryApsUnavailableDay(Guid WorkCenterId,string DateJalali,string Reason);
+public record FactoryApsUnavailableDay(Guid WorkCenterId,string DateJalali,string Reason,string? ReasonCode=null);
 public record FactoryApsInput(Guid MpsVersionId,string StartJalali,int HorizonDays,
     decimal CapacityMultiplier=1m,List<FactoryApsUnavailableDay>? UnavailableDays=null);
 public record ApsTask(Guid DemandLineId,Guid ItemId,DateOnly DueOn,decimal Quantity,Guid RoutingRevisionId,
@@ -485,6 +485,17 @@ public static class FactoryDemandApsEndpoints
                     string.IsNullOrWhiteSpace(block.Reason) || block.Reason.Length>180 ||
                     blockedOn<start || blockedOn>=start.AddDays(input.HorizonDays))
                     return Results.BadRequest(new{message="مرکز، علت یا تاریخ شمسی روز عدم‌دسترسی معتبر نیست."});
+                if(!string.IsNullOrWhiteSpace(block.ReasonCode))
+                {
+                    var reason=await FactoryMasterData.Active(db,
+                        FactoryMasterData.CapacityBlackoutReason,block.ReasonCode,ct);
+                    if(reason is null)return Results.Conflict(new{
+                        message="دلیل عدم دسترسی مرکز کاری در اطلاعات پایه فعال یا معتبر نیست."});
+                    if(block.Reason.Trim()!=reason.Label&&
+                        !block.Reason.Trim().StartsWith(reason.Code+" — ",StringComparison.Ordinal))
+                        return Results.Conflict(new{
+                            message="عنوان و کد دلیل توقف برنامه‌ای با اطلاعات پایه تطابق ندارند."});
+                }
                 unavailable.Add((block.WorkCenterId,blockedOn));
             }
             if(unavailable.Count>0)
@@ -558,7 +569,7 @@ public static class FactoryDemandApsEndpoints
                             evidence.OpenClocks,evidence.BlockedOperations,
                             reservedDays=evidence.ReservedDays.Count,
                             occupiedIntervals=evidence.OccupiedIntervals.Count},
-                        unavailableDays=unavailable.Select(x=>new{x.WorkCenterId,x.Date})}),
+                        unavailableDays=input.UnavailableDays?.Select(x=>new{x.WorkCenterId,x.DateJalali,x.Reason,x.ReasonCode})}),
                 OutputJson=JsonSerializer.Serialize(result)};
             db.FactoryApsRuns.Add(snapshot);await db.SaveChangesAsync(ct);
             return Results.Ok(new{runId=snapshot.Id,snapshot.Algorithm,
