@@ -302,6 +302,9 @@ public static class FactoryDemandApsEndpoints
         api.MapPost("/factory-demand/{demandId:guid}/to-mps/{mpsId:guid}",
             async(Guid demandId,Guid mpsId,ProductionDb db,CancellationToken ct)=>{
             await using var transaction=await db.Database.BeginTransactionAsync(IsolationLevel.Serializable,ct);
+            try{await FactoryMpsChangeControl.LockMps(db,ct);}
+            catch(Microsoft.Data.SqlClient.SqlException)
+                {return Results.Conflict(new{message="قفل انتقال تقاضا به MPS در دسترس نیست."});}
             var demand=await db.FactoryDemands.AsNoTracking().SingleOrDefaultAsync(x=>x.Id==demandId,ct);
             var plan=await db.MpsVersions.SingleOrDefaultAsync(x=>x.Id==mpsId,ct);
             if(demand is null||plan is null)return Results.NotFound();
