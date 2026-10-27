@@ -161,6 +161,7 @@ app.MapTimePhasedPegging();
 app.MapNetMrpDemandPegging();
 app.MapMrpLotCapacityPreview();
 app.MapFactoryOperationClock();
+app.MapTimedDowntime();
 app.MapFactoryCapacityReservations();
 app.MapDemandAps();
 app.MapOperationsAnalytics();
