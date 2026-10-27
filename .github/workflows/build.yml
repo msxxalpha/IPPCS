@@ -27,6 +27,7 @@ jobs:
           node --check src/IPPCS.Web/wwwroot/js/mps-pegging.js
           node --check src/IPPCS.Web/wwwroot/js/production-deviations.js
           node --check src/IPPCS.Web/wwwroot/js/planning-advanced.js
+          node --check src/IPPCS.Web/wwwroot/js/engineering-rebind.js
           node --check src/IPPCS.Web/wwwroot/js/ip-users.js
           node --check src/IPPCS.Web/wwwroot/js/security-client.js
           node --check src/IPPCS.Web/wwwroot/js/login.js
