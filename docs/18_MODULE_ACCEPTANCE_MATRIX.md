@@ -86,3 +86,12 @@ Strict isolation maintained: no warehouse, purchasing, sales or HR integration; 
 | 13 Quality | In-plant final signoff requires completed work order, inspected last operation, no open holds, complete operation-step provenance, per-lot semi-origin; local quality role/immutable audit | Approved inspection sample policy, MSA/gauge calibration, reaction plans, independent review and client-specific EOL test requirements |
 
 **Status:** Stage 16 CI can establish database and code regression only. It does not complete a plant-specific UAT or authorize production rollout; all 18 module release gates remain pending.
+
+## Stage 17 planning-controlled improvements (not the 18-module release signoff)
+| Module | Governed, testable Stage 17 implementation | Still needed for plant acceptance |
+|---|---|---|
+| 04 MPS | Immutable approved source; single pending controlled clone with mandatory reason; serialized all MPS writers; approved line/actor audit; automatically signed approval material/capacity differences | Factory-approved program change authority, official freeze horizon, owner signatures and signed UAT |
+| 05 MRP | Current net material impact for controlled MPS source/candidate; result frozen with approval decision and explicit snapshot constraints | Confirmed physical material planning policy (without integration), validated supplier lead assumptions and workday calendar |
+| 06 CRP | Center/day load and overload deltas from controlled MPS version, recalculated/signed at new version approval | Tool/labor/maintenance calendars, true alternative resources, plant constraint simulation and acceptance |
+
+All 18 modules continue to require line-specific scenario approval and staged deployment validation. `docs/18_MODULE_RELEASE_GATES.md` remains the definitive factory signoff checklist.
