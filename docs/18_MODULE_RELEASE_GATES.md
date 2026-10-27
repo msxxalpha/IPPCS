@@ -45,3 +45,6 @@
 هیچ ماژول انبار، خرید، فروش یا منابع انسانی تولید نمی‌شود؛ هیچ API، Job، View، Trigger یا ارتباطی با آن سامانه‌ها نباید ایجاد شود. فقط در صورت ارائه و تأیید صریح کارفرما می‌توان در آینده خواندن اطلاعات پایه کالا از یک View فقط‌خواندنی را بررسی کرد.
 
 شاخه هدف `feature/production-platform-foundation` و Draft PR شماره ۱ است؛ تا تکمیل مراحل فوق هیچ Merge به `main` انجام نمی‌شود.
+
+## Stage 17 addendum — governed MPS change lifecycle
+The production program (04) has a controlled-copy revision path: approved source is never edited, one open Draft per original is enforced, approved action freezes actor and all program lines. Approving the revision captures actual recalculated MRP (05) and CRP (06) differences in immutable SQL JSON evidence and fails if the planning model is incomplete. The revised program remains an **internal** factory planning output until the S&OP/MPS owner formally authorizes its use. This stage supplies testable software evidence, **not** a signed factory planning change-control SOP.
