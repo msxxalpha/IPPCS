@@ -94,5 +94,8 @@ def stage11_acceptance(request, component_id, center_id, jalali):
     from stage20_overnight_calendar_checks import stage20_acceptance
     stage20_acceptance(request,jalali,tomorrow,component_id)
 
+    from stage21_engineering_rebind_checks import stage21_acceptance
+    stage21_acceptance(request,jalali,tomorrow,component_id)
+
     from stage17_mps_change_checks import stage17_acceptance
     stage17_acceptance(request,version["id"])
