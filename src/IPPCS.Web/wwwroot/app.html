@@ -54,7 +54,7 @@
         <form id="item-form" class="panel form-grid">
           <label>کد کالا <input name="code" required maxlength="64"></label>
           <label>شرح کالا <input name="name" required maxlength="256"></label>
-          <label>واحد اندازه‌گیری <input name="unit" value="PCS" required maxlength="24"></label>
+          <label>واحد اندازه‌گیری (اطلاعات پایه) <select id="item-unit" name="unit" required aria-label="واحد اندازه‌گیری کالا"></select></label>
           <label>طبقه کالا <select name="type"><option value="0">مواد اولیه</option><option value="1">نیمه‌ساخته</option><option value="2">محصول نهایی</option><option value="3">مواد مصرفی</option></select></label>
           <div class="form-actions"><button class="btn-main" type="submit">ثبت کالا</button></div>
         </form>
