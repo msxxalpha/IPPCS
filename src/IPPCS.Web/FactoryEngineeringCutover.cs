@@ -132,11 +132,17 @@ public static class FactoryEngineeringCutover
                 int referenceLock;
                 try
                 {
-                    referenceLock=await db.Database.SqlQueryRaw<int>(
+                    // ExecuteSqlRaw is non-composable, unlike SqlQueryRaw with
+                    // a DECLARE/EXEC batch. A negative sp_getapplock result raises
+                    // a SQL error and is translated to a safe 409 below.
+                    await db.Database.ExecuteSqlRawAsync(
                         "DECLARE @result int; EXEC @result = sp_getapplock " +
                         "@Resource = N'IPPCS:ECO:ApprovalReferences', " +
                         "@LockMode = N'Exclusive', @LockOwner = N'Transaction', " +
-                        "@LockTimeout = 10000; SELECT @result AS Value").SingleAsync(ct);
+                        "@LockTimeout = 10000; " +
+                        "IF @result < 0 THROW 51029, 'ECO reference lock unavailable', 1;",
+                        ct);
+                    referenceLock=0;
                 }
                 catch(SqlException)
                 {
