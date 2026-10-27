@@ -85,6 +85,20 @@ public sealed class FactoryStageFourteenTests
         Assert.Single(result.Rows,x=>x.OrderNumber=="LIVE"&&
             x.CanStartByRouteAndQuality&&!x.HasBookedMachineSlot);
         Assert.Equal(1,result.MissingReservationCount);
+        var slot=new FactoryCapacityReservation(Guid.NewGuid(),open.Id,
+            open.Operations[0].Id,open.Operations[0].WorkCenterId,
+            new DateTime(2026,10,27,8,0,0),new DateTime(2026,10,27,9,0,0),
+            DateTime.UtcNow,"planner","approved slot");
+        var hold=new ManufacturingQualityHold{OrderId=open.Id,
+            OperationId=open.Operations[0].Id,Quantity=2,Reason="QC hold",
+            Status=ManufacturingQualityStatus.Open};
+        var quarantined=FactoryRevisionGovernance.DispatchBoard(today,7,
+            [open,held,draft],[hold],[slot],[]);
+        var blocked=Assert.Single(quarantined.Rows,x=>x.OrderNumber=="LIVE");
+        Assert.True(blocked.HasBookedMachineSlot);
+        Assert.True(blocked.HasOpenQualityHold);
+        Assert.False(blocked.CanStartByRouteAndQuality);
+        Assert.Equal(0,quarantined.MissingReservationCount);
         Assert.False(result.Rows.Single(x=>x.OrderNumber=="HELD").CanStartByRouteAndQuality);
         Assert.Throws<ArgumentOutOfRangeException>(()=>
             FactoryRevisionGovernance.DispatchBoard(today,31,[],[],[],[]));
