@@ -58,6 +58,7 @@ public static class ProductionDeviationEndpoints
         row.Id,row.MpsLineId,row.OrderId,row.Category,row.Description,row.RootCause,
         row.CorrectiveAction,row.Responsible,row.Status,row.CreatedUtc,row.ClosedUtc,row.CreatedBy,
         actionDueJalali=row.ActionDueOn.HasValue?PersianPlanningDates.Format(row.ActionDueOn.Value):null,
+        effectiveness=FactoryDeviationEffectiveness.Evaluate(row),
         events=row.Events.OrderBy(x=>x.AtUtc).Select(x=>new{x.Status,x.Details,x.Username,x.AtUtc})
     };
     public static IEndpointRouteBuilder MapProductionDeviations(this IEndpointRouteBuilder routes)
