@@ -38,7 +38,7 @@ try{
  PortFree $WebPort
  Set-Location $root
  if(-not $SkipPreflight){
-  & (Join-Path $PSScriptRoot 'Validate-IPPCS.ps1')
+  & (Join-Path $PSScriptRoot 'Validate-IPPCS.ps1') -SkipEfCheck
   if(-not $?){throw 'Build, unit, JS, or EF model validation failed.'}
  }else{
   Write-Warning 'Build/unit/EF preflight skipped: this does NOT satisfy the full release gate.'
@@ -71,6 +71,9 @@ try{
   Start-Sleep -Seconds 5
  }
  if(-not $migrated){throw "Isolated EF migration failed: inspect $logs"}
+ # Run the model/snapshot gate ONLY after binding EF to the isolated SQL database.
+ & dotnet ef migrations has-pending-model-changes --project $project --startup-project $project
+ if($LASTEXITCODE -ne 0){throw 'EF model differs from committed migration snapshot.'}
  $webArgs=@('run','--project','src/IPPCS.Web/IPPCS.Web.csproj','--no-build','-c','Release','--no-launch-profile','--urls',"http://127.0.0.1:$WebPort")
  $web=Start-Process -FilePath 'dotnet' -PassThru -WorkingDirectory $root -ArgumentList $webArgs -RedirectStandardOutput (Join-Path $logs 'web.log') -RedirectStandardError (Join-Path $logs 'web-errors.log')
  $ready=$false
