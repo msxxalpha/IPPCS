@@ -121,3 +121,12 @@ Still strictly no external warehouse, purchasing, sales or HR connections or mod
 | 08 Capacity reservation | Append-only overnight work-order reservation and accurate next-day Jalali finish; real weekly overlap prevention | Multi-operator concurrency, approved dispatch changes/rollback and plant line trial |
 
 These rows are implementation evidence, **not an attestation of successfully run CI**. GitHub Actions infrastructure has been failing before any logged test step since Stage19. Do not merge to main or assert all 18 modules complete.
+
+
+## Stage 21–22: engineering revision transition (implementation evidence, not accepted)
+- Module 01 now has auditable and future-effective Routing/BOM cutover preview/commit, a distinct additive SQL engineering journal migration and nonoverlap/cycle constraints.
+- Module 08 has a bounded (1–100), all-or-nothing, preview-first transfer of explicitly selected draft manufacturing orders to a valid newly approved engineering revision; frozen released orders remain on their prior historic version.
+- Module 04 / 05 write operations and BOM/Routing authoring require the explicit `IpPlanningWrite` policy instead of broad production-user authentication. This is not a multi-person ECO signature.
+- `/engineering-rebind.html` offers Persian RTL cutover and draft-order handling with a Jalali date component. `FactoryStageTwentyOneDraftRebindTests`, `FactoryStageTwentyTwoCutoverTests`, and disposable SQL `stage21_engineering_rebind_checks.py` / `stage22_engineering_cutover_checks.py` are linked to CI.
+- **Important:** the Stage 22 engineering journal has an additive reviewed EF migration file plus an updated model snapshot, but CI has not yet verified model diff, build, unit tests or SQL migration success. GitHub Actions worker jobs for stages 19–22 fail before any actual steps or logs; do **not** report this feature as green, complete or production-ready.
+- Still outstanding: reviewed ECO signatories (two-person approval), shop-floor cutover authorization, verified BOM/route precedence for older frozen orders, scheduled plan reconciliation, permission matrix audit, audit-event retention, representative factory UAT, and actual backup/rollback rehearsal. No warehouse/purchasing/sales/HR integration was added.
