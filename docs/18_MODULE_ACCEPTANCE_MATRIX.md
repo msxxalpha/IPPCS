@@ -5,7 +5,7 @@
 | No. | Module | Implemented proof of concept | Major outstanding acceptance requirements |
 |---|---|---|---|
 | 01 | Factory master data | Item/work center/BOM and routing revisions, effective-date approval and shifts | Complete equipment/tool/resource hierarchy, robust revision changeover, approval ownership and import validation |
-| 02 | Demand / forecast | Internal demand entries, Jalali monthly moving-average forecasts | Forecast accuracy/backtesting, seasonality, versioned approval and approved import flows |
+| 02 | Demand / forecast | Internal demand entries, Jalali monthly moving-average forecasts | Rolling historical MAE/WAPE/bias backtest implemented; seasonality, versioned accuracy thresholds, approval and import validation remain |
 | 03 | S&OP | Finite horizon demand vs capacity and bottleneck snapshots | Cross-functional approval, iterative balancing scenarios and reconciliation to MPS |
 | 04 | MPS | Approved version, dated lines, draft editing, demand intake | Release calendar, revision/lock governance, exception workflows and historical baseline |
 | 05 | Net MRP / pegging | Multilevel net material plan, manual stock/receipts, lot sizing, MRP snapshot; separate order-to-MPS linking | Persisted work-order material pegging and execution commitment; the new **read-only** net planned-lot graph includes time-phased demand origins and named expected receipts, but remains unconfirmed and has no substitute selection or workday lead-time calendar |
@@ -15,12 +15,12 @@
 | 09 | Semi-finished execution | Ordered operations, good/scrap/rework, quality-adjusted WIP | Partial transfers, mixed lot and splitting, correction/reversal governance, operator station transactions |
 | 10 | Final assembly | Final-product work orders and quality-gated operation results | Model/variant selection, serial and end-of-line test integration, serialized output genealogy |
 | 11 | Line-side material | Independent manual BOM consumption and standard/actual variance | Quantity reconciliation by operation/lot, reversals, component substitution rules and controlled backflush |
-| 12 | Adherence / deviation | Basic MPS vs output plus **approved MPS-to-order quantity assignment**, deviation/root cause/action/closure | Baseline vs actual schedule and quantities, escalations, overdue alerts, evidence verification and factory UAT |
+| 12 | Adherence / deviation | Basic MPS vs output plus **approved MPS-to-order quantity assignment**, deviation/root cause/action/closure | Per-line pegged on-time/late/unknown-date completion added; escalations, overdue alerts, evidence verification and factory UAT remain |
 | 13 | In-process quality | Approved Control Plans, numerical tolerances, compulsory inspections, automatic holds and disposition | Sample frequencies, SPC, MSA, reaction plans, calibration references and controlled forms |
-| 14 | OEE | Daily availability/performance/quality preview and time duration entries | Actual timestamp intervals, overlapping downtime exclusion, shift reconciliations and retroactive quality scrap |
+| 14 | OEE | Daily availability/performance/quality preview and time duration entries | Completed operator-clock OEE and local-day clipping added; overlapping downtime reconciliation, PLC verification, shifts and retroactive quality scrap remain |
 | 15 | Lot/serial genealogy | Exact lot lookup and bounded links between consecutive order operations | Cross-order semi-finished component origin, trace-all-parents and recall drilldown, serial labels |
 | 16 | What-if | Capacity multipliers and side-effect-free schedule comparison | Multiple constrained scenario dimensions, cost/material sensitivity, versioned assumption comparison |
-| 17 | Conversion cost | Independent rates and standard cycle + scrap cost estimates | Verified actual time, overhead allocation, valuation rules and actual vs standard variance |
+| 17 | Conversion cost | Independent rates and standard cycle + scrap cost estimates | Recorded clock-time versus standard conversion variance and effective-rate guard added; rate history, overhead allocation, valuation rules and plant verification remain |
 | 18 | Dashboards | Production, OEE, WIP, plan adherence and late-order previews | Access-controlled drilldowns, periodic trend, target/threshold alerts, exports and signed-off KPI definitions |
 
 ## Strict prohibitions
