@@ -195,7 +195,7 @@ function boot(){
   table("#slot-table",[
    ["مرحله",x=>order?.operations.find(y=>y.id===x.operationId)?.name||x.operationId.slice(0,8)],
    ["تاریخ رزرو","dayJalali"],
-   ["شروع برنامه","startTime"],["پایان برنامه","endTime"],
+   ["شروع برنامه","startTime"],["پایان برنامه",x=>(x.crossesMidnight?(x.endDayJalali+" "):"")+x.endTime],
    ["دقایق برنامه",x=>num(x.plannedMinutes)],
    ["دقایق واقعی",x=>x.actualMinutes==null?"—":num(x.actualMinutes)],
    ["اختلاف مدت (دقیقه)",x=>x.durationVarianceMinutes==null?"—":num(x.durationVarianceMinutes)],
