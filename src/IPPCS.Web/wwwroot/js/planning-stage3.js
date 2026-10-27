@@ -140,6 +140,24 @@ function boot(){
    alertText("نتیجه MRP با تاریخچه ورودی/خروجی ذخیره شد.");
   }catch(e){alertText(e.message,true);}finally{btn.disabled=false;}
  };
+ $("#gross-trace-run").onclick=async()=>{
+  const id=$("#calculate-mps").value;
+  if(!id){alertText("نسخه مصوب MPS را انتخاب کنید.",true);return;}
+  const btn=$("#gross-trace-run");btn.disabled=true;
+  try{
+   const result=await call("/mrp/"+id+"/gross-origins");
+   table("#gross-trace-table",[
+    ["ردیف MPS",r=>r.mpsLineId.slice(0,8)],
+    ["محصول ریشه",r=>name(r.rootItemId)],
+    ["قطعه",r=>name(r.componentItemId)],
+    ["سطح",r=>r.level],
+    ["نیاز ناخالص",r=>fmt(r.grossQuantity)],
+    ["تاریخ نیاز","neededOnJalali"],
+    ["مسیر BOM","path"]
+   ],result.rows);
+   alertText(result.warning);
+  }catch(e){alertText(e.message,true);}finally{btn.disabled=false;}
+ };
  $("#crp-run").onclick=async()=>{
   const id=$("#calculate-mps").value;if(!id){alertText("نسخه MPS را انتخاب کنید.",true);return;}
   const btn=$("#crp-run");btn.disabled=true;
