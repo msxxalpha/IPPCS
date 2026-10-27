@@ -47,3 +47,11 @@ Initial Persian RTL UI and shared Jalali datepicker implemented. Manufacturing o
 - **15:** bounded forward/backward multistage genealogy across IPPCS work orders, with explicit evidence and depth-truncation indicator, not warehouse genealogy.
 - **18:** Jalali-date-based operational alert feed for open quarantines, overdue/upcoming production orders and overdue/unassigned corrective action. Not an external notification module.
 All five remain development-grade until representative factory UAT. No external warehouse, purchasing, sales or HR systems were connected or modified.
+
+### Stage 13 — S&OP, MPS, MRP, CRP and What-if completion progress
+- **03:** reconcile stored historical S&OP demand against a selected approved MPS and the current same-window aggregate; expose drift explicitly.
+- **04:** audit explicit demand identifiers and unlinked/manual quantities in approved MPS by product and date. This is not an authorization or signed plan-lock feature.
+- **05:** group net MRP allocations by source certainty (manual opening balance, expected receipt, unconfirmed manufacturing/external proposal); expose early-release risk and unmatched lot-size excess.
+- **06:** rank work centers by time-phased overload and count days with no shift capacity; undefined capacity is never a fictional zero utilization rate.
+- **16:** compare finite scheduling with capacity multiplier plus temporary center outage, without writing APS runs, orders, reservations or procurement.
+All remain development/partial until factory UAT, data control, security hardening, performance and role-specific acceptance.
