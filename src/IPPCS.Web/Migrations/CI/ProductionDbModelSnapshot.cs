@@ -793,6 +793,40 @@ namespace IPPCS.Web.Migrations.CI
                     b.ToTable("ManufacturingOrderOperations");
                 });
 
+            modelBuilder.Entity("ManufacturingOrderPeg", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("LinkedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<decimal>("LinkedQuantity")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<Guid>("MpsLineId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("OrderId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MpsLineId");
+
+                    b.HasIndex("OrderId", "MpsLineId")
+                        .IsUnique();
+
+                    b.ToTable("ManufacturingOrderPegs");
+                });
+
             modelBuilder.Entity("ManufacturingQualityHold", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1625,6 +1659,21 @@ namespace IPPCS.Web.Migrations.CI
                         .IsRequired();
 
                     b.Navigation("Order");
+                });
+
+            modelBuilder.Entity("ManufacturingOrderPeg", b =>
+                {
+                    b.HasOne("MpsDemandLine", null)
+                        .WithMany()
+                        .HasForeignKey("MpsLineId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ManufacturingOrder", null)
+                        .WithMany()
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("ManufacturingQualityHold", b =>
