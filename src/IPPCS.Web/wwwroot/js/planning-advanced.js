@@ -121,6 +121,10 @@ async function reloadMaterial(){
  if(!id){
   table("#material-table",[["قطعه","componentItemId"],["مصرف","recordedConsumed"]],[]);
   table("#material-reconciliation",[["قطعه","componentItemId"]],[]);
+  table("#material-evidence-ledger",[["قطعه","componentItemId"]],[]);
+  table("#material-lot-balances",[["قطعه","componentItemId"]],[]);
+  fill($("#material-lot"),[],x=>x.lotCode);
+  fill($("#material-reversal-entry"),[],x=>x.entryId);
   return;
  }
  const data=await api("/factory-material/"+id);
@@ -141,6 +145,27 @@ async function reloadMaterial(){
   ["درصد اختلاف",x=>x.outputBasedVariancePercent===null?"نامشخص":fmt(x.outputBasedVariancePercent)+"٪"],
   ["دفعات ثبت مصرف","recordedEntries"]
  ],actual.rows);
+ const lots=await api("/manufacturing-orders/"+id+"/confirmations");
+ fill($("#material-lot"),lots.filter(x=>x.goodQuantity+x.scrapQuantity+x.reworkQuantity>0),
+   x=>(x.lotCode||"بدون کد")+" | گزارش "+x.operationSequence+
+     " | سالم "+format(x.goodQuantity));
+ fill($("#material-lot-component"),data.rows.filter(x=>x.plannedRequired>0),
+   x=>item(x.componentItemId)+" | استاندارد "+format(x.plannedRequired),
+   x=>x.componentItemId);
+ const evidence=await api("/factory-material/"+id+"/evidence-ledger");
+ fill($("#material-reversal-entry"),evidence.rows.filter(x=>x.netQuantity>0),
+   x=>item(x.componentItemId)+" | "+format(x.recordedQuantity)+
+      (x.confirmationId?" / دارای بچ":" / قدیمی بدون بچ")+" | "+x.entryId.slice(0,8),
+   x=>x.entryId);
+ table("#material-evidence-ledger",[
+  ["شناسه سند",x=>x.entryId.slice(0,8)],
+  ["جزء",x=>item(x.componentItemId)],
+  ["بچ",x=>x.confirmationId?x.confirmationId.slice(0,8):"نامشخص"],
+  ["مقدار اولیه",x=>format(x.recordedQuantity)],
+  ["مانده خالص",x=>format(x.netQuantity)],
+  ["سند اصلاح",x=>x.reversedById?.slice(0,8)||"—"],
+  ["مرجع","reference"],["ثبت‌کننده","recordedBy"]
+ ],evidence.rows);
 }
 function register(){
  $$("nav [data-view]").forEach(btn=>btn.onclick=()=>{
@@ -255,6 +280,39 @@ function register(){
    [{name:"پایه",...data.baseline},{name:"سناریو",...data.scenario}]);
  });
  $("#material-order").onchange=()=>reloadMaterial().catch(e=>flash(e.message,true));
+ async function reviewMaterialLot(){
+  const order=$("#material-order").value,lot=$("#material-lot").value;
+  if(!order||!lot)throw Error("دستور و بچ دارای عملکرد را انتخاب کنید.");
+  const data=await api("/factory-material/"+order+"/lot/"+lot);
+  table("#material-lot-balances",[
+   ["جزء",x=>item(x.componentItemId)],
+   ["استاندارد برای بچ",x=>format(x.standardForReportedLot)],
+   ["مصرف خالص",x=>format(x.recordedNetQuantity)],
+   ["اختلاف",x=>format(x.variance)],
+   ["سند فعال","activeEntries"]
+  ],data.rows);
+ }
+ $("#material-lot-review").onclick=()=>reviewMaterialLot().catch(e=>flash(e.message,true));
+ $("#material-lot").onchange=()=>reviewMaterialLot().catch(e=>flash(e.message,true));
+ addForm("#material-lot-form",async f=>{
+  const order=$("#material-order").value;
+  if(!order)throw Error("دستور فعال مصرف را انتخاب کنید.");
+  await api("/factory-material/"+order+"/lot-consumption","POST",{
+   confirmationId:formval(f,"confirmationId"),
+   componentItemId:formval(f,"componentItemId"),
+   quantity:number(f,"quantity"),reference:formval(f,"reference")
+  });
+  await reloadMaterial();
+ });
+ addForm("#material-reversal-form",async f=>{
+  const order=$("#material-order").value;
+  if(!order)throw Error("دستور دارای مصرف را انتخاب کنید.");
+  if(!window.confirm("این اصلاح سند قبلی را حذف نمی‌کند و مقدار آن را با سند معکوس صفر می‌کند. ادامه می‌دهید؟"))
+    throw Error("اصلاح لغو شد.");
+  await api("/factory-material/"+order+"/consumption/"+formval(f,"entryId")+"/reverse",
+   "POST",{reason:formval(f,"reason")});
+  await reloadMaterial();
+ });
  addForm("#material-form",async f=>{
   await api("/factory-material/"+formval(f,"orderId")+"/consumption","POST",{
    componentItemId:formval(f,"componentItemId"),quantity:number(f,"quantity"),
