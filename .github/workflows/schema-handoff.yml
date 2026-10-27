@@ -1,0 +1,26 @@
+name: IPPCS MPS Pegging Schema Handoff
+on:
+  push:
+    branches: [feature/production-platform-foundation]
+  workflow_dispatch:
+jobs:
+  scaffold:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Scaffold additive MPS order pegging migration
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet restore src/IPPCS.Web/IPPCS.Web.csproj
+          dotnet tool install --global dotnet-ef --version 10.0.0
+          dotnet ef migrations add StageEightMpsOrderPegging --project src/IPPCS.Web/IPPCS.Web.csproj --startup-project src/IPPCS.Web/IPPCS.Web.csproj --output-dir Migrations/CI
+          for f in src/IPPCS.Web/Migrations/CI/*StageEightMpsOrderPegging*.cs src/IPPCS.Web/Migrations/CI/ProductionDbModelSnapshot.cs; do
+            echo "IPPCS_STAGE8_BEGIN:$f"
+            base64 -w0 "$f"
+            echo
+            echo "IPPCS_STAGE8_END"
+          done
