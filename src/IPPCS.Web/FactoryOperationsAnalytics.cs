@@ -105,6 +105,10 @@ public static class FactoryOperationsAnalyticsEndpoints
                 ||input.Reference.Trim().Length>200)
                 return Results.BadRequest(new{message="مقدار و مرجع مصرف تولیدی معتبر نیست."});
             await using var tx=await db.Database.BeginTransactionAsync(IsolationLevel.Serializable,ct);
+            try{await FactoryCapacityReservations.LockOrder(db,orderId,ct);}
+            catch(Microsoft.Data.SqlClient.SqlException){
+                return Results.Conflict(new{message="قفل مصرف دستور در دسترس نیست."});
+            }
             var order=await db.ManufacturingOrders.SingleOrDefaultAsync(x=>x.Id==orderId,ct);
             if(order is null)return Results.NotFound();
             if(!ManufacturingExecutionEndpoints.IsActive(order.Status))
