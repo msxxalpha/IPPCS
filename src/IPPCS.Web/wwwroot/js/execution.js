@@ -50,6 +50,8 @@ async function reload(){
  select($("#order-item"),S.items.filter(x=>x.type===1||x.type===2),x=>x.code+" • "+x.name);
  $$("[data-order-active]").forEach(el=>select(el,S.orders.filter(x=>x.status===1||x.status===2),x=>x.number+" • "+status(x.status)));
  select($("#history-order"),S.orders,x=>x.number+" • "+status(x.status));
+ select($("#clock-order"),S.orders.filter(x=>[1,2,3].includes(x.status)),
+  x=>x.number+" • "+status(x.status));
  render();
 }
 function render(){
@@ -81,6 +83,7 @@ function render(){
  ],operations);
  refreshOperations("confirm-form","confirm-operation");
  refreshOperations("stop-form","stop-operation");
+ refreshOperations("clock-form","clock-operation");
 }
 function refreshOperations(form,field){
  const host=$("#"+form),id=fval(host,"orderId");
@@ -118,6 +121,46 @@ function boot(){
   goodQuantity:numeric(f,"good"),scrapQuantity:numeric(f,"scrap"),reworkQuantity:numeric(f,"rework"),
   lotCode:fval(f,"lot")||null,note:fval(f,"note")||null
  }));
+ const clockForm=$("#clock-form");
+ $("#clock-order").addEventListener("change",()=>{
+   refreshOperations("clock-form","clock-operation");
+   $("#clock-history").replaceChildren();
+ });
+ const clockTime=x=>x?new Date(x).toLocaleString("fa-IR-u-ca-persian",{
+   timeZone:"Asia/Tehran",year:"numeric",month:"2-digit",day:"2-digit",
+   hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:false
+ }):"هنوز باز است";
+ async function refreshClock(){
+   const id=fval(clockForm,"orderId");
+   if(!id){flash("ابتدا یک دستور تولید انتخاب کنید.",true);return;}
+   const data=await request("/manufacturing-orders/"+id+"/operation-clock");
+   const order=S.orders.find(x=>x.id===id);
+   table("#clock-history",[
+     ["عملیات",x=>order?.operations.find(op=>op.id===x.operationId)?.name||x.operationId.slice(0,8)],
+     ["مرکز",x=>x.workCenterId.slice(0,8)],
+     ["شروع واقعی",x=>clockTime(x.startedUtc)],
+     ["پایان واقعی",x=>clockTime(x.stoppedUtc)],
+     ["وضعیت",x=>x.isRunning?"در حال کار":"خاتمه‌یافته"]
+   ],data.sessions);
+ }
+ async function clockAction(action){
+   if(!clockForm.reportValidity())return;
+   const id=fval(clockForm,"orderId"),op=fval(clockForm,"operationId");
+   if(!id||!op){flash("دستور و عملیات را انتخاب کنید.",true);return;}
+   const button=$("#clock-"+action);button.disabled=true;
+   try{
+     await request("/manufacturing-orders/"+id+"/operations/"+op+"/clock-"+action,"POST");
+     flash(action==="start"?"زمان شروع عملیات ثبت شد.":"زمان پایان عملیات ثبت شد.");
+     await reload();
+     $("#clock-order").value=id;
+     refreshOperations("clock-form","clock-operation");
+     $("#clock-operation").value=op;
+     await refreshClock();
+   }catch(ex){flash(ex.message,true);}finally{button.disabled=false;}
+ }
+ $("#clock-start").onclick=()=>clockAction("start");
+ $("#clock-stop").onclick=()=>clockAction("stop");
+ $("#clock-refresh").onclick=()=>refreshClock().catch(ex=>flash(ex.message,true));
  register("#stop-form",f=>request("/manufacturing-orders/"+fval(f,"orderId")+"/downtime","POST",{
   operationId:fval(f,"operationId"),reason:fval(f,"reason"),durationMinutes:numeric(f,"duration")
  }));
