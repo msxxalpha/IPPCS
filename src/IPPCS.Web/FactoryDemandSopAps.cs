@@ -33,7 +33,7 @@ public sealed class FactoryApsRun
     public Guid MpsVersionId { get; set; }
     public DateOnly StartOn { get; set; }
     public int HorizonDays { get; set; }
-    public string Algorithm { get; set; } = "FINITE-GREEDY-V1";
+    public string Algorithm { get; set; } = "FINITE-GREEDY-V2-NIGHT";
     public string InputJson { get; set; } = "";
     public string OutputJson { get; set; } = "";
     public DateTime CalculatedUtc { get; set; } = DateTime.UtcNow;
@@ -53,9 +53,11 @@ public record ApsResult(IReadOnlyList<ApsAllocation> Allocations,
     IReadOnlyList<ApsUnscheduled> Unscheduled,decimal TotalLateOperations);
 
 /// <summary>
-/// Finite, single-shift, non-preemptive scheduling preview. Exact work-center intervals
-/// and sequential-operation precedence are enforced. Material/alternate-tool/maintenance
-/// calendars and optimizer objective search are explicitly not included yet.
+/// Finite, non-preemptive weekly-shift preview, including shifts ending on the
+/// following Gregorian/solar-local calendar day. Center intervals are blocked
+/// on every touched day and operation precedence is enforced. External HR,
+/// maintenance calendars, alternate-tool optimization and global objectives
+/// are not part of this internal planning preview.
 /// </summary>
 public static class FiniteFactoryScheduler
 {
