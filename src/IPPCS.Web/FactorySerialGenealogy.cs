@@ -105,6 +105,26 @@ public static class FactorySerialGenealogy
         var operationIds=orders.Values.SelectMany(x=>x.Operations).Select(x=>x.Id).ToArray();
         var lots=await db.ManufacturingConfirmations.AsNoTracking()
             .Where(x=>operationIds.Contains(x.OperationId)).ToListAsync(ct);
+        // A read-only trace is still a quality claim. Re-validate that each
+        // recorded serial belongs to a final lot with one intact EOL approval,
+        // rather than silently trusting historical serial journal existence.
+        var certificates=await db.ManufacturingOrderAudits.AsNoTracking()
+            .Where(x=>orderIds.Contains(x.OrderId)&&
+                x.Action==FactoryEndOfLineAcceptance.ApprovedAction).ToListAsync(ct);
+        foreach(var id in orderIds)
+        {
+            if(!orders.TryGetValue(id,out var order)||
+                order.Kind!=ManufacturingOrderKind.FinalAssembly||
+                order.Status!=ManufacturingOrderStatus.Completed)
+                return ([],"دفتر سریال به دستور مونتاژ نهایی تکمیل‌نشده یا ناموجود ارجاع دارد.");
+            var last=order.Operations.OrderBy(x=>x.Sequence).LastOrDefault();
+            var certificatesForOrder=certificates.Where(x=>x.OrderId==id).ToArray();
+            if(last is null||certificatesForOrder.Length!=1||
+                !FactoryEndOfLineAcceptance.CertificateMatches(
+                    certificatesForOrder[0].Details,
+                    lots.Where(x=>x.OperationId==last.Id).ToArray()))
+                return ([],"سند کنترل نهایی یکی از دستورهای سریال‌دار معتبر نیست؛ ردیابی قابل تأیید نیست.");
+        }
         try{return (BuildLedger(journal,lots,orders),null);}
         catch(InvalidOperationException ex){return ([],ex.Message);}
     }
