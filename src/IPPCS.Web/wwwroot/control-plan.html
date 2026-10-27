@@ -18,6 +18,7 @@
 <button data-section="eol">گواهی داخلی کنترل نهایی مونتاژ</button>
 <button data-section="spc">پایش آماری اندازه‌گیری‌ها SPC</button>
 <button data-section="tracegraph">ردیابی چندمرحله‌ای بچ</button>
+<button data-section="serials">ردیابی سریال کمک‌فنر نهایی</button>
 </nav>
 <div class="sidebar-foot">IPPCS • توسعه ۰٫۶<br>بدون اتصال به انبار، خرید، فروش یا منابع انسانی</div></aside>
 <div class="main">
@@ -124,6 +125,28 @@
  <div class="panel"><h3>خلاصه کنترل نهایی و وضعیت تأیید</h3><div id="eol-summary"></div></div>
  <div class="panel"><h3>موانع و کنترل‌های ناقص</h3><div id="eol-issues"></div></div>
  <div class="panel"><h3>پوشش شجره نیمه‌ساخته برای هر بچ مونتاژ</h3><div id="eol-coverage"></div></div>
+</section>
+<section id="serials" class="page" hidden>
+ <div class="section-title"><h3>ثبت و ردیابی شماره سریال محصول نهایی</h3>
+  <small>شناسه داخلی هر کمک‌فنر پس از گواهی کنترل نهایی، دارای شجره قابل جستجو تا بچ نیمه‌ساخته</small></div>
+ <div class="callout">شماره سریال باید در کل تاریخچه تولید IPPCS یکتا باشد. پس از تأیید داخلی کیفیت قابل ثبت است و تعداد سریال‌ها نباید از خروجی سالم بچ تجاوز کند. این فرم برچسب فیزیکی چاپ نمی‌کند و هیچ ارتباطی با تحویل، فروش، مشتری یا انبار ندارد.</div>
+ <form id="factory-serial-form" class="panel form-grid">
+  <h3 class="wide">ثبت شماره سریال داخلی</h3>
+  <label>دستور مونتاژ نهایی تکمیل‌شده<select id="factory-serial-order" required></select></label>
+  <label>بچ آخرین عملیات<select id="factory-serial-lot" required></select></label>
+  <label>شماره سریال<input id="factory-serial-code" required minlength="3" maxlength="64" placeholder="SAIPA-1405-00001"></label>
+  <div class="form-actions"><button class="btn-main" type="submit">ثبت سریال به بچ گواهی‌شده</button><button class="btn-outline" id="factory-serial-reload" type="button">فهرست سریال‌های ثبت‌شده</button></div>
+ </form>
+ <div class="panel"><h3>سریال‌های تخصیص‌یافته و بچ منشأ</h3><div id="factory-serial-ledger"></div></div>
+ <form id="factory-serial-trace-form" class="panel form-grid">
+  <h3 class="wide">جستجوی سریال و ردیابی پسرو</h3>
+  <label>شماره سریال ثبت‌شده<input id="factory-serial-trace-code" required maxlength="64" placeholder="SAIPA-1405-00001"></label>
+  <label>حداکثر عمق ارتباط<input id="factory-serial-trace-depth" type="number" min="1" max="16" value="8"></label>
+  <div class="form-actions"><button type="submit" class="btn-outline">جستجوی شجره واقعی ساخت سریال</button></div>
+ </form>
+ <div class="panel"><h3>سریال و دستور محصول نهایی</h3><div id="factory-serial-trace-summary"></div></div>
+ <div class="panel"><h3>گره‌های بچ از محصول تا نیمه‌ساخته</h3><div id="factory-serial-trace-nodes"></div></div>
+ <div class="panel"><h3>پیوندهای واقعی تولید</h3><div id="factory-serial-trace-edges"></div></div>
 </section>
 <section id="spc" class="page" hidden>
  <div class="section-title"><h3>پایش آماری مشخصه‌های تولید</h3><small>نمودار افراد و دامنه متحرک بر اساس اندازه‌گیری‌های واقعی ثبت‌شده؛ مقادیر نمونه‌برداری‌شده قابل ویرایش نیستند</small></div>
