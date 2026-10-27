@@ -55,7 +55,16 @@ def stage19_acceptance(request, jalali, component):
     open_report=request(path+"/timed-downtime")
     assert len(open_report["rows"])==1 and open_report["rows"][0]["stoppedUtc"] is None,open_report
     after=request(path+f"/timed-downtime/{op['id']}/stop","POST")
-    assert after["durationMinutes"]>0,after
+    # This API reports minutes rounded to 2 decimals. A legitimate
+    # millisecond-scale stop can round to 0.00 without losing the real,
+    # strictly increasing immutable timestamps.
+    from datetime import datetime
+    def instant(value):
+        return datetime.fromisoformat(value.replace("Z","+00:00"))
+    assert instant(after["stoppedUtc"])>instant(after["startedUtc"]),after
+    elapsed=(instant(after["stoppedUtc"])-instant(after["startedUtc"])).total_seconds()/60
+    assert after["durationMinutes"]>=0,after
+    assert abs(after["durationMinutes"]-round(elapsed,2))<=0.01,after
     request(path+f"/timed-downtime/{op['id']}/stop","POST",status=409)
     start_clock=request(path+f"/operations/{op['id']}/clock-start","POST")
     assert start_clock["isRunning"],start_clock
