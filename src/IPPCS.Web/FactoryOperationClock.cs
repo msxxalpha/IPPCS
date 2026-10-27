@@ -66,8 +66,8 @@ public static class FactoryOperationClock
         {
             var ordered=group.OrderBy(x=>x.StartedUtc).ToArray();
             for(int i=1;i<ordered.Length;i++)
-                if(ordered[i-1].StoppedUtc is null ||
-                    ordered[i-1].StoppedUtc.Value>ordered[i].StartedUtc)
+                if(ordered[i-1].StoppedUtc is not { } previousStop ||
+                    previousStop>ordered[i].StartedUtc)
                     throw new InvalidOperationException("در تاریخچه زمان کارکرد مرکز، تداخل ثبت شده است.");
         }
         return sessions;
