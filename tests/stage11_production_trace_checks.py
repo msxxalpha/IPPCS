@@ -83,7 +83,10 @@ def stage11_acceptance(request, component_id, center_id, jalali):
     stage15_acceptance(request,jalali,tomorrow,component_id,mps_line)
 
     from stage16_manufacturing_eol_checks import stage16_acceptance
-    stage16_acceptance(request,jalali,center_id,semi["id"])
+    signed_fixture=stage16_acceptance(request,jalali,center_id,semi["id"])
+
+    from stage18_serial_engineering_checks import stage18_acceptance
+    stage18_acceptance(request,jalali,signed_fixture,center_id,semi["id"])
 
     from stage17_mps_change_checks import stage17_acceptance
     stage17_acceptance(request,version["id"])
