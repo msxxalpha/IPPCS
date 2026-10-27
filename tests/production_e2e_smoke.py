@@ -375,6 +375,17 @@ assert all(x["sourceType"] == "PlanningOpeningBalance" for x in component_alloca
 assert all(x["availableOnJalali"] <= x["neededOnJalali"] for x in component_allocations)
 assert not [x for x in net_trace["plannedLots"] if x["itemId"] == raw["id"]]
 print("PASS: SQL net MRP proposal lots, generated component needs and bounded dated allocations.")
+# Stage 9.5: finite, read-only center capacity check based on the same net proposed lots.
+preview = request(f"/api/v1/mrp/{mps['id']}/lot-capacity-preview?horizonDays=7&capacityMultiplier=1")
+assert preview["kind"] == "UnconfirmedNetMrpBatchCapacityPreview"
+assert preview["onTimeLots"] == 1 and preview["lateLots"] == 0, preview
+assert preview["blockedLots"] == 0 and len(preview["allocations"]) == 2, preview
+assert all(x["startJalali"] == JALALI_NOW for x in preview["allocations"])
+assert all(x["lotKey"] == parent_lots[0]["lotKey"] for x in preview["allocations"])
+assert preview["allocations"][0]["finishTime"] <= preview["allocations"][1]["startTime"]
+assert request(f"/api/v1/mrp/{mps['id']}/lot-capacity-preview?horizonDays=0",status=400)["message"]
+print("PASS: SQL net MRP proposed lot finite-center check, operation precedence and validation.")
+
 
 print("PASS: isolated local operator account, permission boundary, material reporting, "
       "password change, administrator lock/unlock.")
