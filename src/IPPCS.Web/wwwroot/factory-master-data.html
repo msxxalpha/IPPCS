@@ -5,6 +5,7 @@
 <title>IPPCS | اطلاعات پایه و فهرست‌های مرجع</title>
 <link rel="stylesheet" href="/css/production.css">
 <script defer src="/js/security-client.js"></script>
+<script defer src="/js/jalali-datepicker.js"></script>
 <script defer src="/js/factory-choices.js"></script>
 <script defer src="/js/factory-master-data.js"></script>
 </head>
@@ -49,6 +50,19 @@
 <div class="form-actions"><button class="btn-main" type="submit" id="master-add">ثبت گزینه</button></div>
 <p class="wide">برای نوع انحراف فقط کدهای ۰ تا ۶ تعریف شده‌اند و به‌صورت پیش‌فرض وجود دارند. برای مسئول پیگیری نام اشخاص را از منابع انسانی دریافت نمی‌کنیم؛ عنوان نقش عملیاتی کارخانه را تعریف کنید.</p>
 </form>
+<section class="panel">
+<h3>گزارش طبقه‌بندی‌شده توقف و قرنطینه</h3>
+<p>آمار براساس کد پایدار اطلاعات پایه است؛ تغییر عنوان، اطلاعات گذشته را از گروه گزارش حذف نمی‌کند. توقفات زمان‌دار فقط از نظر تعداد رخداد در این گزارش شمرده می‌شوند.</p>
+<form id="master-reason-report" class="form-grid">
+<label>نوع گزارش<select id="reason-report-kind">
+<option value="DowntimeReason">دلایل توقف تولید</option>
+<option value="QualityHoldReason">دلایل قرنطینه کیفیت</option></select></label>
+<label>از تاریخ شمسی<span class="jalali-field"><input id="reason-report-from" data-jalali-date required placeholder="۱۴۰۵/۰۸/۰۵"><button data-jalali-trigger type="button" class="date-trigger">▣</button></span></label>
+<label>تا تاریخ شمسی<span class="jalali-field"><input id="reason-report-through" data-jalali-date required placeholder="۱۴۰۵/۰۸/۰۵"><button data-jalali-trigger type="button" class="date-trigger">▣</button></span></label>
+<div class="form-actions"><button class="btn-main" type="submit">نمایش گزارش</button></div>
+</form>
+<div id="reason-report-result" role="status" aria-live="polite"></div>
+</section>
 <section class="panel"><h3>گزینه‌ها و ویرایش کنترل‌شده</h3>
 <p>برای حفاظت از سابقهٔ گزارش‌ها، کد قابل ویرایش یا حذف نیست. مدیر سامانه می‌تواند عنوان، ترتیب و وضعیت را تغییر دهد.</p>
 <div id="master-list" aria-live="polite"></div>
