@@ -53,7 +53,7 @@ public sealed class FactoryPlanningReconciliationTests
     [Fact]
     public void Mrp_source_risk_separates_assumed_balances_receipts_and_unfirm_plans()
     {
-        var item=Guid.NewGuid(),today=new DateOnly(2026,10,27);
+        var item=Guid.NewGuid();var today=new DateOnly(2026,10,27);
         var demand=new NetPegDemand("A",item,today,10,Guid.NewGuid(),null,null,"A",0);
         var source=new NetPeggingReport([demand],[
             new NetPegAllocation("A",item,today,"PlanningOpeningBalance","BASE",today,2,true),
@@ -74,7 +74,7 @@ public sealed class FactoryPlanningReconciliationTests
     [Fact]
     public void Crp_ranks_bottlenecks_and_preserves_undefined_utilization_on_zero_capacity()
     {
-        var center=Guid.NewGuid(),noShift=Guid.NewGuid(),date=new DateOnly(2026,10,27);
+        var center=Guid.NewGuid();var noShift=Guid.NewGuid();var date=new DateOnly(2026,10,27);
         var mps=Guid.NewGuid();
         var report=FactoryPlanningReconciliation.CenterStress(mps,[
             new CrpRow(center,date,120,60,60,200),
@@ -92,7 +92,7 @@ public sealed class FactoryPlanningReconciliationTests
     [Fact]
     public void Whatif_maintenance_disables_center_without_mutating_shifts_or_schedules()
     {
-        var day=new DateOnly(2026,10,27),center=Guid.NewGuid(),mps=Guid.NewGuid();
+        var day=new DateOnly(2026,10,27);var center=Guid.NewGuid();var mps=Guid.NewGuid();
         var shifts=new[]{new WorkShift{WorkCenterId=center,DayOfWeek=(int)day.DayOfWeek,
             StartTime=new TimeOnly(8,0),EndTime=new TimeOnly(10,0),
             EffectiveCapacityPercent=100}};
