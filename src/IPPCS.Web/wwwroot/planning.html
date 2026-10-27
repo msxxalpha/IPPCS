@@ -44,6 +44,17 @@
     <div class="form-actions"><button class="btn-main" type="submit">افزودن جزء</button></div>
   </form>
   <div class="panel"><h3>سوابق نسخه‌های BOM</h3><div id="bom-table"></div></div>
+  <div class="panel"><h3>کنترل پیش از تصویب نسخه‌های BOM و Routing</h3>
+   <p>این بررسی وضعیت نسخه پیش‌نویس، بازه تاریخی، اجزای تکراری، عملیات و چرخه BOM را نمایش می‌دهد. تصمیم نهایی تصویب در سمت سرور با قفل تراکنشی دوباره ارزیابی می‌شود.</p>
+   <div class="form-grid">
+    <label>نسخه BOM<select id="revision-bom-check"></select></label>
+    <label>نسخه مسیر ساخت Routing<select id="revision-routing-check"></select></label>
+    <div class="form-actions">
+     <button id="revision-check-bom" type="button" class="btn-outline">بررسی تصویب BOM</button>
+     <button id="revision-check-routing" type="button" class="btn-outline">بررسی تصویب Routing</button>
+    </div>
+   </div><div id="revision-preflight-table"></div>
+  </div>
   <div class="panel"><h3>جزئیات اجزای BOM پیش‌نویس (قابل اصلاح)</h3><div id="bom-lines-table"></div></div>
 </section>
 <section class="page" id="mps" hidden>
