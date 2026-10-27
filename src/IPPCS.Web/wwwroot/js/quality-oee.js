@@ -119,6 +119,24 @@ async function oee(){
  ],data.rows);
  message("شاخص‌های مقدماتی OEE بر اساس تاریخ محلی کارخانه محاسبه شدند.");
 }
+async function oeeClock(){
+ const date=$("#oee-date").value;
+ if(!IPPCSJalali.parse(date)){message("تاریخ شمسی گزارش معتبر نیست.",true);return;}
+ const data=await api("/oee/clock-verified?dateJalali="+encodeURIComponent(date));
+ table("#oee-clock-table",[
+  ["مرکز کاری","centerName"],
+  ["زمان برنامه",x=>x.plannedMinutes===null?"ثبت نشده":n(x.plannedMinutes)],
+  ["دقایق کارکرد واقعی",x=>n(x.actualMinutes)],
+  ["ساعت باز",x=>x.hasOpenClock?"بله":"خیر"],
+  ["زمان ایده‌آل قطعات",x=>n(x.idealMinutes)],
+  ["دسترس‌پذیری",x=>percent(x.availabilityPercent)],
+  ["عملکرد",x=>percent(x.performancePercent)],
+  ["کیفیت",x=>percent(x.qualityPercent)],
+  ["OEE ثبت ساعت",x=>percent(x.oeePercent)],
+  ["ملاحظات",x=>x.warning||"—"]
+ ],data.rows);
+ message("گزارش مبتنی بر ساعت واقعی فقط برای داده‌های کامل محاسبه شده است.");
+}
 function boot(){
  $("#lot-trace-form").addEventListener("submit",async event=>{
   event.preventDefault();const form=event.currentTarget;
@@ -139,6 +157,7 @@ function boot(){
  $("#quality-order").addEventListener("change",reloadOps);
  $("#quality-refresh").addEventListener("click",()=>refreshQuality().catch(err=>message(err.message,true)));
  $("#oee-calculate").addEventListener("click",()=>oee().catch(err=>message(err.message,true)));
+ $("#oee-clock-calculate").addEventListener("click",()=>oeeClock().catch(err=>message(err.message,true)));
  register("#quality-form",f=>api("/manufacturing-orders/"+fval(f,"orderId")+"/quality-holds","POST",{
   operationId:fval(f,"operationId"),quantity:dec(f,"quantity"),reason:fval(f,"reason")
  }));
