@@ -3,14 +3,15 @@ using Microsoft.EntityFrameworkCore;
 // Stage 16: documented internal manufacturing operation handoffs; these
 // are not warehouse transfers, material issues or physical custody evidence.
 public record FactoryHandoffLotGap(Guid ConfirmationId,string LotCode,decimal ReportedGood,
-    decimal DocumentedIncomingGood,decimal UntracedGood);
+    decimal DocumentedIncomingGood,decimal UntracedGood,decimal OverAllocatedGood);
 public record FactoryStageHandoff(Guid OrderId,int FromSequence,int ToSequence,
     Guid SourceOperationId,Guid TargetOperationId,decimal EligibleSourceGood,
     decimal DocumentedGood,decimal RemainingUpstreamGood,decimal UntracedDownstreamGood,
-    bool QualityGatePassed,int OpenQualityHolds,
+    bool QualityGatePassed,int OpenQualityHolds,decimal OverAllocatedUpstreamGood,
     IReadOnlyList<FactoryHandoffLotGap> DestinationLots);
 public record FactoryHandoffAudit(Guid OrderId,int StagePairs,int PairsWithUntracedOutput,
-    decimal TotalUntracedDownstreamGood,IReadOnlyList<FactoryStageHandoff> Pairs,
+    decimal TotalUntracedDownstreamGood,int PairsWithOverAllocation,
+    IReadOnlyList<FactoryStageHandoff> Pairs,
     string Disclaimer);
 
 public static class FactoryInProcessHandoffs
@@ -21,7 +22,9 @@ public static class FactoryInProcessHandoffs
         IReadOnlyList<ManufacturingQualityHold> holds)
     {
         var ops=order.Operations.OrderBy(x=>x.Sequence).ToArray();
-        var records=confirmations.ToDictionary(x=>x.Id);
+        if(confirmations.Select(x=>x.Id).Distinct().Count()!=confirmations.Count ||
+            links.Select(x=>x.Id).Distinct().Count()!=links.Count)
+            throw new InvalidOperationException("شناسه تکراری در اسناد انتقال مراحل تولید ثبت شده است.");
         var output=new List<FactoryStageHandoff>();
         for(var i=1;i<ops.Length;i++)
         {
@@ -37,24 +40,34 @@ public static class FactoryInProcessHandoffs
             var forward=Math.Max(0m,from.GoodQuantity-
                 from.QualityPendingQuantity-from.QualityRejectedQuantity);
             var documented=pairLinks.Sum(x=>x.Quantity);
+            // Even if every destination is covered, more links than the
+            // available upstream output are invalid manufacturing evidence.
+            var sourceOver=previous.Sum(lot=>Math.Max(0m,
+                pairLinks.Where(x=>x.SourceConfirmationId==lot.Id).Sum(x=>x.Quantity)-
+                Math.Max(0m,lot.GoodQuantity)));
+            var overUpstream=Math.Max(sourceOver,Math.Max(0m,documented-forward));
             var gaps=destination.Select(lot=>{
                 var received=pairLinks.Where(x=>x.DestinationConfirmationId==lot.Id)
                     .Sum(x=>x.Quantity);
                 return new FactoryHandoffLotGap(lot.Id,lot.LotCode??"",lot.GoodQuantity,
-                    received,Math.Max(0m,lot.GoodQuantity-received));
+                    received,Math.Max(0m,lot.GoodQuantity-received),
+                    Math.Max(0m,received-lot.GoodQuantity));
             }).ToArray();
             var held=holds.Count(x=>x.Status==ManufacturingQualityStatus.Open &&
                 (x.OperationId==from.Id||x.OperationId==to.Id));
             var quality=held==0&&from.QualityPendingQuantity==0&&
-                to.QualityPendingQuantity==0&&
+                to.QualityPendingQuantity==0&&overUpstream==0m&&
+                gaps.All(x=>x.OverAllocatedGood==0m)&&
                 ManufacturingInspectionRules.GatePassed(from)&&
                 ManufacturingInspectionRules.GatePassed(to);
             output.Add(new(order.Id,from.Sequence,to.Sequence,from.Id,to.Id,
                 forward,documented,Math.Max(0m,forward-documented),
-                gaps.Sum(x=>x.UntracedGood),quality,held,gaps));
+                gaps.Sum(x=>x.UntracedGood),quality,held,overUpstream,gaps));
         }
         return new(order.Id,output.Count,output.Count(x=>x.UntracedDownstreamGood>0),
-            output.Sum(x=>x.UntracedDownstreamGood),output,
+            output.Sum(x=>x.UntracedDownstreamGood),
+            output.Count(x=>x.OverAllocatedUpstreamGood>0||
+                x.DestinationLots.Any(lot=>lot.OverAllocatedGood>0)),output,
             "فقط مغایرت مستند بچ‌های متوالی داخل IPPCS بررسی می‌شود؛ انتقال فیزیکی یا تراکنش انبار ثبت یا استنباط نمی‌شود.");
     }
 
