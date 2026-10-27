@@ -28,6 +28,8 @@ public sealed class FactoryStageTwelveTests
         var limited=FactoryGenealogyExplorer.Explore(first,"descendants",1,nodes,edges);
         Assert.Equal(2,limited.Nodes.Count);
         Assert.Single(limited.Edges);
+        Assert.True(limited.HasMoreBeyondDepth);
+        Assert.False(ancestors.HasMoreBeyondDepth);
     }
     [Fact]
     public void Trace_missing_root_dangling_edge_and_bad_quantities_fail_closed()
