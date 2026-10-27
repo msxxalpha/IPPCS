@@ -2,6 +2,7 @@
 "use strict";
 const $=id=>document.getElementById(id);
 let diagnostic=null;
+let initialAnchorHandled=false;
 const selected=(id)=>$(id)?.value?.trim()||"";
 const format=n=>Number(n||0).toLocaleString("fa-IR");
 const paths=new Set(["/planning.html","/planning-advanced.html","/execution.html"]);
@@ -83,7 +84,11 @@ function display(){
     result.replaceChildren();
     const status=el("strong","نتیجهٔ سرویس دریافت شد؛ اعتبارسنجی کارخانه هنوز باز است.");
     result.append(status);
-    const summary=el("pre",JSON.stringify(data,null,2),"factory-analytic-json");
+    const raw=JSON.stringify(data,null,2);
+    const bounded=raw.length>18000?
+      raw.slice(0,18000)+"\n... بخش انتهایی برای خوانایی حذف شد؛ گزارش کامل را از صفحهٔ اصلی ماژول بررسی کنید.":
+      raw;
+    const summary=el("pre",bounded,"factory-analytic-json");
     result.append(summary);
    }catch(error){
     result.replaceChildren();
@@ -92,6 +97,14 @@ function display(){
    }finally{button.disabled=false;}
   };
   container.append(box);
+ }
+ if(!initialAnchorHandled){
+  const hash=decodeURIComponent(location.hash.slice(1));
+  if(/^analytics-module-(2|3|5|6|7|14|16|17)$/.test(hash)){
+   const card=document.getElementById(hash);
+   if(card)card.scrollIntoView({block:"start"});
+  }
+  initialAnchorHandled=true;
  }
 }
 function assertGuid(guid,label){
