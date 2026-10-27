@@ -37,3 +37,14 @@ Until all relevant functional, cybersecurity, SQL Server/IIS, backup-restore, pe
 - Shared order-level + center-level SQL Server application locks protect booking, live clock and manufacturing lifecycle mutations.
 - Upstream slot cannot be manually cancelled while a later unfinished routing stage remains booked.
 - Completed-operation and order-cancellation regression coverage added. **Still pending:** factory UAT, held-order dispatch decisions, field repair of legacy audit inconsistencies, plant authorization and full 18-module sign-off.
+
+## Stage 12 verified incremental scope (not full acceptance)
+| Module | Added read-only capability | Still needed for production signoff |
+|---|---|---|
+| 11 | BOM planned-vs-output standard-vs-logged consumption, nulls for absent logs | Operator-batch per-step reconciliation, approved substitutions, reversals, bounded backflush |
+| 12 | Open/unassigned and overdue action alerts from existing recorded deviations | Action escalation owners, effectiveness evidence, signoff, notification policy |
+| 13 | Exploratory individuals/moving-range limits on actual frozen Control Plan results; reject counts | Approved SPC baselines, MSA, sampling plans, rational subgrouping and reaction workflow |
+| 15 | Bidirectional multistep work-order batch-link explorer with quantity edges and depth warnings | Serial-level trace and mixed-batch full genealogy, approved recall evidence, audited corrections |
+| 18 | Reproducible Jalali-date alert dashboard for QC/order/deviation exceptions | Plant KPI targets, role-specific drilldowns, alerts policy, scheduled exports and UAT |
+
+CI covers unit invariants and separate disposable SQL Server integration scenarios. **No** database or ERP schema exchange was added. Keep PR Draft; do not declare modules complete without factory UAT.
