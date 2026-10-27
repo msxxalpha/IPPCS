@@ -18,6 +18,10 @@ public static class FactoryLineSideCorrections
 {
     public const string LotPrefix="IPLOT:";
     public const string ReversalPrefix="IPREV:";
+    public static bool IsReservedReference(string? value)=>
+        value?.StartsWith(LotPrefix,StringComparison.OrdinalIgnoreCase)==true||
+        value?.StartsWith(ReversalPrefix,StringComparison.OrdinalIgnoreCase)==true;
+
 
     public static string LotReference(Guid confirmationId,string note)
         =>LotPrefix+confirmationId.ToString("N")+"|"+note.Trim();
