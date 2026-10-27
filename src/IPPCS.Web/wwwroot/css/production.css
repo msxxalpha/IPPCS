@@ -138,3 +138,33 @@ textarea:focus,input:focus-visible,select:focus-visible,button:focus-visible,a:f
 }
 @media(max-width:1080px){.factory-setup-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:720px){.factory-setup-grid{grid-template-columns:1fr}}
+
+
+/* Stage 36: factory analytical test checklist and bounded actual results. */
+.factory-analytic-card{scroll-margin-top:18px}
+.factory-analytic-checks{display:grid;gap:7px;margin:12px 0}
+.factory-analytic-check{display:grid;grid-template-columns:24px 1fr;
+ gap:10px;align-items:start;background:#f6f9fb;border:1px solid #e3eaf0;
+ padding:9px 12px;border-radius:9px}
+.factory-analytic-check strong{font-size:12px;color:#17324d}
+.factory-analytic-check p{margin:4px 0 0}
+.factory-analytic-done,.factory-analytic-missing{display:grid;place-items:center;
+ width:22px;height:22px;border-radius:50%;font-weight:bold;
+ background:#e0f2e9;color:#276346}
+.factory-analytic-missing{background:#fff1dc;color:#935b14}
+.factory-analytics-ready,.factory-analytics-blocked{padding:8px 12px;
+ border-radius:8px;background:#e9f4ee;color:#27583e!important}
+.factory-analytics-blocked{background:#fff1dc;color:#825817!important}
+.factory-analytic-warning{border-right:3px solid #dbb96e;padding-right:10px}
+.factory-analytic-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+ margin-top:14px}
+.factory-analytic-actions button{min-height:41px}
+.factory-analytic-actions a{min-height:41px;display:inline-flex;align-items:center}
+.factory-analytic-result{background:#f7fafc;border:1px solid #d5e0e8;
+ border-radius:10px;padding:12px;margin-top:14px;min-width:0}
+.factory-analytic-result[hidden]{display:none}
+.factory-analytic-result strong{color:#17324d}
+.factory-analytic-json{direction:ltr;text-align:left;white-space:pre-wrap;
+ overflow-wrap:anywhere;word-break:break-word;max-height:340px;overflow:auto;
+ font:12px Consolas,monospace;line-height:1.65;color:#233442;
+ background:#fff;border:1px solid #dde6ec;border-radius:7px;padding:12px}
