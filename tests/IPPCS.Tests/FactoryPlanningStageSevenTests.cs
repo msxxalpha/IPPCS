@@ -58,6 +58,34 @@ public sealed class FactoryPlanningStageSevenTests
         Assert.Single(FiniteFactoryScheduler.Schedule(tasks,[Shift(center)],Monday,1,0.5m).Unscheduled);
     }
     [Fact]
+    public void Planned_maintenance_blackout_moves_operations_to_next_available_day()
+    {
+        var center=Guid.NewGuid(),demand=Guid.NewGuid(),item=Guid.NewGuid(),route=Guid.NewGuid();
+        var t=new ApsTask(demand,item,Monday,10,route,10,center,60,"Assembly");
+        var tuesday=Monday.AddDays(1);
+        var shifts=new[]{
+            Shift(center),
+            new WorkShift{WorkCenterId=center,DayOfWeek=(int)tuesday.DayOfWeek,
+                StartTime=new TimeOnly(8,0),EndTime=new TimeOnly(16,0),EffectiveCapacityPercent=100}
+        };
+        var closed=new HashSet<(Guid WorkCenterId,DateOnly Date)>{(center,Monday)};
+        var outcome=FiniteFactoryScheduler.Schedule([t],shifts,Monday,2,1,closed);
+        Assert.Single(outcome.Allocations);
+        Assert.Equal(tuesday,outcome.Allocations[0].StartDate);
+        Assert.Empty(outcome.Unscheduled);
+    }
+    [Fact]
+    public void Midnight_finishing_shift_does_not_crash_time_only_conversion()
+    {
+        var center=Guid.NewGuid();
+        var night=new WorkShift{WorkCenterId=center,DayOfWeek=(int)Monday.DayOfWeek,
+            StartTime=new TimeOnly(16,0),EndTime=new TimeOnly(23,59),EffectiveCapacityPercent=100};
+        var job=new ApsTask(Guid.NewGuid(),Guid.NewGuid(),Monday,1,Guid.NewGuid(),10,center,479,"Night");
+        var result=FiniteFactoryScheduler.Schedule([job],[night],Monday,1);
+        Assert.Empty(result.Unscheduled);
+        Assert.Equal(new TimeOnly(23,59),result.Allocations[0].FinishesAt);
+    }
+    [Fact]
     public void Factory_material_variances_only_use_internal_confirmations()
     {
         var material=Guid.NewGuid();var product=Guid.NewGuid();
