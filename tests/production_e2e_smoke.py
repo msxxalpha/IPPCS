@@ -401,6 +401,29 @@ assert conflicted["blockedLots"] >= 1 and conflicted["onTimeLots"] == 0, conflic
 assert conflicted["conservativelyBlockedActiveOrders"] >= 1, conflicted
 assert not conflicted["allocations"], conflicted
 print("PASS: active manufacturing order conservatively reserves its work centers in net MRP preview.")
+# Stage 9.7: append-only real operation clock on an existing released order.
+clock_order_id = competing["id"]
+clock_op_id = request(f"/api/v1/manufacturing-orders/{clock_order_id}")["operations"][0]["id"]
+clock_base = f"/api/v1/manufacturing-orders/{clock_order_id}/operations/{clock_op_id}"
+clock_start = request(clock_base + "/clock-start", "POST")
+assert clock_start["isRunning"] and clock_start["startedUtc"]
+request(clock_base + "/clock-start", "POST", status=409)
+request(clock_base + "/confirm", "POST", {
+    "goodQuantity": 1, "scrapQuantity": 0, "reworkQuantity": 0
+}, 409)
+during_clock = request(f"/api/v1/mrp/{mps['id']}/lot-capacity-preview?horizonDays=7")
+assert during_clock["runningOperationClockSessions"] >= 1, during_clock
+clock_stop = request(clock_base + "/clock-stop", "POST")
+assert not clock_stop["isRunning"] and clock_stop["stoppedUtc"]
+request(clock_base + "/clock-stop", "POST", status=409)
+clock_history = request(f"/api/v1/manufacturing-orders/{clock_order_id}/operation-clock")["sessions"]
+assert len(clock_history) == 1 and not clock_history[0]["isRunning"]
+assert clock_history[0]["operationId"] == clock_op_id
+clock_final = request(f"/api/v1/mrp/{mps['id']}/lot-capacity-preview?horizonDays=7")
+assert clock_final["recordedOperationClockSessions"] >= 1, clock_final
+assert clock_final["runningOperationClockSessions"] == 0, clock_final
+print("PASS: actual operation start-stop clock, duplicate prevention, immutable journal and capacity preview.")
+
 
 
 
