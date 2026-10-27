@@ -40,6 +40,16 @@ def stage16_acceptance(request, jalali, center_id, semi_item):
       "description":"Shock absorber end-of-line measured damping force",
       "unit":"N","minimum":50,"maximum":60,"mandatory":True},201)
     request(f"/api/v1/control-plans/{control['id']}/approve","POST")
+    # A second plan with a different code may be drafted, but cannot approve
+    # an overlapping effective period for the same frozen routing.
+    competing=request("/api/v1/control-plans","POST",{
+      "routingRevisionId":route["id"],"code":"CI-ST16-OVERLAP",
+      "validFromJalali":jalali,"validUntilJalali":None},201)
+    request(f"/api/v1/control-plans/{competing['id']}/characteristics","POST",{
+      "operationSequence":20,"code":"CI-ST16-OTHER-FORCE",
+      "description":"Competing end of line quality plan","unit":"N",
+      "minimum":50,"maximum":60,"mandatory":True},201)
+    request(f"/api/v1/control-plans/{competing['id']}/approve","POST",status=409)
     final=request("/api/v1/manufacturing-orders","POST",{
       "number":"CI-ST16-FINAL","itemId":item["id"],"plannedQuantity":2,
       "plannedStartJalali":jalali,"dueOnJalali":jalali},201)
