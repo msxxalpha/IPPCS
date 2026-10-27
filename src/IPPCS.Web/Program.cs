@@ -144,6 +144,7 @@ app.MapQualityAndOee();
 app.MapControlPlanEndpoints();
 app.MapOrderPegging();
 app.MapProductionDeviations();
+app.MapDemandTrace();
 app.MapDemandAps();
 app.MapOperationsAnalytics();
 app.Run();
