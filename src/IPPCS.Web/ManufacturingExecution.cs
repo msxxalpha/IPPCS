@@ -272,6 +272,17 @@ public static class ManufacturingExecutionEndpoints
             var order=await db.ManufacturingOrders.Include(x=>x.Operations)
                 .ThenInclude(x=>x.InspectionRequirements).SingleOrDefaultAsync(x=>x.Id==id,ct);
             if(order is null)return Results.NotFound();
+            // An active clock must be closed before quantity confirmation can
+            // complete the operation/order, otherwise a dangling running session remains.
+            var clockEvents=await db.ManufacturingOrderAudits.AsNoTracking()
+                .Where(x=>x.OrderId==id &&
+                    (x.Action==FactoryOperationClock.Started ||
+                     x.Action==FactoryOperationClock.Stopped)).ToListAsync(ct);
+            IReadOnlyList<FactoryClockSession> clockHistory;
+            try{clockHistory=FactoryOperationClock.Read(clockEvents);}
+            catch(InvalidOperationException ex){return Results.Conflict(new{message=ex.Message});}
+            if(clockHistory.Any(x=>x.OperationId==operationId&&x.StoppedUtc is null))
+                return Results.Conflict(new{message="پیش از ثبت عملکرد، ساعت کارکرد باز این عملیات را متوقف کنید."});
             if(!TryApplyConfirmation(order,operationId,input,out var error))
                 return Results.Conflict(new{message=error});
             db.ManufacturingConfirmations.Add(new ManufacturingConfirmation{
