@@ -58,6 +58,23 @@ public static class FactoryMasterData
             .SingleOrDefaultAsync(x=>x.Kind==kind&&x.Code==code&&x.IsActive,ct);
     }
 
+    // Retain legacy free-text observations, but prefix new categorized entries
+    // with a machine-readable stable code for historical reports without
+    // rewriting the current confirmed-production audit schema.
+    public static async Task<string?> ResolveReason(ProductionDb db,string kind,
+        string? code,string? detail,int maxLength,CancellationToken ct)
+    {
+        var explanation=detail?.Trim()??"";
+        if(string.IsNullOrWhiteSpace(code))
+            return explanation.Length is >0 and <=500&&explanation.Length<=maxLength?
+                explanation:null;
+        var option=await Active(db,kind,code,ct);
+        if(option is null||explanation.Contains('|'))return null;
+        var value="["+option.Code+"] "+option.Label+
+            (explanation.Length>0?" — "+explanation:"");
+        return value.Length<=maxLength?value:null;
+    }
+
     public static IEndpointRouteBuilder MapFactoryMasterData(this IEndpointRouteBuilder routes)
     {
         var read=routes.MapGroup("/api/v1").RequireAuthorization("IpProductionUser");
