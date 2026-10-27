@@ -244,9 +244,33 @@ public static class FiniteFactoryScheduler
     }
 }
 
+public record FactoryForecastCoverage(int RecordedMonths,IReadOnlyList<string> MissingMonths)
+{
+    public bool Complete=>MissingMonths.Count==0;
+}
 public static class FactoryForecasting
 {
     private static readonly PersianCalendar Jalali = new();
+    // Missing months are UNKNOWN, never an approved zero-demand statement.
+    public static FactoryForecastCoverage Coverage(IEnumerable<FactoryDemand> history,
+        DateOnly forecastMonth,int lookbackMonths)
+    {
+        if(lookbackMonths is <2 or >12)
+            throw new ArgumentOutOfRangeException(nameof(lookbackMonths));
+        var stamp=forecastMonth.ToDateTime(TimeOnly.MinValue);
+        var ordinal=Jalali.GetYear(stamp)*12+Jalali.GetMonth(stamp)-1;
+        var observed=history.Where(x=>x.Category=="Confirmed")
+            .Select(x=>{
+                var t=x.DueOn.ToDateTime(TimeOnly.MinValue);
+                return Jalali.GetYear(t)*12+Jalali.GetMonth(t)-1;
+            }).ToHashSet();
+        var missing=Enumerable.Range(0,lookbackMonths)
+            .Select(i=>ordinal-lookbackMonths+i)
+            .Where(x=>!observed.Contains(x))
+            .Select(x=>(x/12).ToString("0000")+"/"+(x%12+1).ToString("00"))
+            .ToArray();
+        return new(lookbackMonths-missing.Length,missing);
+    }
     public static decimal MonthlyMovingAverage(IEnumerable<FactoryDemand> history,DateOnly forecastMonth,
         int lookbackMonths)
     {
@@ -309,13 +333,19 @@ public static class FactoryDemandApsEndpoints
             var year=calendar.GetYear(dt);var month=calendar.GetMonth(dt);
             var ordinal=year*12+month-1;
             var forecast=FactoryForecasting.MonthlyMovingAverage(history,from,lookback);
+            var coverage=FactoryForecasting.Coverage(history,from,lookback);
             var rows=Enumerable.Range(0,months).Select(offset=>{
                 var next=ordinal+offset;
                 return new{jalaliYear=next/12,jalaliMonth=next%12+1,
                     forecastQuantity=forecast};
             }).ToArray();
-            return Results.Ok(new{itemId,lookbackMonths=lookback,historySamples=history.Count,rows,
-                disclaimer="میانگین متحرک ساده نیاز قطعی داخلی در ماه‌های گذشته؛ ماه‌های بدون تقاضای ثبت‌شده صفر در نظر گرفته می‌شوند. برآورد آماری تاییدشده نیست."});
+            return Results.Ok(new{itemId,lookbackMonths=lookback,historySamples=history.Count,
+                historyMonthsWithRecords=coverage.RecordedMonths,
+                missingHistoryMonths=coverage.MissingMonths,
+                historyComplete=coverage.Complete,rows,
+                warning=coverage.Complete?null:
+                    "برای برخی ماه‌های مبنا هیچ تقاضای قطعی ثبت نشده است؛ میانگین شامل صفر فرضی است و نباید پیش‌بینی معتبر کارخانه تلقی شود.",
+                disclaimer="میانگین متحرک ساده نیاز قطعی داخلی در ماه‌های گذشته؛ ماه‌های بدون ثبت به عنوان نبود داده پرچم‌گذاری می‌شوند و در محاسبه صفر هستند، نه صفر تأییدشده. برآورد آماری تاییدشده نیست."});
         });
 
         api.MapPost("/factory-demand",async(FactoryDemandInput input,ProductionDb db,CancellationToken ct)=>{
