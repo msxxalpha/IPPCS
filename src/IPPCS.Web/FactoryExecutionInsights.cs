@@ -110,9 +110,9 @@ public static class FactoryExecutionInsights
             var days=due.HasValue?due.Value.DayNumber-today.DayNumber:(int?)null;
             var overdue=days.HasValue && days.Value<0;
             var noAction=deviation.Status==ProductionDeviationStatus.Open;
-            if(!overdue && !noAction && !(days.HasValue&&days<=daysAhead))continue;
             var escalated=deviation.Events.Any(x=>x.Details.StartsWith(
                 FactoryDeviationGovernance.EscalationPrefix,StringComparison.Ordinal));
+            if(!overdue && !noAction && !(days.HasValue&&days<=daysAhead)&&!escalated)continue;
             var sev=escalated&&overdue?"Critical":overdue||escalated?"High":"Medium";
             alerts.Add(new("DeviationAction",sev,deviation.Id,
                 deviation.Responsible??deviation.MpsLineId.ToString("N"),due,
