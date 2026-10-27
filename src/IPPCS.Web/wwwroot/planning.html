@@ -55,7 +55,24 @@
     </div>
    </div><div id="revision-preflight-table"></div>
   </div>
-  <div class="panel"><h3>جزئیات اجزای BOM پیش‌نویس (قابل اصلاح)</h3><div id="bom-lines-table"></div></div>
+  <div class="panel"><h3>تحلیل اثر تغییر مهندسی ECO بر BOM و Routing</h3>
+ <p>تفاوت نسخه پیشنهادی با نسخه مصوب و دستورهای متأثر از تاریخ اجرای تغییر را بررسی کنید. این تحلیل فقط پیش‌نمایش است و خودکار نسخه مصوب را بازنشست یا دستوری را بازنویسی نمی‌کند.</p>
+ <div class="form-grid">
+  <label>نسخه BOM مصوب مبنا<select id="eco-bom-baseline"></select></label>
+  <label>نسخه BOM پیش‌نویس<select id="eco-bom-candidate"></select></label>
+  <label>نسخه Routing مصوب مبنا<select id="eco-route-baseline"></select></label>
+  <label>نسخه Routing پیش‌نویس<select id="eco-route-candidate"></select></label>
+  <div class="form-actions">
+   <button id="eco-bom-review" class="btn-outline" type="button">تحلیل تغییرات BOM</button>
+   <button id="eco-routing-review" class="btn-outline" type="button">تحلیل تغییرات Routing</button>
+  </div>
+ </div>
+ <div id="eco-impact-summary"></div>
+ <h3>موانع تصویب و تاریخ‌های مؤثر</h3><div id="eco-impact-issues"></div>
+ <h3>اختلاف قطعات و عملیات</h3><div id="eco-impact-changes"></div>
+ <h3>دستورات دارای نسخه منجمد که ممکن است تحت تأثیر قرار گیرند</h3><div id="eco-impact-orders"></div>
+ </div>
+ <div class="panel"><h3>جزئیات اجزای BOM پیش‌نویس (قابل اصلاح)</h3><div id="bom-lines-table"></div></div>
 </section>
 <section class="page" id="mps" hidden>
   <div class="section-title"><h3>برنامه اصلی تولید (MPS)</h3><small>نسخه پیش‌نویس، ردیف‌های برنامه و تأیید قطعی آن.</small></div>
