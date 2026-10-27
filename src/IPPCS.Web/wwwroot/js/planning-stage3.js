@@ -149,6 +149,43 @@ function boot(){
    alertText("نتیجه MRP با تاریخچه ورودی/خروجی ذخیره شد.");
   }catch(e){alertText(e.message,true);}finally{btn.disabled=false;}
  };
+ $("#lot-capacity-run").onclick=async()=>{
+  const id=$("#calculate-mps").value;
+  if(!id){alertText("نسخه تأییدشده MPS را انتخاب کنید.",true);return;}
+  const days=Number(IPPCSJalali.toLatin($("#lot-capacity-days").value));
+  const factor=Number(IPPCSJalali.toLatin($("#lot-capacity-multiplier").value));
+  if(!Number.isInteger(days)||days<1||days>90||!Number.isFinite(factor)||factor<=0||factor>2){
+   alertText("افق ۱ تا ۹۰ روز و ضریب ظرفیت بیشتر از صفر تا ۲ وارد کنید.",true);return;
+  }
+  const button=$("#lot-capacity-run");button.disabled=true;
+  try{
+   const result=await call("/mrp/"+id+"/lot-capacity-preview?horizonDays="+days+"&capacityMultiplier="+factor);
+   const summary=$("#lot-capacity-summary");
+   summary.hidden=false;
+   summary.textContent="مبنای شمسی: "+result.baselineJalali+
+    " | در موعد: "+fmt(result.onTimeLots)+" بچ | دیرکرد: "+fmt(result.lateLots)+
+    " بچ | مسدود یا قابل زمان‌بندی نیست: "+fmt(result.blockedLots)+" بچ";
+   table("#lot-capacity-lots",[
+    ["شناسه بچ","lotKey"],["کالا",x=>name(x.itemId)],["تعداد",x=>fmt(x.quantity)],
+    ["شروع پیشنهادی","proposedReleaseJalali"],["موعد ساخت","receiptDueJalali"],
+    ["تعداد عملیات",x=>fmt(x.operationsRequired)],["عملیات تخصیص‌یافته",x=>fmt(x.operationsScheduled)],
+    ["وضعیت",x=>({OnTime:"قابل اجرا در موعد (پیش‌نمایش)",Late:"با تأخیر",Blocked:"مسدود",Unscheduled:"خارج از ظرفیت"})[x.status]||x.status],
+    ["علت","reason"]
+   ],result.lots);
+   table("#lot-capacity-operations",[
+    ["بچ پیشنهادی","lotKey"],["قطعه",x=>name(x.itemId)],
+    ["مرکز کاری",x=>state.centers.find(c=>c.id===x.workCenterId)?.name||x.workCenterId.slice(0,8)],
+    ["عملیات","operationName"],["شماره مرحله","sequence"],
+    ["دقایق",x=>fmt(x.durationMinutes)],["تاریخ شروع","startJalali"],
+    ["ساعت شروع","startTime"],["تاریخ پایان","finishJalali"],["ساعت پایان","finishTime"],
+    ["دیرکرد",x=>x.late?"بله":"خیر"]
+   ],result.allocations);
+   table("#lot-capacity-unscheduled",[
+    ["کالا",x=>name(x.itemId)],["مرحله","sequence"],["علت","reason"]
+   ],result.unscheduled);
+   alertText(result.disclaimer);
+  }catch(e){alertText(e.message,true);}finally{button.disabled=false;}
+ };
  $("#net-pegging-run").onclick=async()=>{
   const id=$("#calculate-mps").value;
   if(!id){alertText("نسخه مصوب MPS را انتخاب کنید.",true);return;}
