@@ -109,8 +109,8 @@ public sealed class MrpLotCapacityPreviewTests
             [Route(semi,center,10,5),Route(finished,center,10,5)],
             [Shift(center,Monday)],Monday,1);
         Assert.Equal(2,result.OnTimeLots);
-        var first=Assert.Single(result.Allocations.Where(x=>x.ItemId==semi));
-        var second=Assert.Single(result.Allocations.Where(x=>x.ItemId==finished));
+        var first=Assert.Single(result.Allocations,x=>x.ItemId==semi);
+        var second=Assert.Single(result.Allocations,x=>x.ItemId==finished);
         Assert.True(first.FinishesAt<=second.StartsAt);
     }
 
