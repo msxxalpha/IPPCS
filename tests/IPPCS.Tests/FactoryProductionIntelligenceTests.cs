@@ -122,6 +122,26 @@ public sealed class FactoryProductionIntelligenceTests
     }
 
     [Fact]
+    public void Measured_oee_refuses_negative_production_and_missing_ideal_cycle_baseline()
+    {
+        var center=Guid.NewGuid();var day=new DateOnly(2026,10,26);
+        var start=new DateTime(2026,10,26,4,30,0,DateTimeKind.Utc);
+        var sessions=new[]{new FactoryClockSession(Guid.NewGuid(),Guid.NewGuid(),
+            center,start,start.AddMinutes(60))};
+        var invalid=FactoryProductionIntelligence.EvaluateClockOee(
+            center,day,120,sessions,45,10,-1,0);
+        Assert.Null(invalid.OeePercent);
+        Assert.Contains("نامعتبر",invalid.Warning);
+        invalid=FactoryProductionIntelligence.EvaluateClockOee(
+            center,day,120,sessions,45,-2,1,1);
+        Assert.Null(invalid.QualityPercent);
+        var unknown=FactoryProductionIntelligence.EvaluateClockOee(
+            center,day,120,sessions,0,10,0,0);
+        Assert.Null(unknown.PerformancePercent);
+        Assert.Null(unknown.OeePercent);
+    }
+
+    [Fact]
     public void Mps_pegs_attribute_only_linked_good_and_classify_completion_local_day()
     {
         var item=Guid.NewGuid();var need=new DateOnly(2026,10,26);
