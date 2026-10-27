@@ -110,6 +110,16 @@ public sealed class FactoryStageFifteenTests
         Assert.Equal(1,alert.CriticalCount);
         Assert.Equal("DeviationAction",Assert.Single(alert.Alerts).Type);
         live.Status=ProductionDeviationStatus.Closed;
+        var pending=FactoryExecutionInsights.ProductionAlerts(today,7,[],[],[live]);
+        Assert.Equal("DeviationEffectivenessPending",Assert.Single(pending.Alerts).Type);
+        Assert.Equal(1,pending.HighCount);
+        var proof=new FactoryDeviationEffectivenessProof(
+            true,"QA-FOLLOWUP-001","Independent corrective action results checked",
+            "independent-quality",DateTime.UtcNow);
+        live.Events.Add(new ProductionDeviationEvent{
+            DeviationId=live.Id,Status=ProductionDeviationStatus.Closed,
+            Username="independent-quality",
+            Details=FactoryDeviationEffectiveness.Encode(proof)});
         Assert.Empty(FactoryExecutionInsights.ProductionAlerts(today,7,[],[],[live]).Alerts);
     }
 }
