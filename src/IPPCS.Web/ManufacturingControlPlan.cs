@@ -86,7 +86,7 @@ public static class ManufacturingInspectionRules
         ManufacturingConfirmation destination,decimal quantity,decimal alreadyFrom,decimal alreadyTo,out string error)
     {
         error="";
-        if(quantity<=0){error="مقدار ارتباط بچ باید مثبت باشد.";return false;}
+        if(quantity<=0||quantity>1_000_000_000m){error="مقدار ارتباط بچ باید مثبت و محدود باشد.";return false;}
         var steps=order.Operations.OrderBy(x=>x.Sequence).ToList();
         var from=steps.FindIndex(x=>x.Id==source.OperationId);
         var to=steps.FindIndex(x=>x.Id==destination.OperationId);
@@ -341,6 +341,10 @@ public static class ManufacturingControlPlanEndpoints
         });
         api.MapPost("/manufacturing-orders/{id:guid}/lot-genealogy",
             async(Guid id,ManufacturingLotLinkInput input,ProductionDb db,HttpContext ctx,CancellationToken ct)=>{
+            if(input.SourceConfirmationId==Guid.Empty||
+                input.DestinationConfirmationId==Guid.Empty||
+                input.Quantity<=0||input.Quantity>1_000_000_000m)
+                return Results.BadRequest(new{message="بچ مبدا و مقصد و مقدار محدود و معتبر لازم است."});
             await using var tx=await db.Database.BeginTransactionAsync(IsolationLevel.Serializable,ct);
             try{await FactoryCapacityReservations.LockOrder(db,id,ct);}
             catch(Microsoft.Data.SqlClient.SqlException)
