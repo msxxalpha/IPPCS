@@ -18,6 +18,7 @@
   <a class="planning-link" href="/control-plan.html">کنترل پلن، بازرسی و شجره بچ</a>
   <button class="nav-active" data-page="orders">دستورات ساخت</button>
   <button data-page="confirmations">ثبت عملکرد عملیات</button>
+  <button data-page="clock">ساعت واقعی کارکرد مرکز</button>
   <button data-page="stops">توقفات تولید</button>
   <button data-page="history">تاریخچه دستور تولید</button>
   <button data-page="quality">کنترل کیفیت و WIP</button>
@@ -56,6 +57,20 @@
    <div class="form-actions"><button type="submit" class="btn-main">ثبت عملکرد عملیات</button></div>
   </form>
   <div class="panel"><h3>پیشرفت عملیات دستورات</h3><div id="operation-table"></div></div>
+ </section>
+ <section class="page" id="clock" hidden>
+  <div class="section-title"><h3>ثبت ساعت واقعی شروع و پایان عملیات</h3>
+   <small>زمان از ساعت سرور دریافت و با زمان تهران نمایش داده می‌شود. ثبت دستی تاریخ یا ویرایش سوابق مجاز نیست.</small>
+  </div>
+  <form class="panel form-grid" id="clock-form">
+   <label>دستور تولید<select name="orderId" id="clock-order" required></select></label>
+   <label>عملیات<select name="operationId" id="clock-operation" required></select></label>
+   <div class="form-actions"><button type="button" id="clock-start" class="btn-main">شروع ثبت زمان عملیات</button>
+   <button type="button" id="clock-stop" class="btn-outline">پایان ثبت زمان عملیات</button>
+   <button type="button" id="clock-refresh" class="btn-outline">نمایش سابقه</button></div>
+  </form>
+  <div class="callout">هر مرکز کاری در هر لحظه فقط یک عملیات زمان‌دار باز دارد. برای ثبت خروجی تولید، ابتدا ساعت باز را خاتمه دهید. ثبت ساعت واقعی جایگزین تأیید مقدار تولید یا ثبت توقف کیفی نیست.</div>
+  <div class="panel"><h3>بازه‌های واقعی کارکرد عملیات منتخب</h3><div id="clock-history"></div></div>
  </section>
  <section class="page" id="stops" hidden>
   <div class="section-title"><h3>مدیریت توقفات تولید</h3><small>توقفات عملیاتی ثبت می‌شوند؛ OEE واقعی هنوز محاسبه نمی‌شود.</small></div>
