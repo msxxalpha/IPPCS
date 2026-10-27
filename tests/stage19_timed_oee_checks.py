@@ -23,9 +23,26 @@ def stage19_acceptance(request, jalali, component):
     order=request("/api/v1/manufacturing-orders","POST",{
       "number":"CI-ST19-TIMED-STOP","itemId":item["id"],"plannedQuantity":10,
       "plannedStartJalali":jalali,"dueOnJalali":jalali},201)
+    request("/api/v1/factory-cost/rates","PUT",{
+      "workCenterId":center["id"],"conversionRialsPerMinute":100,
+      "scrapRialsPerUnit":25,"effectiveFromJalali":jalali,
+      "note":"CI original internal conversion assumptions"})
     released=request(f"/api/v1/manufacturing-orders/{order['id']}/release","POST")
     op=released["operations"][0]
     path=f"/api/v1/manufacturing-orders/{order['id']}"
+    frozen=request(f"/api/v1/factory-cost/orders/{order['id']}/rate-snapshot")
+    assert frozen["isHistoricalSnapshot"] and frozen["frozenOperations"]==1,frozen
+    assert frozen["rates"][0]["conversionRialsPerMinute"]==100,frozen
+    request("/api/v1/factory-cost/rates","PUT",{
+      "workCenterId":center["id"],"conversionRialsPerMinute":999,
+      "scrapRialsPerUnit":200,"effectiveFromJalali":jalali,
+      "note":"CI updated rate must not reprice released order"})
+    preserved=request(f"/api/v1/factory-cost/orders/{order['id']}/rate-snapshot")
+    assert preserved["rates"][0]["conversionRialsPerMinute"]==100,preserved
+    result=request(f"/api/v1/factory-cost/orders/{order['id']}/actual-variance")
+    assert result["hasFrozenCostRates"],result
+    assert result["rows"][0]["standardConversionRials"]==1100,result
+    print("PASS: SQL release-time conversion rate is immutable after live center rate update; true historical cost not backfilled.")
     request("/api/v1/oee/plans","PUT",{
        "workCenterId":center["id"],"productionDateJalali":jalali,
        "plannedMinutes":120,"note":"CI declared internal day capacity"})
