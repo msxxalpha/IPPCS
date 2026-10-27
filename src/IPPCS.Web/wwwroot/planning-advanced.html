@@ -42,7 +42,16 @@
 <label>ماه‌های آینده<input name="months" type="number" min="1" max="6" value="3" required></label>
 <div class="form-actions"><button class="btn-outline" type="submit">پیش‌نمایش میانگین متحرک</button></div>
 </form>
-<div class="panel"><h3>نتیجه پیش‌بینی (بدون ثبت خودکار تقاضا)</h3><div id="forecast-table"></div></div><div class="panel"><h3>فهرست تقاضاهای داخلی</h3><div id="demand-table"></div></div>
+<div class="panel"><h3>نتیجه پیش‌بینی (بدون ثبت خودکار تقاضا)</h3><div id="forecast-table"></div></div>
+<form id="forecast-backtest-form" class="panel form-grid">
+  <h3 class="wide">سنجش دقت پیش‌بینی بر اساس ماه‌های شمسی خاتمه‌یافته</h3>
+  <label>محصول نهایی<select name="itemId" data-finished required></select></label>
+  <label>آخرین ماه ارزیابی<span class="jalali-field"><input name="through" data-jalali-date required placeholder="یکی از روزهای ماه خاتمه‌یافته"><button type="button" data-jalali-trigger class="date-trigger">▣</button></span></label>
+  <label>طول پنجره پیش‌بینی (ماه)<input name="lookback" type="number" min="2" max="12" value="3" required></label>
+  <label>ماه‌های ارزیابی<input name="months" type="number" min="2" max="12" value="6" required></label>
+  <div class="form-actions"><button type="submit" class="btn-outline">ارزیابی تاریخی دقت</button></div>
+</form>
+<div class="panel"><h3>خطای ماهانه، MAE، WAPE و سوگیری پیش‌بینی</h3><div id="backtest-summary"></div><div id="backtest-table"></div></div><div class="panel"><h3>فهرست تقاضاهای داخلی</h3><div id="demand-table"></div></div>
 <div class="panel form-grid">
 <label>نسخه پیش‌نویس هدف MPS<select id="demand-mps-target"></select></label>
 <div class="form-actions"><button id="demand-transfer" class="btn-outline" type="button">انتقال تقاضای انتخاب‌شده به MPS</button></div>
@@ -116,7 +125,12 @@
 <label>یادداشت<input name="note" maxlength="400"></label>
 <div class="form-actions"><button type="submit" class="btn-main">ثبت نرخ استاندارد تبدیل</button></div></form>
 <div class="panel form-grid"><label>دستور تولید<select id="cost-order"></select></label><div class="form-actions"><button type="button" class="btn-outline" id="cost-review">بررسی هزینه تخمینی</button></div></div>
-<div class="panel"><h3>برآورد هزینه تبدیل و ضایعات</h3><div id="cost-table"></div></div>
+<div class="panel"><h3>برآورد هزینه تبدیل و ضایعات</h3><div id="cost-table"></div></div><div class="panel">
+  <h3>انحراف هزینه تبدیل براساس ساعت واقعی عملیات</h3>
+  <p>هزینه واقعی صرفاً حاصل دقیقه‌های ثبت‌شده کارکرد و نرخ داخلی مرکز است، نه بهای تمام‌شده مالی. برای زمان یا نرخ ناموجود مقدار «نامشخص» نمایش داده می‌شود.</p>
+  <div id="cost-variance-summary"></div>
+  <div id="cost-variance-table"></div>
+</div>
 </section>
 <section id="dashboard" class="page" hidden>
 <div class="section-title"><h3>پایش تولید و تحقق برنامه</h3><small>شاخص‌های اولیه عملیاتی در کنار نسخه MPS انتخابی</small></div>
