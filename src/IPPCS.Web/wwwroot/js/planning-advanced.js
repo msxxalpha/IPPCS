@@ -48,6 +48,8 @@ function showResources(){
  fill($("#cost-order"),state.orders,x=>x.number);
  fill($("#cost-center"),state.centers,x=>x.code+" | "+x.name);
  fill($("#aps-blackout-center"),state.centers,x=>x.code+" | "+x.name);
+ fill($("#maintenance-center"),state.centers,x=>x.code+" | "+x.name);
+ fill($("#sop-bridge-sop"),state.sop,x=>x.code+" | "+x.fromJalali+" تا "+x.throughJalali);
  fill($("#demand-mps-target"),state.mps.filter(x=>x.state===0),x=>x.code);
  fill($("#demand-target"),state.demand,x=>item(x.itemId)+" • "+x.reference+" • "+x.dueOnJalali);
  table("#demand-table",[["محصول",x=>item(x.itemId)],["مرجع","reference"],
@@ -229,6 +231,19 @@ function register(){
   renderAps(result);
   flash("زمان‌بندی محدودیت‌دار ثبت شد. عملیات فاقد ظرفیت به‌صورت جداگانه نمایش داده می‌شوند.");
  });
+ addForm("#sop-mps-bridge-form",async f=>{
+  const x=await api("/factory-sop/"+formval(f,"sopId")+"/reconcile-mps/"+formval(f,"mpsId"));
+  table("#sop-mps-bridge-table",[["شاخص","name"],["مقدار","value"]],[
+   {name:"مجموع تقاضای Snapshot تاریخی S&OP",value:format(x.historicalSopDemand)},
+   {name:"مجموع تقاضای فعلی در همان بازه",value:format(x.currentScopedDemand)},
+   {name:"مقدار مصوب MPS در بازه",value:format(x.approvedMpsQuantity)},
+   {name:"فاصله MPS تا S&OP",value:format(x.differenceToSop)},
+   {name:"فاصله MPS تا تقاضای فعلی",value:format(x.differenceToCurrentDemand)},
+   {name:"تعداد ردیف‌های MPS",value:x.inWindowMpsLines},
+   {name:"تغییر مقدار تقاضا از تصویر تاریخی",value:x.demandSnapshotChanged?"بله":"خیر"}
+  ]);
+  flash(x.confidenceNote);
+ });
  addForm("#whatif-form",async f=>{
   const data=await api("/factory-whatif/capacity","POST",{
    mpsVersionId:formval(f,"mpsId"),startJalali:formval(f,"start"),
@@ -301,6 +316,78 @@ function register(){
     ["شرح","message"]
   ],d.alerts);
   flash(d.disclaimer);
+ });
+ addForm("#maintenance-whatif-form",async f=>{
+   const centerId=formval(f,"center"),day=formval(f,"blackout");
+   const reason=String(formval(f,"reason")||"").trim();
+   if((centerId||day||reason)&&(!centerId||!day||!reason))
+    throw Error("برای سناریوی تعمیرات، مرکز کاری، تاریخ شمسی و علت همگی لازم‌اند.");
+   const unavailable=centerId?[{workCenterId:centerId,dateJalali:day,reason}]:[];
+   const report=await api("/factory-whatif/capacity-maintenance","POST",{
+    mpsVersionId:formval(f,"mpsId"),startJalali:formval(f,"start"),
+    horizonDays:number(f,"horizon"),baselineCapacity:number(f,"baseline"),
+    scenarioCapacity:number(f,"scenario"),scenarioUnavailableDays:unavailable
+   });
+   table("#maintenance-whatif-table",[
+    ["وضعیت","name"],["تعداد عملیات",x=>format(x.plannedOperations)],
+    ["زمان‌بندی‌شده",x=>format(x.scheduledOperations)],
+    ["بدون ظرفیت",x=>format(x.unscheduledOperations)],
+    ["عملیات دیرکرد",x=>format(x.lateOperations)],
+    ["بار تخصیص‌یافته (دقیقه)",x=>format(x.allocatedMinutes)]
+   ],[{name:"پایه",...report.baseline},{name:"تغییر ظرفیت و تعمیرات",...report.scenario}]);
+   table("#maintenance-whatif-errors",[
+    ["کالا",x=>item(x.itemId)],["عملیات","sequence"],["علت","reason"]
+   ],report.scenarioUnscheduled);
+   flash(report.disclaimer);
+ });
+ addForm("#mps-audit-form",async f=>{
+  const r=await api("/mps/"+formval(f,"mpsId")+"/demand-audit");
+  table("#mps-audit-summary",[["شاخص","name"],["مقدار","value"]],[
+   {name:"نیاز قطعی اقلام در بازه MPS",value:format(r.confirmedDemandQuantity)},
+   {name:"مقدار فاقد ارجاع کامل به تقاضا",value:format(r.confirmedUncoveredQuantity)},
+   {name:"مقدار ردیف‌های دستی غیرمرجع‌دار",value:format(r.otherMpsQuantity)},
+   {name:"تعداد ارجاع نامعتبر",value:r.unmatchedReferenceLines.length}
+  ]);
+  table("#mps-audit-lines",[
+   ["کالا",x=>item(x.itemId)],["مرجع","reference"],
+   ["موعد",x=>new Date(x.neededOn+"T12:00:00Z").toLocaleDateString("fa-IR-u-ca-persian",{timeZone:"Asia/Tehran"})],
+   ["قطعی",x=>format(x.confirmedQuantity)],
+   ["ارجاع صریح",x=>format(x.exactlyReferencedQuantity)],
+   ["بدون ارجاع",x=>format(x.uncoveredQuantity)],
+   ["ارجاع با مقدار یا تاریخ متفاوت",x=>x.referenceChanged?"بله":"خیر"]
+  ],r.demandGaps);
+  flash(r.disclaimer);
+ });
+ addForm("#mrp-risk-form",async f=>{
+  const r=await api("/mrp/"+formval(f,"mpsId")+"/assumption-risks");
+  table("#mrp-risk-summary",[["شاخص","name"],["مقدار","value"]],[
+   {name:"بچ پیشنهادی ساخت",value:r.proposedManufacturingLots},
+   {name:"شروع پیشنهاد قبل از تاریخ مبنا",value:r.releaseBeforeBaselineLots}
+  ]);
+  table("#mrp-risk-lines",[
+   ["کالا",x=>item(x.itemId)],["نیاز ناخالص",x=>format(x.grossRequirement)],
+   ["تخصیص فرضی موجودی مبنا",x=>format(x.assumedOpening)],
+   ["دریافت برنامه‌ای",x=>format(x.assumedExpectedReceipt)],
+   ["عرضه صرفاً پیشنهادی",x=>format(x.proposedReceipt)],
+   ["مانده تخصیص‌نیافته پیشنهاد",x=>format(x.unallocatedProposalQuantity)],
+   ["شروع قبل از مبنا",x=>x.pastReleaseLots],
+   ["پوشش فرضی",x=>x.assumedCoveragePercent===null?"نامشخص":format(x.assumedCoveragePercent)+"٪"]
+  ],r.rows);
+  flash(r.disclaimer);
+ });
+ addForm("#crp-stress-form",async f=>{
+  const r=await api("/crp/"+formval(f,"mpsId")+"/center-stress");
+  table("#crp-stress-table",[
+   ["مرکز",x=>center(x.workCenterId)],
+   ["بار (دقیقه)",x=>format(x.requiredMinutes)],
+   ["ظرفیت (دقیقه)",x=>format(x.availableMinutes)],
+   ["اضافه‌بار (دقیقه)",x=>format(x.overloadMinutes)],
+   ["نرخ اشباع",x=>x.utilizationPercent===null?"نامشخص":format(x.utilizationPercent)+"٪"],
+   ["روزهای اضافه‌بار","overloadedDays"],
+   ["روزهای بدون شیفت","daysWithoutCapacity"],
+   ["اولین اضافه‌بار",x=>x.firstOverload?new Date(x.firstOverload+"T12:00:00Z").toLocaleDateString("fa-IR-u-ca-persian",{timeZone:"Asia/Tehran"}):"—"]
+  ],r.centers);
+  flash(r.disclaimer);
  });
  addForm("#mps-peg-adherence-form",async f=>{
   const result=await api("/factory-kpis/peg-adherence/"+formval(f,"mpsId"));
