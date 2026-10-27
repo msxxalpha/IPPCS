@@ -142,6 +142,7 @@ app.MapPlanningStageThree();
 app.MapManufacturingExecution();
 app.MapQualityAndOee();
 app.MapControlPlanEndpoints();
+app.MapCrossOrderTrace();
 app.MapOrderPegging();
 app.MapProductionDeviations();
 app.MapDemandTrace();
