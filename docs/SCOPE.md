@@ -69,3 +69,9 @@ No new database schema or integration with existing ERP warehouse/purchasing/sal
 - **12**: first-assignment-only corrective action; documented, immutable before/after action revisions; manual repeated-incident escalation and reproducible overdue case follow-up. SQL lock serializes competing case changes.
 - **18**: exceptional escalation evidence raises overdue open-case priority and links KPI row directly to the in-portal deviation workbench.
 No new EF schema, stock posting or connection to external systems. Formal 18-module acceptance remains gated by plant/UAT/security validation.
+
+### Stage 16 — manufacturing handoffs, assembly and internal final QC
+- **09**: adjacent-operation lot evidence and per-destination-lot missing-source report, conservative quality-rejected/held quantity gating. No physical transfer, warehouse or stock transaction.
+- **10**: finished shock absorber batch-level BOM-proportional semi-finished provenance required for every final assembly lot at the internal acceptance gate, frozen after signature.
+- **13**: completed operation sequence, passed mandatory frozen last-stage inspection, no unresolved QC hold and complete documented downstream/internal plus cross-order semi-origin prerequisites before append-only quality signoff. Only `IpQualityApprove` may sign, with shared SQL lock and audit.
+All changes are additive to existing APIs and audit records; no data reset or new SQL tables. Await representative line-level factory UAT and remaining 18-module checks.
