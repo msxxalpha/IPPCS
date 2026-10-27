@@ -102,10 +102,14 @@ public static class ProductionDeviationEndpoints
                 ||!PersianPlanningDates.TryParse(input.ActionDueJalali,out var due))
                 return Results.BadRequest(new{message="علت ریشه‌ای، اقدام، مسئول و موعد شمسی معتبر لازم است."});
             await using var tx=await db.Database.BeginTransactionAsync(IsolationLevel.Serializable,ct);
+            try{await FactoryDeviationGovernance.LockDeviation(db,id,ct);}
+            catch(Microsoft.Data.SqlClient.SqlException){
+                return Results.Conflict(new{message="قفل ثبت تغییر انحراف در دسترس نیست."});
+            }
             var row=await db.ProductionDeviations.SingleOrDefaultAsync(x=>x.Id==id,ct);
             if(row is null)return Results.NotFound();
-            if(row.Status==ProductionDeviationStatus.Closed)
-                return Results.Conflict(new{message="انحراف مختومه قابل بازنویسی نیست."});
+            if(row.Status!=ProductionDeviationStatus.Open)
+                return Results.Conflict(new{message="اقدام اولیه قبلاً ثبت شده است؛ برای تغییر از بازنگری مستند اقدام استفاده کنید."});
             row.RootCause=input.RootCause.Trim();row.CorrectiveAction=input.CorrectiveAction.Trim();
             row.Responsible=input.Responsible.Trim();row.ActionDueOn=due;
             row.Status=ProductionDeviationStatus.ActionAssigned;
@@ -121,6 +125,10 @@ public static class ProductionDeviationEndpoints
             if(string.IsNullOrWhiteSpace(input.Verification)||input.Verification.Trim().Length>1000)
                 return Results.BadRequest(new{message="مدرک یا شرح اثربخشی اقدام الزامی است."});
             await using var tx=await db.Database.BeginTransactionAsync(IsolationLevel.Serializable,ct);
+            try{await FactoryDeviationGovernance.LockDeviation(db,id,ct);}
+            catch(Microsoft.Data.SqlClient.SqlException){
+                return Results.Conflict(new{message="قفل ثبت تغییر انحراف در دسترس نیست."});
+            }
             var row=await db.ProductionDeviations.SingleOrDefaultAsync(x=>x.Id==id,ct);
             if(row is null)return Results.NotFound();
             if(row.Status!=ProductionDeviationStatus.ActionAssigned)
