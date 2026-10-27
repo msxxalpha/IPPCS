@@ -165,7 +165,7 @@ public static class FactoryCapacityReservations
         var history=await db.ManufacturingOrderAudits.AsNoTracking()
             .Where(x=>x.OrderId==orderId&&(x.Action==Reserved||x.Action==Cancelled))
             .ToListAsync(ct);
-        var affected=PendingLifecycleRelease(history,orderId,completedOperationIds);
+        var affected=PendingLifecycleRelease(history,orderId,completedOperationIds).ToArray();
         foreach(var center in affected.Select(x=>x.WorkCenterId).Distinct().OrderBy(x=>x))
             await LockCenter(db,center,ct);
         foreach(var slot in affected)
