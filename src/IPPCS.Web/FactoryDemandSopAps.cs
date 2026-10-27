@@ -47,8 +47,8 @@ public record ApsTask(Guid DemandLineId,Guid ItemId,DateOnly DueOn,decimal Quant
     int OperationSequence,Guid WorkCenterId,decimal DurationMinutes,string OperationName);
 public record ApsAllocation(Guid ItemId,Guid WorkCenterId,int Sequence,decimal Quantity,
     DateOnly DueOn,DateOnly StartDate,TimeOnly StartsAt,DateOnly FinishDate,
-    TimeOnly FinishesAt,decimal DurationMinutes,string OperationName,bool Late);
-public record ApsUnscheduled(Guid ItemId,int Sequence,string Reason);
+    TimeOnly FinishesAt,decimal DurationMinutes,string OperationName,bool Late,Guid DemandLineId=default);
+public record ApsUnscheduled(Guid ItemId,int Sequence,string Reason,Guid DemandLineId=default);
 public record ApsResult(IReadOnlyList<ApsAllocation> Allocations,
     IReadOnlyList<ApsUnscheduled> Unscheduled,decimal TotalLateOperations);
 
@@ -62,29 +62,64 @@ public static class FiniteFactoryScheduler
     public static ApsResult Schedule(IReadOnlyList<ApsTask> tasks,
         IReadOnlyList<WorkShift> shifts,DateOnly start,int horizonDays,decimal multiplier=1,
         IReadOnlySet<(Guid WorkCenterId,DateOnly Date)>? unavailableDays=null,
-        IReadOnlyDictionary<Guid,DateOnly>? earliestStartDates=null)
+        IReadOnlyDictionary<Guid,DateOnly>? earliestStartDates=null,
+        IReadOnlyDictionary<Guid,IReadOnlyCollection<Guid>>? prerequisites=null)
     {
         if(horizonDays is <1 or >90 || multiplier<=0 || multiplier>2)
             throw new ArgumentException("افق برنامه‌ریزی یا ضریب ظرفیت نامعتبر است.");
         var result=new List<ApsAllocation>();
         var missing=new List<ApsUnscheduled>();
         var occupied=new Dictionary<(Guid,DateOnly),List<(int start,int end)>>();
-        var sorted=tasks.OrderBy(x=>x.DueOn).ThenBy(x=>x.DemandLineId).ThenBy(x=>x.OperationSequence).ToList();
+        // Topological lot order precedes due-date order: a manufactured component must finish
+        // before its parent lot consumes it. Every lot remains non-preemptive per operation.
+        var byChain=tasks.GroupBy(x=>x.DemandLineId)
+            .ToDictionary(g=>g.Key,g=>g.OrderBy(t=>t.OperationSequence).ToArray());
+        var remaining=byChain.Keys.ToHashSet();
+        var sorted=new List<ApsTask>(tasks.Count);
+        while(remaining.Count>0)
+        {
+            var eligible=remaining.Where(id=>
+                prerequisites?.GetValueOrDefault(id)?.All(pre=>!remaining.Contains(pre))!=false)
+                .OrderBy(id=>byChain[id][0].DueOn).ThenBy(id=>id).ToArray();
+            if(eligible.Length==0)
+                throw new ArgumentException("چرخه وابستگی میان بچ‌های پیشنهادی ساخت شناسایی شد.");
+            var next=eligible[0];
+            sorted.AddRange(byChain[next]);
+            remaining.Remove(next);
+        }
+        var lastSequence=byChain.ToDictionary(x=>x.Key,x=>x.Value[^1].OperationSequence);
+        var completedChains=new HashSet<Guid>();
         var chainReady=new Dictionary<Guid,DateTime>();
         var chainFailed=new HashSet<Guid>();
         foreach(var job in sorted)
         {
             if(job.DurationMinutes<=0 || job.DurationMinutes>20000 || job.Quantity<=0)
             {
-                missing.Add(new(job.ItemId,job.OperationSequence,"مقدار یا زمان عملیات نامعتبر است."));
+                missing.Add(new(job.ItemId,job.OperationSequence,"مقدار یا زمان عملیات نامعتبر است.",job.DemandLineId));
                 chainFailed.Add(job.DemandLineId);continue;
             }
             if(chainFailed.Contains(job.DemandLineId))
             {
-                missing.Add(new(job.ItemId,job.OperationSequence,"عملیات قبلی قابل زمان‌بندی نبود."));continue;
+                missing.Add(new(job.ItemId,job.OperationSequence,"عملیات قبلی قابل زمان‌بندی نبود.",job.DemandLineId));continue;
             }
-            var earliest=chainReady.GetValueOrDefault(job.DemandLineId,
-                (earliestStartDates?.GetValueOrDefault(job.DemandLineId)??start).ToDateTime(TimeOnly.MinValue));
+            var release=(earliestStartDates?.GetValueOrDefault(job.DemandLineId)??start)
+                .ToDateTime(TimeOnly.MinValue);
+            var earliest=chainReady.GetValueOrDefault(job.DemandLineId,release);
+            if(prerequisites is not null &&
+                prerequisites.TryGetValue(job.DemandLineId,out var dependencies))
+            {
+                var missingDependencies=dependencies.Where(pre=>!completedChains.Contains(pre)).ToArray();
+                if(missingDependencies.Length>0)
+                {
+                    missing.Add(new(job.ItemId,job.OperationSequence,
+                        "بچ نیمه‌ساخته پیش‌نیاز هنوز تکمیل یا قابل زمان‌بندی نیست.",job.DemandLineId));
+                    chainFailed.Add(job.DemandLineId);continue;
+                }
+                foreach(var pre in dependencies)
+                    if(chainReady.TryGetValue(pre,out var completedAt) && completedAt>earliest)
+                        earliest=completedAt;
+            }
+            if(release>earliest)earliest=release;
             bool allocated=false;
             for(int d=0;d<horizonDays && !allocated;d++)
             {
@@ -122,7 +157,10 @@ public static class FiniteFactoryScheduler
                             result.Add(new ApsAllocation(job.ItemId,job.WorkCenterId,
                                 job.OperationSequence,job.Quantity,job.DueOn,day,
                                 TimeOnly.FromDateTime(from),DateOnly.FromDateTime(until),TimeOnly.FromDateTime(until),
-                                job.DurationMinutes,job.OperationName,DateOnly.FromDateTime(until)>job.DueOn));
+                                job.DurationMinutes,job.OperationName,DateOnly.FromDateTime(until)>job.DueOn,
+                                job.DemandLineId));
+                            if(job.OperationSequence==lastSequence[job.DemandLineId])
+                                completedChains.Add(job.DemandLineId);
                             allocated=true;break;
                         }
                         left=Math.Max(left,block.end);
@@ -134,7 +172,7 @@ public static class FiniteFactoryScheduler
             if(!allocated)
             {
                 missing.Add(new(job.ItemId,job.OperationSequence,
-                    "عملیات با ظرفیت و شیفت مؤثر موجود، بدون تداخل در افق انتخابی جا نمی‌شود."));
+                    "عملیات با ظرفیت و شیفت مؤثر موجود، بدون تداخل در افق انتخابی جا نمی‌شود.",job.DemandLineId));
                 chainFailed.Add(job.DemandLineId);
             }
         }
