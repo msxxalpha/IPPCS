@@ -58,8 +58,7 @@ public static class FactoryDeviationEffectiveness
         // Never certify an incomplete or contradictory history.
         var verified = !broken && row.Status==ProductionDeviationStatus.Closed &&
             proof is { Effective:true } &&
-            evidence.Count(x=>Decode(x.Details)?.Effective==true)==1 &&
-            evidence.Length==1;
+            evidence.Count(x=>Decode(x.Details)?.Effective==true)==1;
         // A new closure after a rejection still requires fresh evidence.
         var reopened = row.Status==ProductionDeviationStatus.ActionAssigned &&
             latest is not null && proof is { Effective:false };
