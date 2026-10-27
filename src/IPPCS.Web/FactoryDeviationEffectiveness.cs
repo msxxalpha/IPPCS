@@ -54,7 +54,16 @@ public static class FactoryDeviationEffectiveness
             .OrderBy(x=>x.AtUtc).ThenBy(x=>x.Id).ToArray();
         var latest = evidence.LastOrDefault();
         var proof = latest is null ? null : Decode(latest.Details);
-        var broken = evidence.Any(x=>Decode(x.Details) is null);
+        // Corroborate embedded reviewer identity and timestamp with the
+        // append-only database event. JSON alone is not authoritative evidence.
+        var broken = evidence.Any(x=>{
+            var decoded=Decode(x.Details);
+            return decoded is null ||
+                !string.Equals(decoded.ReviewedBy,x.Username,StringComparison.OrdinalIgnoreCase) ||
+                (decoded.Effective && x.Status!=ProductionDeviationStatus.Closed) ||
+                (!decoded.Effective && x.Status!=ProductionDeviationStatus.ActionAssigned) ||
+                Math.Abs((decoded.ReviewedUtc-x.AtUtc).TotalMinutes)>5;
+        });
         // Never certify an incomplete or contradictory history.
         var hasDocumentedClosure=row.Events.Any(x=>
             x.Status==ProductionDeviationStatus.Closed &&
@@ -67,7 +76,13 @@ public static class FactoryDeviationEffectiveness
                 (x.Status==ProductionDeviationStatus.ActionAssigned ||
                  x.Status==ProductionDeviationStatus.Closed) &&
                 string.Equals(x.Username,proof.ReviewedBy,StringComparison.OrdinalIgnoreCase));
+        var latestClosure=row.Events.Where(x=>
+            x.Status==ProductionDeviationStatus.Closed &&
+            !x.Details.StartsWith(EventPrefix,StringComparison.Ordinal))
+            .OrderBy(x=>x.AtUtc).ThenBy(x=>x.Id).LastOrDefault();
         var verified = !broken && hasDocumentedClosure && independent &&
+            latestClosure is not null && latest is not null &&
+            latest.AtUtc>=latestClosure.AtUtc &&
             row.Status==ProductionDeviationStatus.Closed &&
             proof is { Effective:true } &&
             evidence.Count(x=>Decode(x.Details)?.Effective==true)==1;
