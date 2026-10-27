@@ -1,4 +1,5 @@
 using System.Data;
+using System.Globalization;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 
@@ -25,8 +26,8 @@ public static class FactoryEndOfLineAcceptance
         IReadOnlyList<FactoryStageHandoff>? stageHandoffs=null)
     {
         var issues=new List<FactoryEolIssue>();
-        var latest=audits.Where(x=>x.Action==ApprovedAction)
-            .OrderByDescending(x=>x.AtUtc).FirstOrDefault();
+        var certificates=audits.Where(x=>x.Action==ApprovedAction).ToArray();
+        var latest=certificates.OrderByDescending(x=>x.AtUtc).FirstOrDefault();
         if(order.Kind!=ManufacturingOrderKind.FinalAssembly)
             issues.Add(new("NotFinalAssembly","گواهی کنترل نهایی فقط برای دستور مونتاژ محصول نهایی است."));
         if(order.Status!=ManufacturingOrderStatus.Completed)
@@ -90,19 +91,49 @@ public static class FactoryEndOfLineAcceptance
                 issues.Add(new("InvalidOriginEvidence","پیوند ساختِ فاقد منشأ نیمه‌ساخته قابل اتکا مشاهده شد."));
         }
         if(latest is not null)
+        {
             issues.Add(new("AlreadyApproved","این دستور قبلاً گواهی نهایی ثبت کرده است."));
+            if(certificates.Length!=1||!CertificateMatches(latest.Details,finalLots))
+                issues.Add(new("InvalidFinalCertificate",
+                    "سند امضای داخلی کنترل نهایی ناقص، تکراری یا با مقدار بچ‌ها ناسازگار است."));
+        }
         return new(order.Id,order.Number,issues.Count==0,latest is not null,lots.Length,
             lots.Sum(x=>x.GoodQuantity),requiredLast.Length,
             stagePairs.Count(x=>x.UntracedDownstreamGood>0),coverage,issues,
             latest is null?null:ReadApprovedBy(latest.Details),latest?.AtUtc,
             "تأیید کنترل نهایی صرفاً ثبت داخلی کنترل کیفیت تولید است؛ اجازه ارسال محصول، گواهی مشتری، انتقال موجودی یا ثبت فروش نیست.");
     }
-    private static string? ReadApprovedBy(string? details)
+    // Check the original immutable EOL evidence rather than trusting the
+    // mere existence of an audit event. This is a recorded actor, not a
+    // cryptographic signature or customer release authorization.
+    public static bool TryReadCertificate(string? details,out string actor,
+        out int lotCount,out decimal goodQuantity)
     {
-        if(details is null)return null;
-        var token=details.Split(';').FirstOrDefault(x=>x.StartsWith("By=",StringComparison.Ordinal));
-        return token is null?null:token[3..];
+        actor="";lotCount=0;goodQuantity=0;
+        var parts=details?.Split(';');
+        if(parts is null||parts.Length!=3||
+            !parts[0].StartsWith("By=",StringComparison.Ordinal)||
+            !parts[1].StartsWith("Lots=",StringComparison.Ordinal)||
+            !parts[2].StartsWith("Good=",StringComparison.Ordinal))
+            return false;
+        actor=parts[0][3..];
+        return !string.IsNullOrWhiteSpace(actor)&&actor.Length<=128&&
+            !actor.Contains('\n')&&!actor.Contains('\r')&&
+            int.TryParse(parts[1][5..],NumberStyles.None,
+                CultureInfo.InvariantCulture,out lotCount)&&lotCount>0&&
+            decimal.TryParse(parts[2][5..],NumberStyles.AllowDecimalPoint,
+                CultureInfo.InvariantCulture,out goodQuantity)&&goodQuantity>0;
     }
+    public static bool CertificateMatches(string? details,
+        IReadOnlyList<ManufacturingConfirmation> finalLots)
+    {
+        var confirmed=finalLots.Where(x=>
+            x.GoodQuantity+x.ScrapQuantity+x.ReworkQuantity>0).ToArray();
+        return TryReadCertificate(details,out _,out var lotCount,out var good)&&
+            confirmed.Length==lotCount&&confirmed.Sum(x=>x.GoodQuantity)==good;
+    }
+    private static string? ReadApprovedBy(string? details)=>
+        TryReadCertificate(details,out var actor,out _,out _)?actor:null;
 
     private static async Task<FactoryEolApproval?> ReadCheck(ProductionDb db,Guid id,CancellationToken ct)
     {
@@ -180,7 +211,8 @@ public static class FactoryEndOfLineAcceptance
                 if(actor.Length>128)actor=actor[..128];
                 db.ManufacturingOrderAudits.Add(new ManufacturingOrderAudit{
                     OrderId=id,Action=ApprovedAction,
-                    Details=$"By={actor};Lots={report.FinalLotCount};Good={report.FinalGoodQuantity}"
+                    Details=FormattableString.Invariant(
+                        $"By={actor};Lots={report.FinalLotCount};Good={report.FinalGoodQuantity}")
                 });
                 await db.SaveChangesAsync(ct);await tx.CommitAsync(ct);
                 return Results.Ok(new{orderId=id,approved=true,approvedBy=actor,
