@@ -502,6 +502,9 @@ assert any(row["centerId"]==center["id"] for row in clock_oee["rows"])
 assert request("/api/v1/oee/clock-verified?dateJalali=1405/13/40",status=400)
 print("PASS: SQL measured conversion cost/OEE preserve missing observations and validate Jalali dates.")
 
+from stage11_production_trace_checks import stage11_acceptance
+stage11_acceptance(request,raw["id"],center["id"],JALALI_NOW)
+
 print("PASS: isolated local operator account, permission boundary, material reporting, "
       "password change, administrator lock/unlock.")
 print("PASS: SQL demand, S&OP, approved MPS, finite APS no overlap, what-if, "
