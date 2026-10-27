@@ -1,7 +1,9 @@
 (()=>{
 "use strict";
 const $=s=>document.querySelector(s), $$=s=>Array.from(document.querySelectorAll(s));
-const S={items:[],orders:[]};
+const S={items:[],orders:[],roles:[]};
+const can=role=>S.roles.includes("Administrator")||S.roles.includes(role);
+const canHold=()=>can("Planner")||can("ProductionOperator");
 const fval=(f,k)=>new FormData(f).get(k);
 const numeric=(f,k)=>Number(window.IPPCSJalali.toLatin(fval(f,k)));
 const num=v=>Number(v).toLocaleString("fa-IR",{maximumFractionDigits:4});
@@ -68,15 +70,15 @@ function render(){
   ["برنامه",x=>num(x.plannedQuantity)],["شروع","plannedStartJalali"],["موعد","dueOnJalali"],
   ["وضعیت",x=>status(x.status)],["تولید سالم",x=>num(x.operations.at(-1)?.goodQuantity||0)]
  ],S.orders,[
-  {label:"آزادسازی",show:x=>x.status===0,run:async x=>{await request("/manufacturing-orders/"+x.id+"/release","POST");flash("دستور آزاد شد و عملیات مسیر ساخت ثبت شدند.");await reload();}},
-  {label:"تعلیق",show:x=>x.status===1||x.status===2,run:async x=>{
+  {label:"آزادسازی",show:x=>can("Planner")&&x.status===0,run:async x=>{await request("/manufacturing-orders/"+x.id+"/release","POST");flash("دستور آزاد شد و عملیات مسیر ساخت ثبت شدند.");await reload();}},
+  {label:"تعلیق",show:x=>canHold()&&(x.status===1||x.status===2),run:async x=>{
    const reason=window.prompt("علت توقف یا قرنطینه دستور را وارد کنید:");if(reason===null)return;
    if(!reason.trim()){flash("علت تعلیق اجباری است.",true);return;}
    await request("/manufacturing-orders/"+x.id+"/hold","POST",{reason:reason.trim()});
    flash("دستور معلق شد.");await reload();
   }},
-  {label:"ادامه",show:x=>x.status===3,run:async x=>{await request("/manufacturing-orders/"+x.id+"/resume","POST");flash("دستور فعال شد.");await reload();}},
-  {label:"لغو",show:x=>x.status===0||x.status===1,run:async x=>{
+  {label:"ادامه",show:x=>can("Planner")&&x.status===3,run:async x=>{await request("/manufacturing-orders/"+x.id+"/resume","POST");flash("دستور فعال شد.");await reload();}},
+  {label:"لغو",show:x=>can("Planner")&&(x.status===0||x.status===1),run:async x=>{
    if(!window.confirm("آیا از لغو این دستور اطمینان دارید؟"))return;
    await request("/manufacturing-orders/"+x.id+"/cancel","POST");flash("دستور لغو شد.");await reload();
   }}
@@ -112,7 +114,24 @@ function register(formId,run){const form=$(formId);
   finally{btn.disabled=false;}
  });
 }
-function boot(){
+async function boot(){
+  try{
+   const response=await window.IPPCSSecurity.secureFetch("/auth/me");
+   if(response.status===401){window.IPPCSSecurity.goLogin();return;}
+   if(!response.ok)throw Error("دریافت نقش کاربری ممکن نیست.");
+   const profile=await response.json();
+   S.roles=Array.isArray(profile.roles)?profile.roles:[];
+   // UI visibility is convenience only; server policies + CSRF enforce writes.
+   const forms={"#order-form":"Planner","#draft-replan-form":"Planner",
+     "#slot-form":"Planner","#confirm-form":"ProductionOperator","#stop-form":"ProductionOperator"};
+   for(const [selector,role] of Object.entries(forms)){
+    const form=$(selector);
+    if(form&&!can(role))form.hidden=true;
+   }
+   for(const selector of ["#clock-start","#clock-stop","#timed-stop-start","#timed-stop-end"]){
+    const button=$(selector);if(button&&!can("ProductionOperator"))button.hidden=true;
+   }
+  }catch(ex){flash(ex.message,true);return;}
  $$("nav [data-page]").forEach(btn=>btn.onclick=()=>{
   $$("section.page").forEach(p=>p.hidden=p.id!==btn.dataset.page);
   $$("nav [data-page]").forEach(b=>b.classList.toggle("nav-active",btn===b));
@@ -203,7 +222,7 @@ function boot(){
    ["شروع واقعی",x=>x.actualStartJalali?(x.actualStartJalali+" "+x.actualStartTime):"—"],
    ["پایان واقعی",x=>x.actualEndTime||"—"],
    ["توضیحات",x=>x.note||"—"]
-  ],data.rows,[{label:"لغو رزرو",run:async x=>{
+  ],data.rows,[{label:"لغو رزرو",show:()=>can("Planner"),run:async x=>{
     if(!window.confirm("رزرو انتخاب‌شده لغو شود؟ سابقه حذف نخواهد شد."))return;
     await request("/manufacturing-orders/"+id+"/capacity-reservations/"+x.id+"/cancel","POST");
     flash("رزرو لغو شد و سابقه حفظ گردید.");await reloadSlots();
