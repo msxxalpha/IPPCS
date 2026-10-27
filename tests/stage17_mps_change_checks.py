@@ -48,7 +48,13 @@ def stage17_acceptance(request,mps_id):
     request(f"/api/v1/mps/{child}/approve","POST")
     proof=request(f"/api/v1/mps/{child}/change-evidence")
     kinds={x["algorithmVersion"] for x in proof["events"]}
-    assert kinds=={"MPS-CONTROLLED-REVISION-1","MPS-APPROVAL-AUDIT-1"},proof
+    assert kinds=={"MPS-CONTROLLED-REVISION-1","MPS-APPROVAL-AUDIT-1",
+                   "MPS-REVISION-IMPACT-APPROVAL-1"},proof
+    impact_entry=next(x for x in proof["events"] if
+      x["algorithmVersion"]=="MPS-REVISION-IMPACT-APPROVAL-1")
+    assert impact_entry["resulting"]["deltaQuantity"]==1,impact_entry
+    assert impact_entry["resulting"]["materials"],impact_entry
+    assert impact_entry["resulting"]["capacity"],impact_entry
     approved=next(x for x in proof["events"] if x["algorithmVersion"]=="MPS-APPROVAL-AUDIT-1")
     assert approved["original"]["lines"] and approved["original"]["approvedBy"]
     request(f"/api/v1/mps/{child}/lines","POST",{
