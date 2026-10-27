@@ -63,8 +63,11 @@ try {
         Write-Warning 'Browser and Jalali checks skipped: result is NOT a full release gate.'
     }
 
-    $Git = (git rev-parse HEAD 2>$null)
-    if ($LASTEXITCODE -ne 0) { $Git = 'UNKNOWN' }
+    $Git = 'UNKNOWN'
+    if (Get-Command git -ErrorAction SilentlyContinue) {
+        $Resolved = (& git rev-parse HEAD 2>$null)
+        if ($LASTEXITCODE -eq 0 -and $Resolved) { $Git = $Resolved }
+    }
     Write-Host "PASS: Local source-only checks. SHA: $Git" -ForegroundColor Green
     Write-Warning 'NOT a release approval. SQL disposable E2E, backup/restore, IIS role/HTTPS checks and 18-module factory UAT remain mandatory.'
 }
