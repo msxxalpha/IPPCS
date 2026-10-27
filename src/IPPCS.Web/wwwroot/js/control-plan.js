@@ -38,6 +38,8 @@ async function load(){[state.routes,state.plans,state.orders]=await Promise.all(
  select($("#assembly-order"),state.orders.filter(x=>x.kind===1&&x.status!==0&&x.status!==5),x=>x.number);
  select($("#semi-source-order"),state.orders.filter(x=>x.kind===0&&x.status===4),x=>x.number);
  select($("#readiness-order"),state.orders.filter(x=>x.status!==0&&x.status!==5),x=>x.number);
+ select($("#handoff-order"),state.orders.filter(x=>x.status!==0&&x.status!==5),x=>x.number);
+ select($("#eol-order"),state.orders.filter(x=>x.kind===1&&x.status!==0&&x.status!==5),x=>x.number);
  select($("#spc-order"),state.orders.filter(x=>x.status!==0&&x.status!==5),x=>x.number);
  select($("#trace-order"),state.orders.filter(x=>x.status!==0&&x.status!==5),x=>x.number);
 
@@ -205,6 +207,67 @@ async function traceGraph(){
  ],r.edges);
  alertTo(r.disclaimer);
 }
+async function handoffReport(){
+ const id=$("#handoff-order").value;
+ if(!id)throw Error("دستور تولید برای ممیزی بچ انتخاب نشده است.");
+ const r=await api("/manufacturing-orders/"+id+"/handoff-audit");
+ table("#handoff-summary",[["شاخص","name"],["مقدار","value"]],[
+   {name:"زوج عملیات متوالی",value:r.stagePairs},
+   {name:"زوج دارای خروجی فاقد منشأ مستند",value:r.pairsWithUntracedOutput},
+   {name:"مجموع خروجی بدون انتساب مرحله قبل",value:r.totalUntracedDownstreamGood}
+ ]);
+ table("#handoff-steps",[
+  ["مرحله مبدا","fromSequence"],["مرحله مقصد","toSequence"],
+  ["تولید سالم قابل اتکا","eligibleSourceGood"],
+  ["پیوند ثبت‌شده","documentedGood"],["WIP بدون انتساب","remainingUpstreamGood"],
+  ["خروجی مرحله بعد بدون منشأ","untracedDownstreamGood"],
+  ["کیفیت و قرنطینه",x=>x.qualityGatePassed?"بدون مانع ثبت‌شده":"دارای مانع"],
+  ["قرنطینه باز","openQualityHolds"]
+ ],r.pairs);
+ table("#handoff-lots",[
+  ["مرحله",x=>x.sequence],["بچ","lotCode"],["سالم","reportedGood"],
+  ["پیوند از مرحله قبل","documentedIncomingGood"],["بدون پیوند","untracedGood"]
+ ],r.pairs.flatMap(step=>step.destinationLots.map(x=>({...x,sequence:step.toSequence}))));
+ alertTo(r.disclaimer);
+}
+async function eolReport(){
+ const id=$("#eol-order").value;
+ if(!id)throw Error("دستور مونتاژ برای کنترل نهایی انتخاب نشده است.");
+ const r=await api("/manufacturing-orders/"+id+"/end-of-line-check");
+ const val=x=>x===null||x===undefined?"—":x;
+ table("#eol-summary",[["شاخص","name"],["وضعیت","value"]],[
+  {name:"تأیید امکان‌پذیر",value:r.canApprove?"بله":"خیر"},
+  {name:"گواهی قبلاً صادر شده",value:r.alreadyApproved?"بله":"خیر"},
+  {name:"ثبت‌کننده تأیید",value:val(r.approvedBy)},
+  {name:"زمان تأیید",value:r.approvedUtc?
+    new Date(r.approvedUtc).toLocaleString("fa-IR-u-ca-persian",{timeZone:"Asia/Tehran"}):"—"},
+  {name:"بچ‌های خروجی",value:r.finalLotCount},
+  {name:"خروجی سالم نهایی",value:r.finalGoodQuantity},
+  {name:"کنترل اجباری در مرحله آخر",value:r.mandatoryFinalChecks},
+  {name:"پیوند ناقص بین عملیات",value:r.untracedStagePairs}
+ ]);
+ table("#eol-issues",[
+  ["کد مانع","code"],["شرح","description"],
+  ["بچ",x=>x.lotId?x.lotId.slice(0,8):"—"],
+  ["جزء",x=>x.componentItemId?x.componentItemId.slice(0,8):"—"],
+  ["کسری مستند",x=>val(x.missingQuantity)]
+ ],r.issues);
+ table("#eol-coverage",[
+  ["بچ خروجی","lotCode"],["جزء نیمه‌ساخته",x=>x.componentItemId.slice(0,8)],
+  ["نیاز منجمد BOM","requiredQuantity"],
+  ["انتساب واقعی","linkedQuantity"],["کسری سند منشأ","missingQuantity"]
+ ],r.coverage);
+ alertTo(r.disclaimer);
+ return r;
+}
+async function eolApprove(){
+ const r=await eolReport();
+ if(!r.canApprove)throw Error("تا رفع موانع گیت نهایی، تأیید امکان‌پذیر نیست.");
+ if(!window.confirm("گواهی کنترل نهایی داخلی ثبت و شجره این دستور قفل شود؟"))return;
+ await api("/manufacturing-orders/"+r.orderId+"/approve-end-of-line","POST");
+ await eolReport();
+ alertTo("گواهی کنترل نهایی داخلی توسط نقش کیفیت ثبت شد؛ شجره بچ قفل است.");
+}
 function register(id,fn){const f=$(id);f.addEventListener("submit",async e=>{
  e.preventDefault();if(!f.reportValidity())return;
  const b=f.querySelector('button[type="submit"]');b.disabled=true;
@@ -250,6 +313,9 @@ function boot(){
  });
  $("#assembly-refresh").onclick=()=>assemblyOrigins().catch(e=>alertTo(e.message,true));
  $("#readiness-refresh").onclick=()=>readiness().catch(e=>alertTo(e.message,true));
+ $("#handoff-refresh").onclick=()=>handoffReport().catch(e=>alertTo(e.message,true));
+ $("#eol-refresh").onclick=()=>eolReport().catch(e=>alertTo(e.message,true));
+ $("#eol-approve").onclick=()=>eolApprove().catch(e=>alertTo(e.message,true));
  $("#spc-order").onchange=()=>reloadSpcRequirements().catch(e=>alertTo(e.message,true));
  $("#spc-refresh").onclick=()=>spcReport().catch(e=>alertTo(e.message,true));
  $("#trace-order").onchange=()=>reloadTraceLots().catch(e=>alertTo(e.message,true));
