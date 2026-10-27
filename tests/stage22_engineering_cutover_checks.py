@@ -97,6 +97,11 @@ def stage22_acceptance(request, jalali, tomorrow, component_id):
     bom_change={"kind":"BOM","baselineId":bom_old["id"],"candidateId":bom_new["id"],
                 "cutoverOnJalali":tomorrow,"approvalReference":"ECO-CI-ST22-BOM",
                 "reason":"Approved internal BOM quantity update"}
+    # Approval references are immutable business keys across the full ECO journal,
+    # not merely per BOM or routing revision.
+    request("/api/v1/factory-engineering/cutover","POST",
+            {**bom_change,"approvalReference":"ECO-CI-ST22-ROUTING",
+             "dryRun":True},409)
     bom_preview=request("/api/v1/factory-engineering/cutover","POST",
                         {**bom_change,"dryRun":True})
     assert bom_preview["protectedFrozenOrders"]>=2,bom_preview
