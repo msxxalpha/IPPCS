@@ -1403,6 +1403,47 @@ namespace IPPCS.Web.Migrations.CI
                     b.ToTable("Items");
                 });
 
+            modelBuilder.Entity("FactoryMasterOption", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<string>("Label")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("UpdatedUtc")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Kind", "Code")
+                        .IsUnique();
+
+                    b.ToTable("FactoryMasterOptions");
+                });
+
             modelBuilder.Entity("ProductionDeviation", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1444,6 +1485,14 @@ namespace IPPCS.Web.Migrations.CI
                     b.Property<string>("Responsible")
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
+                    
+                    b.Property<string>("ResponsibleCode")
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<string>("RootCauseCategoryCode")
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
 
                     b.Property<string>("RootCause")
                         .HasMaxLength(1000)
@@ -1457,6 +1506,10 @@ namespace IPPCS.Web.Migrations.CI
                     b.HasIndex("OrderId");
 
                     b.HasIndex("MpsLineId", "Status");
+
+                    b.HasIndex("ResponsibleCode");
+
+                    b.HasIndex("RootCauseCategoryCode");
 
                     b.ToTable("ProductionDeviations");
                 });
