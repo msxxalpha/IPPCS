@@ -527,6 +527,9 @@ print("PASS: SQL measured conversion cost/OEE preserve missing observations and 
 from stage11_production_trace_checks import stage11_acceptance
 stage11_acceptance(request,raw["id"],center["id"],JALALI_NOW)
 
+from stage33_master_data_checks import stage33_acceptance
+stage33_acceptance(request,peg_line["id"],JALALI_NOW)
+
 print("PASS: isolated local operator account, permission boundary, material reporting, "
       "password change, administrator lock/unlock.")
 print("PASS: SQL demand, S&OP, approved MPS, finite APS no overlap, what-if, "
