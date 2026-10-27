@@ -67,3 +67,6 @@ The committed baseline migration is located in `src/IPPCS.Web/Migrations/CI/`. G
 
 ### APS maintenance-day restrictions
 The APS preview now supports work-center-specific unavailability days entered with the shared Persian calendar. Such restrictions are local to each scheduling run, included in its stored input snapshot, and do **not** change actual shift master data or any existing maintenance/ERP application. See `docs/DEVELOPER_GUIDE.md` for setup and limitations.
+
+## Stage 7.3 — APS material-feasibility preflight
+Before any finite-capacity preview is stored, IPPCS checks internally entered planning balances, reservations, quarantine, safety stock, dated expected receipts available by horizon start, and approved multilevel BOM for every MPS line. The check accumulates demand so separate finished-item demands cannot use the same assumed material twice. Missing inputs or insufficient usable raw material result in an explicit 422 response and **no APS schedule is produced**. This intentionally conservative screen does not yet optimize replenishment timing or implement complete MRP pegging. No warehouse or purchasing system is connected. Automated pure-calculation and disposable SQL Server regression tests cover the new gate.
