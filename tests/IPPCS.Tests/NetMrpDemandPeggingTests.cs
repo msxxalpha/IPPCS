@@ -45,7 +45,7 @@ public sealed class NetMrpDemandPeggingTests
             [Balance(finished, 6), Balance(raw, 0)], [receipt],
             new() { [finished] = PlanningItemType.Finished, [raw] = PlanningItemType.RawMaterial });
         Assert.Empty(report.PlannedLots);
-        Assert.Empty(report.Demands.Where(x => x.ParentLotKey != null));
+        Assert.DoesNotContain(report.Demands,x => x.ParentLotKey != null);
         Assert.Equal(10m, report.Allocations.Sum(x => x.Quantity));
         Assert.Contains(report.Allocations, x => x.SourceType == "ExpectedReceipt" &&
             x.DemandKey == "MPS:" + later.Id.ToString("N") && x.Quantity == 4m);
@@ -60,17 +60,17 @@ public sealed class NetMrpDemandPeggingTests
             [Balance(finished, 3, 1, 10, 5), Balance(semi, 4, 1), Balance(raw, 0, 0)],
             [], new() { [finished] = PlanningItemType.Finished,
                 [semi] = PlanningItemType.SemiFinished, [raw] = PlanningItemType.RawMaterial });
-        var rootLot = Assert.Single(report.PlannedLots.Where(x => x.ItemId == finished));
+        var rootLot = Assert.Single(report.PlannedLots,x => x.ItemId == finished);
         Assert.Equal(10m, rootLot.Quantity); // 5 net + 5 lot-sizing uplift
         Assert.Equal(5m, rootLot.NetShortage);
         Assert.Equal(5m, rootLot.LotSizingSurplus);
         Assert.Equal(Start.AddDays(8), rootLot.ReleaseOn);
-        var semiDemand = Assert.Single(report.Demands.Where(x => x.ParentLotKey == rootLot.LotKey));
+        var semiDemand = Assert.Single(report.Demands,x => x.ParentLotKey == rootLot.LotKey);
         Assert.Equal(20m, semiDemand.Quantity);
-        var semiLot = Assert.Single(report.PlannedLots.Where(x => x.ItemId == semi));
+        var semiLot = Assert.Single(report.PlannedLots,x => x.ItemId == semi);
         Assert.Equal(16m, semiLot.Quantity);
         Assert.Equal(Start.AddDays(7), semiLot.ReleaseOn);
-        var rawNeed = Assert.Single(report.Demands.Where(x => x.ParentLotKey == semiLot.LotKey));
+        var rawNeed = Assert.Single(report.Demands,x => x.ParentLotKey == semiLot.LotKey);
         Assert.Equal(48m, rawNeed.Quantity);
         Assert.Contains(report.Allocations, x => x.DemandKey == rawNeed.DemandKey &&
             x.SourceType == "ProposedExternalReceipt" && !x.IsFirm && x.Quantity == 48m);
@@ -91,7 +91,7 @@ public sealed class NetMrpDemandPeggingTests
             x.ItemId == finished).Sum(x => x.Quantity));
         Assert.Equal(4m, report.Allocations.Where(x => x.SourceType == "ProposedManufacturingReceipt" &&
             x.ItemId == finished).Sum(x => x.Quantity));
-        Assert.Single(report.PlannedLots.Where(x => x.ItemId == finished));
+        Assert.Single(report.PlannedLots,x => x.ItemId == finished);
     }
 
     [Fact]
@@ -104,14 +104,14 @@ public sealed class NetMrpDemandPeggingTests
             [Balance(finished, 0, 1, 5, 5), Balance(component, 0)], [],
             new() { [finished] = PlanningItemType.Finished,
                     [component] = PlanningItemType.RawMaterial });
-        var lot = Assert.Single(report.PlannedLots.Where(x => x.ItemId == finished));
+        var lot = Assert.Single(report.PlannedLots,x => x.ItemId == finished);
         Assert.Equal(5m, lot.Quantity);
         Assert.Equal(3m, lot.NetShortage);
         Assert.Equal(2m, lot.LotSizingSurplus);
         Assert.Equal(0m, lot.UnallocatedQuantity);
-        Assert.Equal(2m, Assert.Single(report.Allocations.Where(x =>
-            x.DemandKey == "MPS:" + second.Id.ToString("N"))).Quantity);
-        var componentNeed = Assert.Single(report.Demands.Where(x => x.ParentLotKey == lot.LotKey));
+        Assert.Equal(2m, Assert.Single(report.Allocations,x =>
+            x.DemandKey == "MPS:" + second.Id.ToString("N")).Quantity);
+        var componentNeed = Assert.Single(report.Demands,x => x.ParentLotKey == lot.LotKey);
         Assert.Equal(5m, componentNeed.Quantity);
     }
 
