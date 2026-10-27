@@ -43,6 +43,10 @@ function render(){
  options($("#bom-revision-select"),state.bom.filter(x=>x.state===0),x=>name(x.parentItemId)+" / "+x.revision);
  options($("#revision-bom-check"),state.bom,x=>name(x.parentItemId)+" / "+x.revision);
  options($("#revision-routing-check"),state.routings,x=>name(x.itemId)+" / "+x.revisionCode);
+ options($("#eco-bom-baseline"),state.bom.filter(x=>x.state===1),x=>name(x.parentItemId)+" / "+x.revision);
+ options($("#eco-bom-candidate"),state.bom.filter(x=>x.state===0),x=>name(x.parentItemId)+" / "+x.revision);
+ options($("#eco-route-baseline"),state.routings.filter(x=>x.state===1),x=>name(x.itemId)+" / "+x.revisionCode);
+ options($("#eco-route-candidate"),state.routings.filter(x=>x.state===0),x=>name(x.itemId)+" / "+x.revisionCode);
  options($("#mps-draft-select"),state.mps.filter(x=>x.state===0),x=>x.code);
  options($("#mps-revision-source"),state.mps.filter(x=>x.state===1),x=>x.code);
  options($("#mps-comparison-source"),state.mps.filter(x=>x.state===1),x=>x.code);
@@ -121,6 +125,49 @@ function boot(){
  }
  $("#revision-check-bom").onclick=()=>revisionPreflight("bom").catch(e=>alertText(e.message,true));
  $("#revision-check-routing").onclick=()=>revisionPreflight("routing").catch(e=>alertText(e.message,true));
+ async function ecoImpact(type){
+  const bom=type==="BOM",before=$(bom?"#eco-bom-baseline":"#eco-route-baseline").value,
+    candidate=$(bom?"#eco-bom-candidate":"#eco-route-candidate").value;
+  if(!before||!candidate||before===candidate)throw Error("نسخه پیشنهادی و نسخه مصوب مبنا را انتخاب کنید.");
+  const route=bom?"/factory-engineering/bom/":"/factory-engineering/routing/";
+  const report=await call(route+candidate+"/impact?baselineId="+encodeURIComponent(before));
+  table("#eco-impact-summary",[
+    ["شاخص","name"],["مقدار","value"]
+  ],[
+    {name:"نوع تغییر",value:report.kind},
+    {name:"آمادگی تصویب عادی",value:report.readyForRegularApproval?"بله":"خیر"},
+    {name:"همپوشانی بازه نسخه‌ها",value:report.overlappingEffectiveDates?"دارد":"ندارد"},
+    {name:"دستورات در معرض تغییر",value:report.affectedOrders},
+    {name:"دستورات آزادشده یا اجراشده",value:report.activeOrCompletedOrders}
+  ]);
+  table("#eco-impact-issues",[["کد","code"],["شرح","description"]],
+    report.issues.length?report.issues:[
+      {code:"بدون مانع تشخیص‌داده‌شده",description:"سنجش نسخه پیشنهادی هنوز معادل امضای مهندسی نیست."}
+    ]);
+  const rows=bom?report.parts.map(x=>({
+    key:state.items.find(y=>y.id===x.componentId)?.name||x.componentId.slice(0,8),
+    before:fmt(x.oldQuantity)+" / ضایعات "+fmt(x.oldScrapPercent),
+    after:fmt(x.newQuantity)+" / ضایعات "+fmt(x.newScrapPercent),
+    change:x.changeType
+  })):report.operations.map(x=>({
+    key:"مرحله "+x.sequence,
+    before:x.oldCenter.slice(0,8)+" | "+fmt(x.oldMinutesPerUnit)+" دقیقه | بازده "+fmt(x.oldYield),
+    after:x.newCenter.slice(0,8)+" | "+fmt(x.newMinutesPerUnit)+" دقیقه | بازده "+fmt(x.newYield),
+    change:x.changeType
+  }));
+  table("#eco-impact-changes",[
+    ["قطعه یا عملیات","key"],["مبنای مصوب","before"],["پیشنهاد جدید","after"],
+    ["نوع تغییر","change"]
+  ],rows);
+  table("#eco-impact-orders",[
+    ["شماره دستور","number"],["وضعیت","status"],
+    ["تاریخ شروع",x=>new Date(x.plannedStart+"T12:00:00Z").toLocaleDateString("fa-IR-u-ca-persian",{timeZone:"Asia/Tehran"})],
+    ["ریسک","risk"]
+  ],report.orders);
+  alertText(report.disclaimer,!report.readyForRegularApproval);
+ }
+ $("#eco-bom-review").onclick=()=>ecoImpact("BOM").catch(e=>alertText(e.message,true));
+ $("#eco-routing-review").onclick=()=>ecoImpact("Routing").catch(e=>alertText(e.message,true));
  register("#bom-version-form",f=>call("/bom-revisions","POST",{
   parentItemId:val(f,"parentItemId"),revision:val(f,"revision"),validFromJalali:val(f,"from"),
   validUntilJalali:val(f,"until")||null
