@@ -136,7 +136,7 @@ public static class FactoryCapacityReservations
         entries.Select(x=>new WorkCenterOccupiedInterval(
             x.WorkCenterId,x.StartLocal,x.EndLocal)).ToArray();
 
-    private static async Task LockCenter(ProductionDb db,Guid center,CancellationToken ct)
+    internal static async Task LockCenter(ProductionDb db,Guid center,CancellationToken ct)
     {
         // This lock is transaction-owned and common to *all* writers on the center.
         // Prevents read-then-insert phantom reservations across separate web hosts.
