@@ -113,7 +113,10 @@
 <label>مقدار مصرف<input name="quantity" type="number" step="any" min="0.0001" required></label>
 <label>مرجع ثبت<input name="reference" required maxlength="200" placeholder="ثبت دستی مصرف در عملیات"></label>
 <div class="form-actions"><button type="submit" class="btn-main">ثبت مصرف داخلی تولید</button></div></form>
-<div class="panel"><h3>مصرف برنامه و واقعی</h3><div id="material-table"></div></div>
+<div class="panel"><h3>مصرف برنامه و واقعی</h3><div id="material-table"></div></div><div class="panel">
+<h3>انحراف مصرف ثبت‌شده نسبت به مقدار خروجی واقعی تولید</h3>
+<p>مصرف ثبت‌نشده «نامشخص» است، نه صفر. این گزارش مقایسه عملیاتی است و موجودی هیچ انباری را تغییر نمی‌دهد.</p>
+<div id="material-reconciliation"></div></div>
 </section>
 <section id="cost" class="page" hidden>
 <div class="section-title"><h3>برآورد هزینه تبدیل و ضایعات تولید</h3><small>ریال، مبتنی بر نرخ استاندارد هر مرکز؛ نه ماژول مالی یا حسابداری بهای تمام‌شده</small></div>
@@ -135,6 +138,17 @@
 <section id="dashboard" class="page" hidden>
 <div class="section-title"><h3>پایش تولید و تحقق برنامه</h3><small>شاخص‌های اولیه عملیاتی در کنار نسخه MPS انتخابی</small></div>
 <div class="panel"><h3>وضعیت عملیاتی</h3><div id="overview-table"></div></div>
+<form class="panel form-grid" id="production-alert-form">
+<h3 class="wide">هشدارهای زنده اجرای تولید و اقدام اصلاحی</h3>
+<label>تاریخ مرجع<span class="jalali-field"><input name="date" data-jalali-date required placeholder="تاریخ شمسی"><button type="button" data-jalali-trigger class="date-trigger">▣</button></span></label>
+<label>افق هشدار (روز)<input name="days" type="number" min="1" max="30" value="7" required></label>
+<div class="form-actions"><button class="btn-outline" type="submit">به‌روزرسانی هشدارها</button></div>
+</form>
+<div class="panel"><h3>خلاصه هشدارها</h3><div id="production-alert-totals"></div></div>
+<div class="panel"><h3>دستورات معوق، قرنطینه باز و اقدامات اصلاحی</h3>
+<p>فقط اطلاعات ثبت‌شده در IPPCS نمایش داده می‌شود؛ هیچ پیام یا اقدامی به سامانه‌های دیگر ارسال نمی‌شود.</p>
+<div id="production-alert-table"></div></div>
+
 <form id="adherence-form" class="panel form-grid">
 <label>نسخه MPS<select name="mpsId" data-all-mps required></select></label>
 <label>از تاریخ<span class="jalali-field"><input name="from" data-jalali-date required><button type="button" data-jalali-trigger class="date-trigger">▣</button></span></label>
