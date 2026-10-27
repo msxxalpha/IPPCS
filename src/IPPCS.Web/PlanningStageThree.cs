@@ -225,6 +225,7 @@ public static class PlanningStageThreeEndpoints
     public static IEndpointRouteBuilder MapPlanningStageThree(this IEndpointRouteBuilder routes)
     {
         var api=routes.MapGroup("/api/v1").RequireAuthorization("IpProductionUser");
+        var planningApi = routes.MapGroup("/api/v1").RequireAuthorization("IpPlanningWrite");
         api.MapGet("/bom-revisions",async(ProductionDb db,CancellationToken ct)=>{
             var list=await db.ManufacturingBomRevisions.AsNoTracking().Include(x=>x.Lines)
                 .OrderBy(x=>x.ParentItemId).ThenBy(x=>x.ValidFrom).Take(400).ToListAsync(ct);
@@ -233,7 +234,7 @@ public static class PlanningStageThreeEndpoints
                 validUntilJalali=x.ValidUntil.HasValue?PersianPlanningDates.Format(x.ValidUntil.Value):null,
                 lines=x.Lines.OrderBy(l=>l.Sequence).Select(l=>new{l.Id,l.ComponentItemId,l.QuantityPer,l.ScrapPercent,l.Sequence})}));
         });
-        api.MapPost("/bom-revisions",async(BomRevisionInput input,ProductionDb db,CancellationToken ct)=>{
+        planningApi.MapPost("/bom-revisions",async(BomRevisionInput input,ProductionDb db,CancellationToken ct)=>{
             if(string.IsNullOrWhiteSpace(input.Revision)||input.Revision.Trim().Length>32
                 ||!PersianPlanningDates.TryParse(input.ValidFromJalali,out var from))
                 return Results.BadRequest(new{message="نسخه و تاریخ شروع معتبر لازم است."});
@@ -252,7 +253,7 @@ public static class PlanningStageThreeEndpoints
             db.ManufacturingBomRevisions.Add(rev);await db.SaveChangesAsync(ct);
             return Results.Created($"/api/v1/bom-revisions/{rev.Id}",new{rev.Id,rev.Revision});
         });
-        api.MapPost("/bom-revisions/{id:guid}/lines",async(Guid id,BomLineInput input,ProductionDb db,CancellationToken ct)=>{
+        planningApi.MapPost("/bom-revisions/{id:guid}/lines",async(Guid id,BomLineInput input,ProductionDb db,CancellationToken ct)=>{
             var owner=await db.ManufacturingBomRevisions.AsNoTracking().Where(x=>x.Id==id)
                 .Select(x=>(Guid?)x.ParentItemId).SingleOrDefaultAsync(ct);
             if(owner is null)return Results.NotFound();
@@ -276,7 +277,7 @@ public static class PlanningStageThreeEndpoints
             await tx.CommitAsync(ct);
             return Results.Created($"/api/v1/bom-revisions/{id}",new{part.Id});
         });
-        api.MapPost("/bom-revisions/{id:guid}/approve",async(Guid id,ProductionDb db,CancellationToken ct)=>{
+        planningApi.MapPost("/bom-revisions/{id:guid}/approve",async(Guid id,ProductionDb db,CancellationToken ct)=>{
             var owner=await db.ManufacturingBomRevisions.AsNoTracking()
                 .Where(x=>x.Id==id).Select(x=>(Guid?)x.ParentItemId).SingleOrDefaultAsync(ct);
             if(owner is null)return Results.NotFound();
