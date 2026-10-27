@@ -536,6 +536,9 @@ stage34_acceptance(request,product["id"],JALALI_NOW)
 from stage35_first_run_acceptance import stage35_acceptance
 stage35_acceptance(request,route_id,JALALI_NOW)
 
+from stage36_analytical_verification_checks import stage36_acceptance
+stage36_acceptance(request,JALALI_NOW)
+
 print("PASS: isolated local operator account, permission boundary, material reporting, "
       "password change, administrator lock/unlock.")
 print("PASS: SQL demand, S&OP, approved MPS, finite APS no overlap, what-if, "
