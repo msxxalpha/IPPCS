@@ -55,6 +55,8 @@ public static class IpSecuritySetup
             options.AddPolicy("IpOeePlanning",p=>p.RequireRole("Administrator","Planner"));
             options.AddPolicy("IpPlanningWrite",p=>p.RequireRole("Administrator","Planner"));
             options.AddPolicy("IpShopFloorWrite",p=>p.RequireRole("Administrator","ProductionOperator"));
+            options.AddPolicy("IpProductionHold",p=>p.RequireRole("Administrator","Planner","ProductionOperator"));
+            options.AddPolicy("IpQualityHoldRaise",p=>p.RequireRole("Administrator","ProductionOperator","QualityInspector"));
         });
         services.AddAntiforgery(options=>{
             options.Cookie.Name="IPPCS.XSRF";
