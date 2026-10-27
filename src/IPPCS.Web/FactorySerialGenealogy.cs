@@ -141,9 +141,11 @@ public static class FactorySerialGenealogy
                 if(order.Kind!=ManufacturingOrderKind.FinalAssembly||
                     order.Status!=ManufacturingOrderStatus.Completed)
                     return Results.Conflict(new{message="سریال فقط پس از اتمام مونتاژ نهایی قابل ثبت است."});
-                if(!await db.ManufacturingOrderAudits.AsNoTracking().AnyAsync(x=>
-                    x.OrderId==id&&x.Action==FactoryEndOfLineAcceptance.ApprovedAction,ct))
-                    return Results.Conflict(new{message="گواهی کیفیت داخلی پایان خط پیش‌نیاز تخصیص سریال است."});
+                var certificates=await db.ManufacturingOrderAudits.AsNoTracking()
+                    .Where(x=>x.OrderId==id&&
+                        x.Action==FactoryEndOfLineAcceptance.ApprovedAction).ToListAsync(ct);
+                if(certificates.Count!=1)
+                    return Results.Conflict(new{message="یک گواهی کیفیت داخلی معتبر پایان خط برای تخصیص سریال لازم است."});
                 var last=order.Operations.OrderBy(x=>x.Sequence).LastOrDefault();
                 if(last is null)return Results.Conflict(new{message="آخرین عملیات مونتاژ تعریف نشده است."});
                 var lot=await db.ManufacturingConfirmations.AsNoTracking()
@@ -151,6 +153,12 @@ public static class FactorySerialGenealogy
                 if(lot is null||lot.OperationId!=last.Id||lot.GoodQuantity<=0||
                     decimal.Truncate(lot.GoodQuantity)!=lot.GoodQuantity)
                     return Results.Conflict(new{message="بچ آخرین عملیات و مقدار خروجی سالم عدد صحیح معتبر لازم است."});
+                var finalLots=await db.ManufacturingConfirmations.AsNoTracking()
+                    .Where(x=>x.OperationId==last.Id).ToListAsync(ct);
+                if(!FactoryEndOfLineAcceptance.CertificateMatches(
+                    certificates[0].Details,finalLots))
+                    return Results.Conflict(new{
+                        message="مقدار/تعداد بچ آخرین عملیات با سند کنترل نهایی تطبیق ندارد؛ تخصیص سریال مسدود است."});
                 var (ledger,error)=await LoadLedger(db,ct);
                 if(error is not null)return Results.Conflict(new{message=error});
                 if(ledger.Any(x=>x.SerialNumber==serial))
