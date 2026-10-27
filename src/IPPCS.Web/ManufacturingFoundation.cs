@@ -175,6 +175,32 @@ public static class ManufacturingFoundationEndpoints
             return Results.Ok(new { route.Id, route.State });
         });
 
+        api.MapGet("/work-shifts/capacity",async(Guid workCenterId,string startJalali,
+            int days,ProductionDb db,CancellationToken ct)=>{
+            if(workCenterId==Guid.Empty||!PersianPlanningDates.TryParse(startJalali,out var start)||
+                days is <1 or >31)
+                return Results.BadRequest(new{message="مرکز کاری، تاریخ شمسی یا تعداد روز ۱ تا ۳۱ نامعتبر است."});
+            if(!await db.WorkCenters.AsNoTracking().AnyAsync(x=>x.Id==workCenterId,ct))
+                return Results.NotFound();
+            var shifts=await db.WorkShifts.AsNoTracking()
+                .Where(x=>x.WorkCenterId==workCenterId).ToListAsync(ct);
+            return Results.Ok(new{workCenterId,startJalali=PersianPlanningDates.Format(start),
+                days,rows=Enumerable.Range(0,days).Select(offset=>{
+                    var date=start.AddDays(offset);
+                    var previous=date.AddDays(-1);
+                    return new{
+                        dateJalali=PersianPlanningDates.Format(date),
+                        weekday=(int)date.DayOfWeek,
+                        effectiveMinutes=FactoryShiftCalendar.AvailableMinutes(workCenterId,date,shifts),
+                        hasPreviousNight=shifts.Any(x=>x.DayOfWeek==(int)previous.DayOfWeek&&
+                            x.EndTime<x.StartTime&&FactoryShiftCalendar.Valid(x)&&
+                            FactoryShiftCalendar.EffectiveEnd(x,previous)>
+                                date.ToDateTime(TimeOnly.MinValue)),
+                        shiftCountStartingToday=shifts.Count(x=>x.DayOfWeek==(int)date.DayOfWeek)
+                    };
+                }).ToArray(),
+                disclaimer="ظرفیت شیفت بر مبنای دقیقه مؤثر روز تقویمی محلی محاسبه شده و دقایق شیفت شب روز قبل در روز بعد منظور می‌شود؛ این داده حضور نیروی انسانی یا آماده‌به‌کاری واقعی تجهیز نیست."});
+        });
         api.MapGet("/work-shifts", async (ProductionDb db, CancellationToken ct) =>
             await db.WorkShifts.AsNoTracking().OrderBy(x => x.WorkCenterId).ThenBy(x => x.DayOfWeek).ToListAsync(ct));
 
