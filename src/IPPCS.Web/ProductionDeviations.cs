@@ -14,6 +14,10 @@ public sealed class ProductionDeviation
     public string? RootCause { get; set; }
     public string? CorrectiveAction { get; set; }
     public string? Responsible { get; set; }
+    // Stable IPPCS master-data codes for reliable longitudinal reporting.
+    // Nullable to retain legacy manually entered factory cases as-is.
+    public string? ResponsibleCode { get; set; }
+    public string? RootCauseCategoryCode { get; set; }
     public DateOnly? ActionDueOn { get; set; }
     public ProductionDeviationStatus Status { get; set; }=ProductionDeviationStatus.Open;
     public DateTime CreatedUtc { get; set; }=DateTime.UtcNow;
@@ -32,7 +36,8 @@ public sealed class ProductionDeviationEvent
     public DateTime AtUtc { get; set; }=DateTime.UtcNow;
 }
 public record DeviationInput(Guid MpsLineId,Guid? OrderId,ProductionDeviationCategory Category,string Description);
-public record DeviationActionInput(string RootCause,string CorrectiveAction,string Responsible,string ActionDueJalali);
+public record DeviationActionInput(string RootCause,string CorrectiveAction,string Responsible,string ActionDueJalali,
+    string? ResponsibleCode=null,string? RootCauseCategoryCode=null);
 public record DeviationCloseInput(string Verification);
 
 public static class ProductionDeviationEndpoints
@@ -47,6 +52,10 @@ public static class ProductionDeviationEndpoints
         model.Entity<ProductionDeviation>().Property(x=>x.RootCause).HasMaxLength(1000);
         model.Entity<ProductionDeviation>().Property(x=>x.CorrectiveAction).HasMaxLength(1000);
         model.Entity<ProductionDeviation>().Property(x=>x.Responsible).HasMaxLength(200);
+        model.Entity<ProductionDeviation>().Property(x=>x.ResponsibleCode).HasMaxLength(40);
+        model.Entity<ProductionDeviation>().Property(x=>x.RootCauseCategoryCode).HasMaxLength(40);
+        model.Entity<ProductionDeviation>().HasIndex(x=>x.ResponsibleCode);
+        model.Entity<ProductionDeviation>().HasIndex(x=>x.RootCauseCategoryCode);
         model.Entity<ProductionDeviation>().Property(x=>x.CreatedBy).HasMaxLength(256);
         model.Entity<ProductionDeviation>().HasIndex(x=>new{x.MpsLineId,x.Status});
         model.Entity<ProductionDeviationEvent>().HasOne(x=>x.Deviation).WithMany(x=>x.Events)
@@ -56,7 +65,8 @@ public static class ProductionDeviationEndpoints
     }
     private static object Dto(ProductionDeviation row)=>new{
         row.Id,row.MpsLineId,row.OrderId,row.Category,row.Description,row.RootCause,
-        row.CorrectiveAction,row.Responsible,row.Status,row.CreatedUtc,row.ClosedUtc,row.CreatedBy,
+        row.CorrectiveAction,row.Responsible,row.ResponsibleCode,row.RootCauseCategoryCode,
+        row.Status,row.CreatedUtc,row.ClosedUtc,row.CreatedBy,
         actionDueJalali=row.ActionDueOn.HasValue?PersianPlanningDates.Format(row.ActionDueOn.Value):null,
         effectiveness=FactoryDeviationEffectiveness.Evaluate(row),
         events=row.Events.OrderBy(x=>x.AtUtc).Select(x=>new{x.Status,x.Details,x.Username,x.AtUtc})
@@ -75,6 +85,9 @@ public static class ProductionDeviationEndpoints
             if(!Enum.IsDefined(input.Category)||string.IsNullOrWhiteSpace(input.Description)
                 ||input.Description.Trim().Length>1000)
                 return Results.BadRequest(new{message="نوع و شرح انحراف معتبر لازم است."});
+            if(await FactoryMasterData.Active(db,FactoryMasterData.DeviationCategory,
+                ((int)input.Category).ToString(),ct) is null)
+                return Results.Conflict(new{message="نوع انحراف در اطلاعات پایه غیرفعال یا نامعتبر است."});
             var line=await db.MpsDemandLines.AsNoTracking().SingleOrDefaultAsync(x=>x.Id==input.MpsLineId,ct);
             if(line is null)return Results.BadRequest(new{message="ردیف MPS وجود ندارد."});
             var approved=await db.MpsVersions.AsNoTracking().AnyAsync(x=>x.Id==line.MpsVersionId
@@ -111,8 +124,19 @@ public static class ProductionDeviationEndpoints
             if(row is null)return Results.NotFound();
             if(row.Status!=ProductionDeviationStatus.Open)
                 return Results.Conflict(new{message="اقدام اولیه قبلاً ثبت شده است؛ برای تغییر از بازنگری مستند اقدام استفاده کنید."});
+            var ownerCode=string.IsNullOrWhiteSpace(input.ResponsibleCode)
+                ?null:FactoryMasterData.NormalizeCode(input.ResponsibleCode);
+            var causeCode=string.IsNullOrWhiteSpace(input.RootCauseCategoryCode)
+                ?null:FactoryMasterData.NormalizeCode(input.RootCauseCategoryCode);
+            var owner=ownerCode is null?null:
+                await FactoryMasterData.Active(db,FactoryMasterData.ActionOwner,ownerCode,ct);
+            var cause=causeCode is null?null:
+                await FactoryMasterData.Active(db,FactoryMasterData.RootCauseCategory,causeCode,ct);
+            if(ownerCode is not null&&owner is null||causeCode is not null&&cause is null)
+                return Results.Conflict(new{message="مسئول یا طبقه علت ریشه‌ای در اطلاعات پایه وجود ندارد یا غیرفعال است."});
             row.RootCause=input.RootCause.Trim();row.CorrectiveAction=input.CorrectiveAction.Trim();
-            row.Responsible=input.Responsible.Trim();row.ActionDueOn=due;
+            row.Responsible=owner?.Label??input.Responsible.Trim();
+            row.ResponsibleCode=owner?.Code;row.RootCauseCategoryCode=cause?.Code;row.ActionDueOn=due;
             row.Status=ProductionDeviationStatus.ActionAssigned;
             db.ProductionDeviationEvents.Add(new ProductionDeviationEvent{
                 DeviationId=id,Status=row.Status,
