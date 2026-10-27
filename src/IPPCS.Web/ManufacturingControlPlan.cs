@@ -253,6 +253,9 @@ public static class ManufacturingControlPlanEndpoints
             if((input.Note?.Length??0)>500||input.NonconformingQuantity<0)
                 return Results.BadRequest(new{message="مقدار عدم‌انطباق یا توضیح نامعتبر است."});
             await using var tx=await db.Database.BeginTransactionAsync(IsolationLevel.Serializable,ct);
+            try{await FactoryCapacityReservations.LockOrder(db,id,ct);}
+            catch(Microsoft.Data.SqlClient.SqlException)
+            {return Results.Conflict(new{message="قفل دستور برای ثبت کنترل کیفیت یا شجره در دسترس نیست."});}
             var order=await db.ManufacturingOrders.Include(x=>x.Operations)
                 .ThenInclude(x=>x.InspectionRequirements).SingleOrDefaultAsync(x=>x.Id==id,ct);
             if(order is null)return Results.NotFound();
@@ -320,6 +323,9 @@ public static class ManufacturingControlPlanEndpoints
         api.MapPost("/manufacturing-orders/{id:guid}/lot-genealogy",
             async(Guid id,ManufacturingLotLinkInput input,ProductionDb db,HttpContext ctx,CancellationToken ct)=>{
             await using var tx=await db.Database.BeginTransactionAsync(IsolationLevel.Serializable,ct);
+            try{await FactoryCapacityReservations.LockOrder(db,id,ct);}
+            catch(Microsoft.Data.SqlClient.SqlException)
+            {return Results.Conflict(new{message="قفل دستور برای شجره ساخت در دسترس نیست."});}
             var order=await db.ManufacturingOrders.AsNoTracking().Include(x=>x.Operations).SingleOrDefaultAsync(x=>x.Id==id,ct);
             if(order is null)return Results.NotFound();
             if(order.Status is ManufacturingOrderStatus.Draft or ManufacturingOrderStatus.Cancelled)
