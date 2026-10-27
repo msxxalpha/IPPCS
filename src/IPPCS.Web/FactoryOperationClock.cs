@@ -141,8 +141,16 @@ public static class FactoryOperationClock
             {return Results.Conflict(new{message="قفل مرکز کاری در دسترس نیست."});}
             var history=await db.ManufacturingOrderAudits.AsNoTracking()
                 .Where(x=>x.Action==Started||x.Action==Stopped||
+                    x.Action==FactoryTimedDowntime.StartAction||
+                    x.Action==FactoryTimedDowntime.StopAction||
                     x.Action==FactoryCapacityReservations.Reserved ||
                     x.Action==FactoryCapacityReservations.Cancelled).ToListAsync(ct);
+            IReadOnlyList<FactoryTimedStop> timedStops;
+            try{timedStops=FactoryTimedDowntime.Read(history);}
+            catch(InvalidOperationException ex){return Results.Conflict(new{message=ex.Message});}
+            if(timedStops.Any(x=>x.StoppedUtc is null&&
+                (x.WorkCenterId==op.WorkCenterId||x.OrderId==id)))
+                return Results.Conflict(new{message="مرکز کاری یا دستور توقف زمان‌دار باز دارد؛ ابتدا پایان توقف را ثبت کنید."});
             IReadOnlyList<FactoryClockSession> sessions;
             try{sessions=Read(history);}
             catch(InvalidOperationException ex){return Results.Conflict(new{message=ex.Message});}
