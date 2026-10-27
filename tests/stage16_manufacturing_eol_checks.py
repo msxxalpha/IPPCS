@@ -50,6 +50,21 @@ def stage16_acceptance(request, jalali, center_id, semi_item):
       "description":"Competing end of line quality plan","unit":"N",
       "minimum":50,"maximum":60,"mandatory":True},201)
     request(f"/api/v1/control-plans/{competing['id']}/approve","POST",status=409)
+    # A Control Plan must never be approved against an unapproved routing.
+    draft_route=request("/api/v1/routings","POST",{
+      "itemId":item["id"],"revisionCode":"CI-ST16-UNAPPROVED-ROUTE",
+      "effectiveFromJalali":jalali,"effectiveToJalali":None},201)
+    request(f"/api/v1/routings/{draft_route['id']}/operations","POST",{
+      "sequence":10,"name":"Unapproved route","workCenterId":center_id,
+      "setupMinutes":1,"runMinutesPerUnit":1,"yieldPercent":100},201)
+    premature=request("/api/v1/control-plans","POST",{
+      "routingRevisionId":draft_route["id"],"code":"CI-ST16-EARLY-CP",
+      "validFromJalali":jalali,"validUntilJalali":None},201)
+    request(f"/api/v1/control-plans/{premature['id']}/characteristics","POST",{
+      "operationSequence":10,"code":"UNVERIFIED-ROUTE",
+      "description":"Unapproved routing control","unit":"N",
+      "minimum":50,"maximum":60,"mandatory":True},201)
+    request(f"/api/v1/control-plans/{premature['id']}/approve","POST",status=409)
     final=request("/api/v1/manufacturing-orders","POST",{
       "number":"CI-ST16-FINAL","itemId":item["id"],"plannedQuantity":2,
       "plannedStartJalali":jalali,"dueOnJalali":jalali},201)
