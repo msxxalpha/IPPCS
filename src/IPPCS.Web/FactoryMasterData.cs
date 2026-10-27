@@ -78,6 +78,71 @@ public static class FactoryMasterData
     public static IEndpointRouteBuilder MapFactoryMasterData(this IEndpointRouteBuilder routes)
     {
         var read=routes.MapGroup("/api/v1").RequireAuthorization("IpProductionUser");
+        // Report dimensions remain stable when administrators rename or
+        // deactivate catalog labels. No ERP/maintenance system is consulted.
+        read.MapGet("/factory-master-options/production-reason-summary",
+            async(string kind,string fromJalali,string throughJalali,ProductionDb db,CancellationToken ct)=>{
+                if(kind!=DowntimeReason&&kind!=QualityHoldReason)
+                    return Results.BadRequest(new{message="گزارش فقط برای علل توقف یا قرنطینه معتبر است."});
+                if(!PersianPlanningDates.TryParse(fromJalali,out var from)||
+                    !PersianPlanningDates.TryParse(throughJalali,out var through)||
+                    through<from||through.DayNumber-from.DayNumber>366)
+                    return Results.BadRequest(new{message="بازه تاریخ شمسی حداکثر ۳۶۶ روز و معتبر لازم است."});
+                var tz=TimeZoneInfo.FindSystemTimeZoneById("Asia/Tehran");
+                var begin=TimeZoneInfo.ConvertTimeToUtc(from.ToDateTime(TimeOnly.MinValue),tz);
+                var end=TimeZoneInfo.ConvertTimeToUtc(through.AddDays(1).ToDateTime(TimeOnly.MinValue),tz);
+                var options=await db.FactoryMasterOptions.AsNoTracking()
+                    .Where(x=>x.Kind==kind).ToListAsync(ct);
+                var summaries=new Dictionary<string,(int Records,decimal Quantity)>(StringComparer.Ordinal);
+                void Add(string? reason,decimal quantity)
+                {
+                    var code=reason is not null&&reason.StartsWith("[",StringComparison.Ordinal)?
+                        reason[1..].Split(']',2)[0]:"";
+                    if(!options.Any(x=>x.Code==code))code="LEGACY_UNCLASSIFIED";
+                    var old=summaries.GetValueOrDefault(code);
+                    summaries[code]=(old.Records+1,old.Quantity+quantity);
+                }
+                if(kind==QualityHoldReason)
+                {
+                    var rows=await db.ManufacturingQualityHolds.AsNoTracking()
+                        .Where(x=>x.RaisedUtc>=begin&&x.RaisedUtc<end)
+                        .Select(x=>new{x.Reason,x.Quantity}).ToListAsync(ct);
+                    foreach(var r in rows)Add(r.Reason,r.Quantity);
+                }
+                else
+                {
+                    var historic=await db.ManufacturingDowntimes.AsNoTracking()
+                        .Where(x=>x.OccurredUtc>=begin&&x.OccurredUtc<end)
+                        .Select(x=>new{x.Reason,x.DurationMinutes}).ToListAsync(ct);
+                    foreach(var r in historic)Add(r.Reason,r.DurationMinutes);
+                    // Count the *start events*, not ends, to avoid double-counting.
+                    var timed=await db.ManufacturingOrderAudits.AsNoTracking()
+                        .Where(x=>x.Action==FactoryTimedDowntime.StartAction&&
+                            x.AtUtc>=begin&&x.AtUtc<end)
+                        .Select(x=>x.Details).ToListAsync(ct);
+                    foreach(var detail in timed)
+                    {
+                        var parts=detail.Split('|');
+                        if(parts.Length!=4)return Results.Conflict(new{
+                            message="سابقه شروع توقف زمان‌دار دارای قالب نامعتبر است."});
+                        Add(parts[3],0);
+                    }
+                }
+                var result=summaries.OrderBy(x=>x.Key).Select(x=>new{
+                    code=x.Key,label=options.FirstOrDefault(o=>o.Code==x.Key)?.Label??
+                        "بدون کد طبقه‌بندی (داده تاریخی)",
+                    active=options.FirstOrDefault(o=>o.Code==x.Key)?.IsActive??false,
+                    records=x.Value.Records,measuredQuantity=x.Value.Quantity
+                }).ToArray();
+                return Results.Ok(new{kind,fromJalali,throughJalali,
+                    metric=kind==QualityHoldReason?"QuarantinedQuantity":
+                        "LegacyDowntimeMinutes;TimedStopEventCountOnly",
+                    rows=result,
+                    warning=kind==DowntimeReason?
+                        "توقفات زمان‌دار به تعداد رخداد شمارش می‌شوند، نه دقیقه؛ برای زمان واقعی از تطبیق OEE استفاده کنید.":
+                        "مقادیر قرنطینه منعکس‌کننده رخداد ثبت‌شده هستند، نه مانده موجودی انبار."});
+            });
+
         read.MapGet("/factory-master-options",async(string kind,bool? includeInactive,
             ProductionDb db,CancellationToken ct)=>{
             if(!ValidKind(kind))return Results.BadRequest(new{message="نوع فهرست اطلاعات پایه معتبر نیست."});
