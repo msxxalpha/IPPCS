@@ -157,8 +157,9 @@ public static class FactoryOperationClock
             if(order is null)return Results.NotFound();
             var op=order.Operations.SingleOrDefault(x=>x.Id==operationId);
             if(op is null)return Results.NotFound();
-            if(!ManufacturingExecutionEndpoints.IsActive(order.Status))
-                return Results.Conflict(new{message="برای ثبت پایان ساعت، دستور باید فعال باشد."});
+            if(!ManufacturingExecutionEndpoints.IsActive(order.Status) &&
+                order.Status!=ManufacturingOrderStatus.OnHold)
+                return Results.Conflict(new{message="ثبت پایان برای این وضعیت دستور مجاز نیست."});
             var history=await db.ManufacturingOrderAudits.AsNoTracking()
                 .Where(x=>x.Action==Started||x.Action==Stopped).ToListAsync(ct);
             IReadOnlyList<FactoryClockSession> sessions;
