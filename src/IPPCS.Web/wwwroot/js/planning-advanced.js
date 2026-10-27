@@ -141,6 +141,26 @@ function register(){
    ["مقدار پیشنهادی",x=>format(x.forecastQuantity)]],result.rows);
   flash("پیش‌بینی صرفاً بر اساس میانگین نیازهای قطعی ثبت‌شده است؛ تعداد سوابق: "+result.historySamples);
  });
+ addForm("#forecast-backtest-form",async f=>{
+  const result=await api("/factory-demand/backtest/"+formval(f,"itemId")+
+    "?throughJalali="+encodeURIComponent(formval(f,"through"))+
+    "&lookback="+encodeURIComponent(number(f,"lookback"))+
+    "&months="+encodeURIComponent(number(f,"months")));
+  const pct=x=>x===null||x===undefined?"نامشخص":format(x)+"٪";
+  table("#backtest-summary",[["شاخص","name"],["نتیجه","value"]],[
+    {name:"میانگین قدر مطلق خطا MAE",value:format(result.meanAbsoluteError)},
+    {name:"خطای وزنی WAPE",value:pct(result.wapePercent)},
+    {name:"سوگیری پیش‌بینی",value:format(result.bias)},
+    {name:"ماه‌های دارای سابقه کافی",value:format(result.monthsWithHistory)+
+        " / "+format(result.monthsEvaluated)}
+  ]);
+  table("#backtest-table",[["سال شمسی","jalaliYear"],["ماه شمسی","jalaliMonth"],
+    ["پیش‌بینی",x=>format(x.predicted)],["تقاضای واقعی",x=>format(x.actual)],
+    ["خطا",x=>format(x.error)],["خطای قدر مطلق",x=>format(x.absoluteError)],
+    ["خطای درصدی",x=>pct(x.absolutePercentageError)],
+    ["ماه‌های دارای تقاضای ثبت‌شده قبل",x=>format(x.priorConfirmedMonths)]],result.months);
+  flash(result.warning||"بازآزمایی تاریخی فقط از تقاضای قطعی ثبت‌شده در IPPCS محاسبه شد.");
+ });
  addForm("#demand-form",f=>api("/factory-demand","POST",{
   itemId:formval(f,"itemId"),reference:formval(f,"reference"),category:formval(f,"category"),
   dueOnJalali:formval(f,"due"),quantity:number(f,"quantity")
@@ -223,6 +243,24 @@ function register(){
     ["نرخ تعریف‌شده",x=>x.hasCostRate?"بله":"خیر"],
     ["هزینه تبدیل (ریال)",x=>format(x.conversionRials)],
     ["هزینه ضایعات (ریال)",x=>format(x.scrapRials)]],data.rows);
+   const measured=await api("/factory-cost/orders/"+id+"/actual-variance");
+   const money=x=>x===null||x===undefined?"نامشخص":format(x);
+   table("#cost-variance-summary",[["شاخص","name"],["مقدار","value"]],[
+     {name:"هزینه استاندارد (ریال)",value:money(measured.totals.standardConversionRials)},
+     {name:"هزینه زمان واقعی (ریال)",value:money(measured.totals.actualConversionRials)},
+     {name:"انحراف تبدیل (ریال)",value:money(measured.totals.conversionVarianceRials)},
+     {name:"مراکز بدون نرخ معتبر",value:format(measured.totals.countMissingRates)},
+     {name:"عملیات بدون ساعت واقعی بسته‌شده",value:format(measured.totals.countMissingActualTime)}
+   ]);
+   table("#cost-variance-table",[["ردیف عملیات","sequence"],
+     ["مرکز کاری",x=>center(x.workCenterId)],
+     ["دقیقه استاندارد",x=>format(x.standardMinutes)],
+     ["دقیقه واقعی",x=>money(x.actualMinutes)],
+     ["انحراف دقیقه",x=>money(x.minutesVariance)],
+     ["هزینه استاندارد (ریال)",x=>money(x.standardConversionRials)],
+     ["هزینه واقعی (ریال)",x=>money(x.actualConversionRials)],
+     ["انحراف هزینه (ریال)",x=>money(x.conversionVarianceRials)],
+     ["ساعت باز",x=>x.hasOpenClock?"بله":"خیر"]],measured.rows);
    flash("برآورد تبدیل: "+format(data.totalConversionRials)+" ریال، برآورد ضایعات: "+
     format(data.totalScrapRials)+" ریال. مراکز بدون نرخ: "+data.missingRates);
   }catch(e){flash(e.message,true);}
