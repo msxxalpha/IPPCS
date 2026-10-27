@@ -11,7 +11,7 @@ Planning inventory inputs, customer demand inputs, supplier lead times (if neces
 | # | Module | Status |
 |---|---|---|
 | 01 | Production master data (items, BOM, routings, resources) | Partial UI + API: versioned BOM, routings, operations, centers, shifts; revision-approval checks |
-| 02 | Manufacturing demand inputs and forecasts | Partial: internal dated demand, Jalali-month moving average (confirmed history), duplicate-safe draft-MPS intake and Persian UI; forecast calibration pending |
+| 02 | Manufacturing demand inputs and forecasts | Partial: internal dated demand, Jalali-month moving average plus historical MAE/WAPE/bias backtest for completed Persian months, duplicate-safe draft-MPS intake and Persian UI; accuracy calibration and data completeness acceptance pending |
 | 03 | S&OP production balancing | Partial: 90-day total and per-center demand/load vs shift capacity, stored snapshots and bottleneck warnings; S&OP approval and feasible load leveling pending |
 | 04 | MPS master production schedule | Partial: MPS version, date-specific finished-item lines, approval/locking and Persian forms |
 | 05 | Multilevel net MRP and pegging | Prototype net MRP: manual balance/receipt assumptions, safety, reservations, quarantines, lot sizing, lead time, multilevel BOM, immutable calculation snapshots; read-only proposed-batch net demand graph and BOM-origin allocation implemented; persisted manufacturing-order reservation/pegging pending; gross BOM source paths plus read-only date-ordered planning-balance and expected-receipt attribution available; net suggestion batch-uplift/release warnings now validated and displayed |
@@ -21,12 +21,12 @@ Planning inventory inputs, customer demand inputs, supplier lead times (if neces
 | 09 | Semi-finished shop-floor control | Partial: sequential confirmations, good/scrap/rework, quality-adjusted WIP flow; no stock movement |
 | 10 | Final shock absorber assembly execution | Partial: approved finished-item work order + operation progress |
 | 11 | Line-side material planning and consumption | Partial: manual local consumption versus approved BOM quantity and variances; no warehouse transactions, physical reservations or backflush |
-| 12 | Plan adherence and deviation management | Partial: MPS version vs completed final good output by product and due-date range; partial explicit quantity-based MPS-line-to-order allocation and fulfillment; root-cause, corrective-action, accountable owner, Jalali due date and auditable closure workflow now in prototype; UAT pending |
+| 12 | Plan adherence and deviation management | Partial: aggregated product and explicitly pegged MPS-line adherence with attributed completed/on-time/late output, shortages and unassigned quantities; corrective-action/verification history remains; alerts and UAT pending |
 | 13 | In-process quality controls / quarantine | Partial: approved dated Control Plan, operation-specific numeric characteristics, frozen work-order checks, mandatory inspection gate, out-of-spec quality hold and immutable measurement history. Sampling rules/SPC pending |
-| 14 | OEE and downtime classification | Preliminary daily OEE from manually planned minutes, reported output and downtime; advanced time/PLC validation pending |
+| 14 | OEE and downtime classification | Two clearly separated views: manually entered daily downtime estimate and clock-observed OEE (closed sessions, local-day clipping, invalid-data guards); PLC, overlapping stops and plant validation pending |
 | 15 | Manufacturing lot/serial traceability | Partial: exact lot history plus auditable quantity-limited links between adjacent operation confirmations of a work order; cross-order component genealogy pending |
 | 16 | What-if simulations and scenarios | Partial: side-effect-free baseline/scenario finite-capacity multipliers and scheduled/late/unscheduled comparisons |
-| 17 | Conversion cost and productivity analysis | Partial: user-entered internal center rate assumptions, standard-cycle conversion estimate and scrap-cost estimates; no actual ledger/cost-accounting integration |
+| 17 | Conversion cost and productivity analysis | Partial: standard conversion/scrap plus observed closed-clock minutes, effective-date rate and actual-vs-standard variance with null/missing coverage; no financial ledger or actual overhead attribution |
 | 18 | Manufacturing KPI dashboards and decision support | Partial: OEE/WIP plus operational order, open-quality, stoppage, lateness, final good and MPS fulfillment previews; full drilldown/alerts pending |
 
 ## Architecture
