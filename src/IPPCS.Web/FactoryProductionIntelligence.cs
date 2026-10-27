@@ -128,7 +128,7 @@ public static class FactoryProductionIntelligence
             if(start>=dayEnd||finish<=dayStart)continue;
             if(s.StoppedUtc is null)open=true;
             if(s.StoppedUtc is not null)
-                measured+=(decimal)(Math.Min(finish,dayEnd)-Math.Max(start,dayStart)).TotalMinutes;
+                measured+=(decimal)((finish<dayEnd?finish:dayEnd)-(start>dayStart?start:dayStart)).TotalMinutes;
         }
         if(planned is null||planned<=0)
             return new(null,null,null,null,measured,open,"زمان برنامه مرکز برای این روز ثبت نشده است.");
@@ -243,6 +243,6 @@ public static class FactoryProductionIntelligence
                         quality.OeePercent,quality.Warning};
                 }).ToArray(),disclaimer="OEE مبتنی بر ساعت ثبت‌شده دستی است، نه PLC. توقف دستی دوباره از زمان کارکرد کسر نمی‌شود. فقط ساعت‌های بسته‌شده و داده تولید معتبر مبنا هستند؛ ساعت باز یا داده ناقص شاخص را نامشخص می‌کند."});
         });
-        return routes;
+        return endpoints;
     }
 }
