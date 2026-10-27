@@ -99,11 +99,26 @@ public static class FactoryAnalyticalVerification
                     .Where(x=>x.Category=="Confirmed")
                     .Select(x=>new{x.ItemId,x.DueOn})
                     .ToListAsync(ct);
+                // Backtest(2 evaluated months, 2 lookback months) needs
+                // the four immediately preceding, fully closed Persian months
+                // on the SAME finished product, not scattered factory demand.
                 var cal=new PersianCalendar();
-                var confirmedMonths=confirmed
-                    .Select(x=>cal.GetYear(x.DueOn.ToDateTime(TimeOnly.MinValue))*12+
-                        cal.GetMonth(x.DueOn.ToDateTime(TimeOnly.MinValue)))
-                    .Distinct().Count();
+                var tz=TimeZoneInfo.FindSystemTimeZoneById("Asia/Tehran");
+                var iranNow=TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow,tz);
+                var today=DateOnly.FromDateTime(iranNow);
+                var currentOrdinal=cal.GetYear(iranNow)*12+cal.GetMonth(iranNow)-1;
+                var monthWindow=Enumerable.Range(1,4).Select(i=>currentOrdinal-i).ToHashSet();
+                var source=confirmed.GroupBy(x=>x.ItemId).Select(g=>new{
+                    ItemId=g.Key,
+                    Months=g.Select(x=>{
+                        var day=x.DueOn.ToDateTime(TimeOnly.MinValue);
+                        return cal.GetYear(day)*12+cal.GetMonth(day)-1;
+                    }).Distinct().Count(monthWindow.Contains)
+                }).OrderByDescending(x=>x.Months).ThenBy(x=>x.ItemId).FirstOrDefault();
+                var confirmedMonths=source?.Months??0;
+                var closedMonthFirst=new DateTime(cal.GetYear(iranNow),
+                    cal.GetMonth(iranNow),1,cal);
+                var lastClosedDay=DateOnly.FromDateTime(closedMonthFirst.AddDays(-1));
                 var sopRuns=await db.FactorySopReviews.AsNoTracking().CountAsync(ct);
                 var mps=await db.MpsVersions.AsNoTracking()
                     .Where(x=>x.State==PlanningApproval.Approved&&x.Lines.Any())
@@ -136,17 +151,10 @@ public static class FactoryAnalyticalVerification
                     .OrderByDescending(x=>x.CreatedUtc).Select(x=>x.Id).FirstOrDefaultAsync(ct);
                 var recentSop=await db.FactorySopReviews.AsNoTracking()
                     .OrderByDescending(x=>x.CalculatedUtc).Select(x=>x.Id).FirstOrDefaultAsync(ct);
-                var item=await db.FactoryDemands.AsNoTracking()
-                    .Where(x=>x.Category=="Confirmed")
-                    .OrderByDescending(x=>x.DueOn).Select(x=>x.ItemId).FirstOrDefaultAsync(ct);
+                var item=source?.ItemId??Guid.Empty;
 
-                // Iran-local calendar, never server/visitor-local UTC date.
-                var tz=TimeZoneInfo.FindSystemTimeZoneById("Asia/Tehran");
-                var iranNow=TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow,tz);
-                var today=DateOnly.FromDateTime(iranNow);
-                var closedMonthFirst=new DateTime(cal.GetYear(iranNow),
-                    cal.GetMonth(iranNow),1,cal);
-                var lastClosedDay=DateOnly.FromDateTime(closedMonthFirst.AddDays(-1));
+                // Iran-local date and last complete month were calculated
+                // before counting evidence, so the same calendar window is used.
                 var examples=new FactoryAnalyticalExamples(
                     item==Guid.Empty?null:item,mps==Guid.Empty?null:mps,
                     recentMrp==Guid.Empty?null:recentMrp,
