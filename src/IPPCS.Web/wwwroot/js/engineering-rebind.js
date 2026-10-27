@@ -152,11 +152,87 @@ async function apply(){
   notice(response.applied+" دستور با تاریخچه حسابرسی به نسخه مصوب منتقل شد.");
  }catch(e){renderResult(e.details);notice(e.message,true);clearPreview();}
 }
+
+function clearCutover(){
+ state.cutoverSignature=null;$("cutover-apply").disabled=true;
+ $("cutover-results").replaceChildren();
+}
+function renderCutoverCandidates(baseline){
+ const el=$("cutover-candidate"),current=el.value;
+ el.replaceChildren(option("","انتخاب نسخه پیشنهادی"));
+ if(baseline&&baseline.state===1)
+  for(const r of revisionList().filter(x=>x.state===0&&
+   x.id!==baseline.id&&ownerOf(x)===ownerOf(baseline)))
+    el.append(option(r.id,title(r)));
+ if([...el.options].some(o=>o.value===current))el.value=current;
+ clearCutover();
+}
+function cutoverPayload(dryRun){
+ const baselineId=$("engineering-baseline").value,candidateId=$("cutover-candidate").value;
+ const cutoverOnJalali=$("cutover-date").value.trim();
+ const approvalReference=$("cutover-ref").value.trim(),reason=$("cutover-reason").value.trim();
+ if(!baselineId||!candidateId||!cutoverOnJalali||approvalReference.length<4||!reason)
+  throw new Error("نسخه مبدأ و پیش‌نویس مقصد، تاریخ شمسی، شماره مرجع و دلیل تغییر را تکمیل کنید.");
+ return {kind:$("engineering-kind").value,baselineId,candidateId,
+   cutoverOnJalali,approvalReference,reason,dryRun};
+}
+function renderCutoverResult(data){
+ const host=$("cutover-results");host.replaceChildren();
+ if(!data)return;
+ if(Array.isArray(data.issues)&&data.issues.length){
+  const p=document.createElement("p");
+  p.textContent=data.issues.map(i=>i.description).join("؛ ");host.append(p);return;
+ }
+ const p=document.createElement("p");
+ p.textContent="پیش‌نویس‌های نیازمند انتقال: "+(data.staleDraftOrders||[]).length+
+  " | دستورات دارای نسخه منجمد بدون تغییر: "+(data.protectedFrozenOrders??0)+
+  (data.journalId?" | ثبت در سابقه مهندسی: "+data.journalId:"");
+ host.append(p);
+ if((data.staleDraftOrders||[]).length){
+  const ul=document.createElement("ul");
+  for(const o of data.staleDraftOrders){
+   const li=document.createElement("li");
+   li.textContent=o.number+" · شروع "+o.plannedStartJalali;ul.append(li);
+  }host.append(ul);
+ }
+}
+async function cutoverPreview(){
+ try{
+  const request=cutoverPayload(true);clearCutover();
+  const response=await api("/factory-engineering/cutover","POST",request);
+  renderCutoverResult(response);
+  state.cutoverSignature=JSON.stringify(cutoverPayload(false));
+  $("cutover-apply").disabled=false;
+  notice("شرایط برش نسخه قابل قبول است. آثار روی دستورات پیش‌نویس را بررسی کنید.");
+ }catch(e){renderCutoverResult(e.details);notice(e.message,true);}
+}
+async function cutoverApply(){
+ try{
+  const request=cutoverPayload(false);
+  if(JSON.stringify(request)!==state.cutoverSignature)
+   throw new Error("پیش‌نمایش برش منقضی است؛ دوباره کنترل کنید.");
+  if(!window.confirm("تاریخ پایان نسخه قبلی کوتاه و نسخه پیشنهادی مصوب شود؟ دستورات پیش‌نویس خودکار تغییر نمی‌کنند."))return;
+  $("cutover-apply").disabled=true;
+  const response=await api("/factory-engineering/cutover","POST",request);
+  await refresh(true);renderCutoverResult(response);
+  notice("برش تاریخ اعتبار با شناسه سابقه "+response.journalId+" ثبت شد؛ پیش‌نویس‌های نیازمند انتقال را در مرحله بعد انتخاب کنید.");
+ }catch(e){renderCutoverResult(e.details);clearCutover();notice(e.message,true);}
+}
+
 document.addEventListener("DOMContentLoaded",async()=>{
  $("engineering-kind").addEventListener("change",()=>{state.selected.clear();clearPreview();renderBaseline();});
  $("engineering-baseline").addEventListener("change",()=>{
   state.selected.clear();renderCandidate();renderOrders();
  });
+ $("cutover-candidate").addEventListener("change",()=>{
+  const r=revisionList().find(x=>x.id===$("cutover-candidate").value);
+  $("cutover-date").value=r?.validFromJalali||r?.effectiveFromJalali||"";
+  clearCutover();
+ });
+ ["cutover-date","cutover-ref","cutover-reason"].forEach(id=>
+  $(id).addEventListener("input",clearCutover));
+ $("cutover-preview").addEventListener("click",cutoverPreview);
+ $("cutover-apply").addEventListener("click",cutoverApply);
  $("engineering-candidate").addEventListener("change",clearPreview);
  $("engineering-reason").addEventListener("input",clearPreview);
  $("engineering-preview").addEventListener("click",preview);
