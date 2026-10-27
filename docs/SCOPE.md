@@ -16,7 +16,7 @@ Planning inventory inputs, customer demand inputs, supplier lead times (if neces
 | 04 | MPS master production schedule | Partial: MPS version, date-specific finished-item lines, approval/locking and Persian forms |
 | 05 | Multilevel net MRP and pegging | Prototype net MRP: manual balance/receipt assumptions, safety, reservations, quarantines, lot sizing, lead time, multilevel BOM, immutable calculation snapshots; pegging not implemented |
 | 06 | CRP finite and infinite capacity | Rough-cut same-day capacity/load preview using approved routings and shifts, no finite allocation yet |
-| 07 | APS constraint-based scheduler | Prototype: finite nonoverlap and precedence per MPS line, shift-capacity calendar, dated work-center Gantt, lateness and unscheduled warnings; material constraints and optimality pending |
+| 07 | APS constraint-based scheduler | Prototype: finite nonoverlap and precedence per MPS line, shift-capacity calendar, scenario-specific Jalali work-center maintenance blackout days, dated work-center Gantt, lateness and unscheduled warnings; material constraints and optimality pending |
 | 08 | Production order lifecycle | Partial: draft/release/hold/resume/cancel/completion, routing and BOM snapshots, order audit |
 | 09 | Semi-finished shop-floor control | Partial: sequential confirmations, good/scrap/rework, quality-adjusted WIP flow; no stock movement |
 | 10 | Final shock absorber assembly execution | Partial: approved finished-item work order + operation progress |
