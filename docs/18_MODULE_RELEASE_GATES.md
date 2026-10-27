@@ -105,3 +105,19 @@ The production program (04) has a controlled-copy revision path: approved source
 - مالک حساب باید از GitHub → Settings → Billing & Licensing ابتدا `Payment information` و `Payment history` و سپس `Budgets and alerts` برای GitHub Actions را بررسی کند. بدون اجازه مالک حساب نباید بودجه یا روش پرداخت تغییر کند.
 - پس از رفع محدودیت، همهٔ Workflowهای Build و SQL روی SHA واحد دوباره اجرا و نتیجه لاگ‌های واقعی ثبت شود. اگر صورتحساب سالم باشد ولی قفل ادامه یابد، درخواست بررسی قفل Billing در GitHub Support ثبت شود.
 - برای آزمون محلی غیرمخرب در Visual Studio از `scripts/Validate-IPPCS.ps1` استفاده شود؛ این کار جایگزین SQL disposable E2E و UAT نهایی نیست.
+
+
+## مرحله ۲۶ — ادامه توسعه بدون شارژ GitHub Actions
+
+**واقعیت:** خطای `The job was not started because recent account payments have failed or your spending limit needs to be increased` قبل از اجرای Build رخ می‌دهد و ربط مستقیم اثبات‌شده‌ای به شکست کد ندارد. Free بودن حساب لزوماً مانع قفل‌شدن Actions به علت مجوز پرداخت یا بودجه نیست.
+
+**فرایند جایگزین بدون استفاده از GitHub Actions:**
+1. توسعه کد و آزمون‌ها در `feature/production-platform-foundation`، با نگهداری `main` بدون تغییر و `PR #1` به صورت Draft.
+2. روی Windows با Visual Studio، .NET SDK 10، `dotnet-ef` 10، Node.js، Python 3، Docker Desktop در حالت Linux Containers، از ریشه پروژه اجرا شود:
+   - `powershell -ExecutionPolicy Bypass -File .\scripts\Validate-IPPCS.ps1`: Restore/Build/xUnit/JS/Jalali/EF-check بدون بازسازی دیتابیس.
+   - `powershell -ExecutionPolicy Bypass -File .\scripts\Test-IPPCS-DisposableSql.ps1`: Build و unit/JS، ایجاد SQL Server 2022 توسعه‌ای در Docker با نام تصادفی، ایجاد دیتابیس تصادفی، Migration فقط همان دیتابیس، host محلی `127.0.0.1:5295`، تست کامل `tests/production_e2e_smoke.py` شامل Stages 11–25، توقف host و حذف Container در `finally`.
+3. محدودیت مهم: دو پورت محلی `11433` برای SQL و `5295` برای وب باید آزاد باشند. برای عدم تداخل، می‌توان از `-SqlPort` استفاده کرد؛ تست Stage23 هنوز نشانی `5295` را مبنا می‌گیرد، پس `-WebPort` را تغییر ندهید مگر آن تست نیز اصلاح شود.
+4. خروجی اجرای SQL، خطاهای Build و گزارش نتیجه دقیق Commit باید از دستگاه توسعه دریافت و در PR ثبت شود. تا دریافت شواهد اجرای واقعی، این اسکریپت صرفاً **آمادهٔ اجرا** است، نه «تست‌شده و تأییدشده».
+5. نه SQL واقعی کارخانه و نه دیتابیس موجود کاربر برای تست، migration، reset یا import استفاده نشود. هیچ یک از ماژول‌های انبار، خرید، فروش یا HR توسعه یا متصل نشوند.
+6. جایگزین کم‌اولویت: self-hosted GitHub runner از نظر دقیقه اجرای سرویس رایگان است، اما اگر خود حساب GitHub Actions در حالت قفل Billing باشد ممکن است Workflow حتی روی آن شروع نشود؛ بنابراین تست محلیِ مستقل مسیر اصلی است.
+7. شرایط نهایی‌سازی تغییر نکرده: موفقیت Build، EF schema، SQL E2E، احراز هویت و نقش‌ها، بازیابی بکاپ، IIS و UAT میدانی هر ۱۸ ماژول. ادغام با `main` تا آن زمان انجام نشود.
