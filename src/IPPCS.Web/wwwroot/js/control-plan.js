@@ -321,6 +321,14 @@ function register(id,fn){const f=$(id);f.addEventListener("submit",async e=>{
  try{await fn(f);alertTo("اطلاعات ثبت شد.");f.reset();await load();}
  catch(err){alertTo(err.message,true);}finally{b.disabled=false;}
 });}
+async function loadCharacteristicUnits(){
+ const rows=await api("/factory-master-options?kind=UnitOfMeasure");
+ IPPCSChoices.fill($("#quality-characteristic-unit"),rows,{
+  value:"code",label:x=>x.code+" — "+x.label,
+  placeholder:"واحد کنترل کیفی را انتخاب کنید"});
+ if(rows.some(x=>x.code==="N"))$("#quality-characteristic-unit").value="N";
+ if(!rows.length)alertTo("واحدهای اندازه‌گیری کنترل کیفی در اطلاعات پایه تعریف نشده‌اند.",true);
+}
 function boot(){
  $$("nav [data-section]").forEach(button=>button.addEventListener("click",()=>{
  $$("section.page").forEach(section=>section.hidden=section.id!==button.dataset.section);
@@ -382,6 +390,7 @@ function boot(){
  $("#trace-refresh").onclick=()=>traceGraph().catch(e=>alertTo(e.message,true));
  $("#inspection-refresh").onclick=()=>inspections().catch(e=>alertTo(e.message,true));
  $("#link-refresh").onclick=()=>confirmations().catch(e=>alertTo(e.message,true));
+ loadCharacteristicUnits().catch(e=>alertTo("اطلاعات پایه واحدهای اندازه‌گیری: "+e.message,true));
  load().catch(e=>alertTo(e.message,true));
 }
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",boot);else boot();
