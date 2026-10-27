@@ -84,7 +84,11 @@ jobs:
             sleep 8
           done
           if [ "$success" -ne 1 ]; then
-            echo "SQL migration failed; inspect model and database configuration."
+            echo "SQL migration failed; sanitized diagnostic follows:"
+            grep -E 'Exception|Error|error|fail|Invalid|SqlException|migration|already exists|Duplicate' /tmp/ippcs-migrate.log | tail -n 65 || true
+            echo "SQL container state:"
+            docker inspect -f '{{.State.Status}} exit={{.State.ExitCode}}' ippcs-ci-sql || true
+            docker logs --tail 35 ippcs-ci-sql 2>&1 | grep -E 'error|Error|SQL Server is|fail|memory|Killed|Recovery' | tail -n 20 || true
             exit 1
           fi
           echo "PASS: versioned EF schema applied to disposable SQL Server."
