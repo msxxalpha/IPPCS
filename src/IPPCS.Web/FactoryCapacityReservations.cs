@@ -136,6 +136,45 @@ public static class FactoryCapacityReservations
         entries.Select(x=>new WorkCenterOccupiedInterval(
             x.WorkCenterId,x.StartLocal,x.EndLocal)).ToArray();
 
+    internal static async Task LockOrder(ProductionDb db,Guid orderId,CancellationToken ct)
+    {
+        var resource="IPPCS:OrderSlot:"+orderId.ToString("N");
+        await db.Database.ExecuteSqlInterpolatedAsync(
+            $@"DECLARE @res int;
+               EXEC @res = sys.sp_getapplock @Resource={resource},
+                    @LockMode='Exclusive',@LockOwner='Transaction',@LockTimeout=10000;
+               IF @res < 0 THROW 51002, 'Work order lock unavailable', 1;",ct);
+    }
+
+    /// <summary>
+    /// Called while holding the order lock in the same DB transaction. Released
+    /// operations cannot leave phantom future slots behind. Every cancellation
+    /// is an appended journal entry, never a physical delete.
+    /// </summary>
+    internal static async Task<int> ReleaseOperations(
+        ProductionDb db,Guid orderId,IReadOnlySet<Guid> completedOperationIds,
+        string reason,CancellationToken ct)
+    {
+        if(completedOperationIds.Count==0)return 0;
+        var history=await db.ManufacturingOrderAudits.AsNoTracking()
+            .Where(x=>x.OrderId==orderId&&(x.Action==Reserved||x.Action==Cancelled))
+            .ToListAsync(ct);
+        var affected=Read(history).Where(x=>completedOperationIds.Contains(x.OperationId))
+            .ToArray();
+        foreach(var center in affected.Select(x=>x.WorkCenterId).Distinct().OrderBy(x=>x))
+            await LockCenter(db,center,ct);
+        foreach(var slot in affected)
+            db.ManufacturingOrderAudits.Add(new ManufacturingOrderAudit{
+                OrderId=orderId,Action=Cancelled,Details=slot.Id.ToString("N")
+            });
+        if(affected.Length>0)
+            db.ManufacturingOrderAudits.Add(new ManufacturingOrderAudit{
+                OrderId=orderId,Action="CapacityLifecycle",
+                Details=reason+";Released="+affected.Length
+            });
+        return affected.Length;
+    }
+
     internal static async Task LockCenter(ProductionDb db,Guid center,CancellationToken ct)
     {
         // This lock is transaction-owned and common to *all* writers on the center.
@@ -189,6 +228,8 @@ public static class FactoryCapacityReservations
                 (input.Note?.Length??0)>130)
                 return Results.BadRequest(new{message="عملیات، تاریخ شمسی و ساعات رزرو معتبر نیستند."});
             await using var tx=await db.Database.BeginTransactionAsync(IsolationLevel.Serializable,ct);
+            try{await LockOrder(db,id,ct);}
+            catch(SqlException){return Results.Conflict(new{message="قفل دستور تولید در دسترس نیست."});}
             var order=await db.ManufacturingOrders.AsNoTracking().Include(x=>x.Operations)
                 .SingleOrDefaultAsync(x=>x.Id==id,ct);
             if(order is null)return Results.NotFound();
@@ -249,6 +290,8 @@ public static class FactoryCapacityReservations
         api.MapPost("/manufacturing-orders/{id:guid}/capacity-reservations/{reservationId:guid}/cancel",
             async(Guid id,Guid reservationId,ProductionDb db,CancellationToken ct)=>{
             await using var tx=await db.Database.BeginTransactionAsync(IsolationLevel.Serializable,ct);
+            try{await LockOrder(db,id,ct);}
+            catch(SqlException){return Results.Conflict(new{message="قفل دستور تولید در دسترس نیست."});}
             var candidate=await db.ManufacturingOrderAudits.AsNoTracking()
                 .FirstOrDefaultAsync(x=>x.OrderId==id&&x.Action==Reserved&&
                     x.Details!=null&&x.Details.StartsWith(reservationId.ToString("N")+"|"),ct);
@@ -263,8 +306,19 @@ public static class FactoryCapacityReservations
             IReadOnlyList<FactoryCapacityReservation> active;
             try{active=Read(events);}
             catch(InvalidOperationException ex){return Results.Conflict(new{message=ex.Message});}
-            if(!active.Any(x=>x.Id==reservationId&&x.OrderId==id))
+            var target=active.SingleOrDefault(x=>x.Id==reservationId&&x.OrderId==id);
+            if(target is null)
                 return Results.Conflict(new{message="رزرو قبلاً لغو شده است."});
+            var parent=await db.ManufacturingOrders.AsNoTracking().Include(x=>x.Operations)
+                .SingleOrDefaultAsync(x=>x.Id==id,ct);
+            if(parent is null)return Results.NotFound();
+            var targetOp=parent.Operations.SingleOrDefault(x=>x.Id==target.OperationId);
+            if(targetOp is null)return Results.Conflict(new{message="عملیات مربوط به رزرو وجود ندارد."});
+            if(!targetOp.IsComplete &&
+                active.Any(x=>x.OrderId==id&&x.Id!=target.Id &&
+                    parent.Operations.Any(op=>op.Id==x.OperationId&&
+                        op.Sequence>targetOp.Sequence&&!op.IsComplete)))
+                return Results.Conflict(new{message="ابتدا رزرو عملیات بعدی را لغو کنید تا تقدم ساخت حفظ شود."});
             db.ManufacturingOrderAudits.Add(new ManufacturingOrderAudit{
                 OrderId=id,Action=Cancelled,Details=reservationId.ToString("N")});
             await db.SaveChangesAsync(ct);
