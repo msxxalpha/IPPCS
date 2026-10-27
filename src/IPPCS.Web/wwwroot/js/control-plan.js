@@ -13,10 +13,8 @@ async function api(path,method="GET",data){const config={method,headers:{}};
  if(!r.ok)throw new Error(body?.message||body?.title||raw||"خطای سرویس");
  return body;
 }
-function select(el,rows,labelFn){let old=el.value;el.replaceChildren();
- let p=document.createElement("option");p.value="";p.textContent="انتخاب کنید";el.append(p);
- rows.forEach(row=>{let op=document.createElement("option");op.value=row.id;op.textContent=labelFn(row);el.append(op);});
- if([...el.options].some(o=>o.value===old))el.value=old;
+function select(el,rows,labelFn){
+ IPPCSChoices.fill(el,rows,{value:"id",label:labelFn});
 }
 function table(host,columns,rows,action){const el=$(host);el.replaceChildren();
  const wrap=document.createElement("div");wrap.className="table-wrap";
