@@ -469,6 +469,19 @@ assert any(x["action"]=="CapacityLifecycle" for x in cancel_events)
 
 
 
+# Backtesting only a fully elapsed Persian month, using IPPCS internal confirmed demand.
+jalali_past = subprocess.check_output(["node", "-e",
+ "let p=new Intl.DateTimeFormat('en-US-u-ca-persian-nu-latn',{timeZone:'Asia/Tehran',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date(Date.now()-45*86400000));console.log([p.find(x=>x.type==='year').value,p.find(x=>x.type==='month').value,p.find(x=>x.type==='day').value].join('/'))"
+],text=True).strip()
+request("/api/v1/factory-demand","POST",{
+ "itemId":product["id"],"reference":"CI-FORECAST-BACKTEST",
+ "quantity":12,"dueOnJalali":jalali_past,"category":"Confirmed"},201)
+backtest=request(f"/api/v1/factory-demand/backtest/{product['id']}?throughJalali={jalali_past}&lookback=3&months=2")
+assert backtest["monthsEvaluated"]==2 and len(backtest["months"])==2, backtest
+assert backtest["wapePercent"] is not None, backtest
+assert request(f"/api/v1/factory-demand/backtest/{product['id']}?throughJalali={JALALI_NOW}&lookback=3&months=2",status=400)
+print("PASS: SQL completed Jalali-month forecast backtest, WAPE guard and future-period rejection.")
+
 # Stage 10: measured operations cost report preserves missing data.
 real_cost=request(f"/api/v1/factory-cost/orders/{clock_order_id}/actual-variance")
 assert real_cost["orderId"]==clock_order_id
