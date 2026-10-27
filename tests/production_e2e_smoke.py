@@ -298,6 +298,10 @@ operator_request("/auth/login", "POST", {
     "username": operator_login, "password": operator_password
 })
 operator_csrf = operator_request("/auth/csrf")["token"]
+operator_profile = operator_request("/auth/me")
+assert "ProductionOperator" in operator_profile["roles"]
+assert "Planner" not in operator_profile["roles"]
+assert "Administrator" not in operator_profile["roles"]
 
 # Stage 24: shop-floor operator is never the manufacturing plan/release authority.
 operator_request("/api/v1/manufacturing-orders", "POST", {
