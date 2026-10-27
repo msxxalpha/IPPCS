@@ -385,6 +385,20 @@ assert all(x["lotKey"] == parent_lots[0]["lotKey"] for x in preview["allocations
 assert preview["allocations"][0]["finishTime"] <= preview["allocations"][1]["startTime"]
 assert request(f"/api/v1/mrp/{mps['id']}/lot-capacity-preview?horizonDays=0",status=400)["message"]
 print("PASS: SQL net MRP proposed lot finite-center check, operation precedence and validation.")
+# Stage 9.6: no false capacity availability while an active production order
+# still uses the same operation center. This is an independent IPPCS order.
+competing = request("/api/v1/manufacturing-orders", "POST", {
+    "number": "CI-RESERVED-CENTER-STAGE96",
+    "itemId": product["id"], "plannedQuantity": 2,
+    "plannedStartJalali": JALALI_NOW, "dueOnJalali": JALALI_NOW
+}, 201)
+request(f"/api/v1/manufacturing-orders/{competing['id']}/release", "POST")
+conflicted = request(f"/api/v1/mrp/{mps['id']}/lot-capacity-preview?horizonDays=7")
+assert conflicted["blockedLots"] >= 1 and conflicted["onTimeLots"] == 0, conflicted
+assert conflicted["conservativelyBlockedActiveOrders"] >= 1, conflicted
+assert not conflicted["allocations"], conflicted
+print("PASS: active manufacturing order conservatively reserves its work centers in net MRP preview.")
+
 
 
 print("PASS: isolated local operator account, permission boundary, material reporting, "
