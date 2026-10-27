@@ -352,6 +352,13 @@ public static class FactoryDemandApsEndpoints
                     return Results.BadRequest(new{message="مرکز، علت یا تاریخ شمسی روز عدم‌دسترسی معتبر نیست."});
                 unavailable.Add((block.WorkCenterId,blockedOn));
             }
+            if(unavailable.Count>0)
+            {
+                var validCenterIds=await db.WorkCenters.AsNoTracking()
+                    .Select(x=>x.Id).ToHashSetAsync(ct);
+                if(unavailable.Any(x=>!validCenterIds.Contains(x.WorkCenterId)))
+                    return Results.BadRequest(new{message="مرکز کاری انتخاب‌شده برای روز عدم‌دسترسی وجود ندارد."});
+            }
             var tasks=new List<ApsTask>();
             var errors=new List<string>();
             foreach(var line in plan.Lines.OrderBy(x=>x.NeededOn).ThenBy(x=>x.ItemId))
@@ -385,6 +392,7 @@ public static class FactoryDemandApsEndpoints
                     startTime=x.StartsAt.ToString("HH:mm"),
                     finishJalali=PersianPlanningDates.Format(x.FinishDate),
                     finishTime=x.FinishesAt.ToString("HH:mm")}),
+                unavailableDays=unavailable.Select(x=>new{workCenterId=x.WorkCenterId,dateJalali=PersianPlanningDates.Format(x.Date)}),
                 result.Unscheduled,result.TotalLateOperations,
                 disclaimer="پیش‌نویس زمان‌بندی با ظرفیت محدود؛ مواد، خرابی پیش‌بینی‌نشده، ابزار و بهینه‌سازی سراسری اعمال نشده‌اند."});
         }).RequireAuthorization("IpPlanningWrite");
