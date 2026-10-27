@@ -45,6 +45,16 @@ def stage23_acceptance(request, base, mps_line):
     qa1=make_qa("one")
     qa2=make_qa("two")
     qa1("/api/v1/mps","POST",{"code":"FORBIDDEN-QUALITY-MPS"},403)
+    qa1("/api/v1/manufacturing-orders","POST",{
+        "number":"CI-ST24-QUALITY-MUST-NOT-RELEASE","itemId":"00000000-0000-0000-0000-000000000001",
+        "plannedQuantity":2,"plannedStartJalali":"1405/08/05",
+        "dueOnJalali":"1405/08/05"},403)
+    qa1("/api/v1/manufacturing-orders/00000000-0000-0000-0000-000000000001/release",
+        "POST",status=403)
+    qa1("/api/v1/manufacturing-orders/00000000-0000-0000-0000-000000000001/quality-holds",
+        "POST",{"operationId":"00000000-0000-0000-0000-000000000002",
+                "quantity":1,"reason":"Authorized quality containment"},404)
+    print("PASS: SQL quality role cannot plan or release orders, but may initiate quality containment.")
     request(path+"/effectiveness/review","POST",{
         "effective":True,"evidenceReference":"QA-CI-SELF",
         "observation":"Planner cannot independently certify own closure."},409)
