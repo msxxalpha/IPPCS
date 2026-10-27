@@ -329,7 +329,7 @@ function register(){
   try{const data=await api("/factory-cost/orders/"+id);
    table("#cost-table",[["عملیات","name"],["دقیقه تخمینی",x=>format(x.estimateTime)],
     ["دقیقه استاندارد عملکرد",x=>format(x.observedTime)],
-    ["نرخ تعریف‌شده",x=>x.hasCostRate?"بله":"خیر"],
+    ["نرخ جاری تعریف‌شده",x=>x.hasCostRate?"بله":"خیر"],
     ["هزینه تبدیل (ریال)",x=>format(x.conversionRials)],
     ["هزینه ضایعات (ریال)",x=>format(x.scrapRials)]],data.rows);
    const [measured,rateHistory]=await Promise.all([
@@ -367,12 +367,8 @@ function register(){
    else if(rateHistory.missingRates>0)
      flash("بعضی نرخ‌ها هنگام آزادسازی نامشخص بوده‌اند؛ نباید با نرخ جدید تکمیل شوند.",true);
    else flash("مبنای هزینه تبدیل هنگام آزادسازی دستور منجمد شده است.");
-   // Standard-only display remains a live planning estimate, unlike the
-   // immutable release-time evidence shown immediately above.
-   /* 
-   flash("برآورد تبدیل: "+format(data.totalConversionRials)+" ریال، برآورد ضایعات: "+
-    format(data.totalScrapRials)+" ریال. مراکز بدون نرخ: "+data.missingRates);
-   */
+   // The first estimate table uses today's center standard rates. The
+   // historical actual-variance table above uses frozen per-order evidence.
   }catch(e){flash(e.message,true);}
  };
  addForm("#production-alert-form",async f=>{
