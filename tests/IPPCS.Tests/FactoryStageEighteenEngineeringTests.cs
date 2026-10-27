@@ -30,6 +30,11 @@ public sealed class FactoryStageEighteenEngineeringTests
         Assert.Contains(report.Parts,x=>x.ComponentId==c&&x.ChangeType=="Added");
         Assert.Equal(1,report.ActiveOrCompletedOrders);
         Assert.Equal(frozen.Id,Assert.Single(report.Orders).OrderId);
+        frozen.PlannedStart=new DateOnly(2026,10,2);
+        // Work started before cutover must still appear if not complete.
+        report=FactoryEngineeringChangeImpact.Bom(original,draft,[original],[frozen]);
+        Assert.Single(report.Orders);
+        Assert.Equal(1,report.ActiveOrCompletedOrders);
         draft.ValidFrom=new DateOnly(2026,10,27);
         report=FactoryEngineeringChangeImpact.Bom(original,draft,[original],[frozen]);
         Assert.False(report.ReadyForRegularApproval);
