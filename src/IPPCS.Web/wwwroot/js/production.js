@@ -71,6 +71,15 @@
     const date=new Date(iso);
     return Number.isNaN(date.getTime())?"—":date.toLocaleDateString("fa-IR-u-ca-persian",{timeZone:"UTC",year:"numeric",month:"2-digit",day:"2-digit"});
   };
+  async function loadItemUnitChoices(){
+    const rows=await api("/api/v1/factory-master-options?kind=UnitOfMeasure");
+    const control=$("#item-unit");
+    IPPCSChoices.fill(control,rows,{value:"code",
+      label:unit=>unit.code+" — "+unit.label,
+      placeholder:"واحد اندازه‌گیری را انتخاب کنید"});
+    if(rows.some(x=>x.code==="PCS"))control.value="PCS";
+    if(!rows.length)notice("واحد اندازه‌گیری در اطلاعات پایه وجود ندارد؛ مدیر سامانه باید آن را ثبت کند.",true);
+  }
   function displayItems(){
     table($("#item-list"),[["کد", "code"],["عنوان", "name"],["واحد", "unit"],["نوع",x=>["مواد اولیه","نیمه‌ساخته","محصول نهایی","مصرفی"][x.type]||x.type]],state.items);
     $$("[data-items]").forEach(x=>fillSelect(x,state.items));
@@ -191,6 +200,7 @@
     formHandler("#plan-form",f=>api("/api/v1/production-plans/jalali","POST",{
       itemId:fval(f,"itemId"),quantity:decimal(f,"quantity"),dueDateJalali:fval(f,"due")
     }));
+    loadItemUnitChoices().catch(e=>notice("فهرست واحدهای اندازه‌گیری بارگذاری نشد: "+e.message,true));
     reload().catch(e=>notice("دریافت داده‌ها امکان‌پذیر نیست. ابتدا دیتابیس توسعه و Migrationها را آماده کنید. "+e.message,true));
   }
   if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",start);else start();
