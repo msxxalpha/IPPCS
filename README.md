@@ -1,5 +1,7 @@
 # IPPCS — سامانه مستقل برنامه‌ریزی و کنترل تولید کمک‌فنر
 
+> **آخرین وضعیت مرحلهٔ ۳۵:** همهٔ ۱۸ ماژول دارای قابلیت‌های آزمایشی کدنویسی‌شده هستند، اما هیچ‌کدام هنوز توسط کاربران واقعی کارخانه تأیید و برای بهره‌برداری نهایی مجاز نشده‌اند. جدول وضعیت به‌روز: [وضعیت ۱۸ ماژول](docs/STAGE35_MODULE_STATUS.md). برای اولین بارگیری در Visual Studio: [راهنمای شروع امن](docs/FIRST_RUN_VISUAL_STUDIO.md). داخل سامانه، صفحهٔ `/factory-release-readiness.html` وضعیت پیش‌نیازها را بدون تغییر داده نشان می‌دهد. گزارش‌های مراحل تاریخیِ پایین این فایل را نباید جایگزین وضعیت جدید دانست. **`main` نباید با Draft PR ادغام شود.**
+
 An independent manufacturing-specific planning and execution system built with .NET 10, SQL Server and Persian RTL user interfaces.
 
 ## Approved product contract
