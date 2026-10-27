@@ -120,6 +120,12 @@ public static class ManufacturingFoundationEndpoints
 
         api.MapPost("/routings/{id:guid}/operations", async (Guid id, OperationInput input, ProductionDb db, CancellationToken ct) =>
         {
+            var owner=await db.RoutingRevisions.AsNoTracking().Where(x=>x.Id==id)
+                .Select(x=>(Guid?)x.ItemId).SingleOrDefaultAsync(ct);
+            if(owner is null)return Results.NotFound();
+            await using var tx=await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable,ct);
+            try{await FactoryRevisionGovernance.LockRevisionItem(db,"Routing",owner.Value,ct);}
+            catch(Microsoft.Data.SqlClient.SqlException){return Results.Conflict(new{message="قفل ویرایش مسیر ساخت در دسترس نیست."});}
             var route = await db.RoutingRevisions.SingleOrDefaultAsync(x => x.Id == id, ct);
             if (route is null) return Results.NotFound();
             if (route.State != RoutingState.Draft) return Results.Conflict(new { message = "فقط مسیر پیش‌نویس قابل تغییر است." });
@@ -136,7 +142,7 @@ public static class ManufacturingFoundationEndpoints
                 RunMinutesPerUnit = input.RunMinutesPerUnit, YieldPercent = input.YieldPercent
             };
             db.RoutingOperations.Add(operation);
-            await db.SaveChangesAsync(ct);
+            await db.SaveChangesAsync(ct);await tx.CommitAsync(ct);
             return Results.Created($"/api/v1/routings/{id}", new {
                 operation.Id, operation.Sequence, operation.Name, operation.WorkCenterId,
                 operation.SetupMinutes, operation.RunMinutesPerUnit, operation.YieldPercent
