@@ -162,6 +162,9 @@ public static class ManufacturingQualityAndOeeEndpoints
             if(string.IsNullOrWhiteSpace(input.Reason)||input.Reason.Length>500)
                 return Results.BadRequest(new{message="علت عدم‌انطباق معتبر لازم است."});
             await using var tx=await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable,ct);
+            try{await FactoryCapacityReservations.LockOrder(db,id,ct);}
+            catch(Microsoft.Data.SqlClient.SqlException)
+            {return Results.Conflict(new{message="قفل دستور برای تصمیم کیفیت در دسترس نیست."});}
             var order=await db.ManufacturingOrders.Include(x=>x.Operations).SingleOrDefaultAsync(x=>x.Id==id,ct);
             if(order is null)return Results.NotFound();
             if(!ManufacturingPerformance.CanHold(order,input.OperationId,input.Quantity,out var error))
@@ -187,6 +190,9 @@ public static class ManufacturingQualityAndOeeEndpoints
                 ||string.IsNullOrWhiteSpace(input.Note)||input.Note.Length>500)
                 return Results.BadRequest(new{message="تصمیم و شرح تعیین تکلیف معتبر لازم است."});
             await using var tx=await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable,ct);
+            try{await FactoryCapacityReservations.LockOrder(db,id,ct);}
+            catch(Microsoft.Data.SqlClient.SqlException)
+            {return Results.Conflict(new{message="قفل دستور برای تصمیم کیفیت در دسترس نیست."});}
             var order=await db.ManufacturingOrders.Include(x=>x.Operations)
                 .ThenInclude(x=>x.InspectionRequirements).SingleOrDefaultAsync(x=>x.Id==id,ct);
             if(order is null)return Results.NotFound();
