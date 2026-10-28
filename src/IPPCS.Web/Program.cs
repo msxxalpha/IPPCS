@@ -160,6 +160,7 @@ app.MapGenealogyExplorer();
 app.MapFactoryRecallImpact();
 app.MapFactoryExecutionInsights();
 app.MapFactorySpcEvidence();
+app.MapFactorySamplingCoverage();
 app.MapPlanningReconciliation();
 app.MapMpsChangeControl();
 app.MapFactoryRevisionGovernance();
