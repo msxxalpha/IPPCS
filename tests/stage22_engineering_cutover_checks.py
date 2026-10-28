@@ -51,6 +51,14 @@ def stage22_acceptance(request, jalali, tomorrow, component_id):
         "sequence":10,"name":"Old jig","workCenterId":center["id"],
         "setupMinutes":1,"runMinutesPerUnit":2,"yieldPercent":100},201)
     request(f"/api/v1/routings/{route_old['id']}/approve","POST")
+    control_old=request("/api/v1/control-plans","POST",{
+        "routingRevisionId":route_old["id"],"code":"CI-ST22-ROUTE-A-CONTROL",
+        "validFromJalali":jalali,"validUntilJalali":None},201)
+    request(f"/api/v1/control-plans/{control_old['id']}/characteristics","POST",{
+        "operationSequence":10,"code":"ST22-OLD-FINAL-CHECK",
+        "description":"Old routing quality check","unit":"N",
+        "minimum":0,"maximum":100,"mandatory":True},201)
+    request(f"/api/v1/control-plans/{control_old['id']}/approve","POST")
     route_new=request("/api/v1/routings","POST",{
         "itemId":item["id"],"revisionCode":"CI-ST22-ROUTE-B",
         "effectiveFromJalali":tomorrow,"effectiveToJalali":None},201)
