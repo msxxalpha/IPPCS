@@ -19,7 +19,7 @@
     ["شجره بچ و سریال","ردیابی، دامنه اثر و فراخوان محدود","قابل آزمایش؛ UAT باز","/factory-recall.html"],
     ["What-if و سناریوها","سنجش فرضیات بدون تغییر برنامه مصوب","قابل آزمایش؛ UAT باز","/planning-advanced.html"],
     ["هزینه تبدیل","نرخ داخلی و مغایرت هزینه واقعی/استاندارد","قابل آزمایش؛ UAT باز","/planning-advanced.html"],
-    ["داشبورد و شاخص‌ها","پایش منابع داخلی و هشدارهای کارخانه","قابل آزمایش؛ UAT باز","/factory-release-readiness.html"]
+    ["داشبورد و شاخص‌ها","گزارش‌های تحلیلی تولید، کیفیت و CAPA","قابل آزمایش؛ UAT باز","/factory-reports.html"]
   ];
   const state={items:[],centers:[],routings:[],shifts:[],plans:[]};
   const $=sel=>document.querySelector(sel);
