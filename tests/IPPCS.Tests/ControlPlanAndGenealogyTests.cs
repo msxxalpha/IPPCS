@@ -80,4 +80,25 @@ public sealed class ControlPlanAndGenealogyTests
         Assert.False(ManufacturingInspectionRules.Passed(requirement, 12.001m));
     }
 
+    [Fact]
+    public void Control_plan_requires_mandatory_characteristic_on_final_routing_operation()
+    {
+        var route=new RoutingRevision
+        {
+            Operations=[
+                new RoutingOperation{Sequence=10,Name="Welding"},
+                new RoutingOperation{Sequence=20,Name="Final assembly"}
+            ]
+        };
+        var characteristics=new List<ControlPlanCharacteristic>
+        {
+            new(){OperationSequence=10,Mandatory=true,Code="WELD"},
+            new(){OperationSequence=20,Mandatory=false,Code="VISUAL"}
+        };
+        Assert.False(ManufacturingInspectionRules.HasMandatoryFinalCharacteristic(characteristics,route));
+        characteristics.Add(new(){OperationSequence=20,Mandatory=true,Code="FORCE"});
+        Assert.True(ManufacturingInspectionRules.HasMandatoryFinalCharacteristic(characteristics,route));
+        Assert.False(ManufacturingInspectionRules.HasMandatoryFinalCharacteristic(characteristics,new RoutingRevision()));
+    }
+
 }
