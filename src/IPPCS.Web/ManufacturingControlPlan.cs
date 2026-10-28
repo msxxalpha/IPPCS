@@ -77,6 +77,14 @@ public static class ManufacturingInspectionRules
         (item.Minimum.HasValue || item.Maximum.HasValue) &&
         (!item.Minimum.HasValue || value>=item.Minimum.Value) &&
         (!item.Maximum.HasValue || value<=item.Maximum.Value);
+    public static bool HasMandatoryFinalCharacteristic(
+        IReadOnlyCollection<ControlPlanCharacteristic> characteristics,
+        RoutingRevision route)
+    {
+        if(route.Operations.Count==0)return false;
+        var finalSequence=route.Operations.Max(x=>x.Sequence);
+        return characteristics.Any(x=>x.OperationSequence==finalSequence&&x.Mandatory);
+    }
     public static bool GatePassed(ManufacturingOrderOperation operation) =>
         operation.GoodQuantity+operation.ScrapQuantity+operation.ReworkQuantity==0 ||
         operation.InspectionRequirements.All(x=>!x.Mandatory || x.LastPassed==true);
@@ -264,6 +272,8 @@ public static class ManufacturingControlPlanEndpoints
                 (x.Minimum.HasValue&&x.Maximum.HasValue&&x.Minimum>x.Maximum)||
                 string.IsNullOrWhiteSpace(x.Code)))
                 return Results.Conflict(new{message="مشخصه‌های کنترل پلن باید با عملیات مسیر منطبق باشند و هر مشخصه عددی دست‌کم یک حد پذیرش معتبر داشته باشد."});
+            if(!ManufacturingInspectionRules.HasMandatoryFinalCharacteristic(plan.Characteristics,route))
+                return Results.Conflict(new{message="کنترل پلن باید دست‌کم یک مشخصه اجباری برای آخرین عملیات مسیر ساخت داشته باشد تا کنترل نهایی قابل تأیید باشد."});
             var overlap=await db.ManufacturingControlPlans.AsNoTracking().AnyAsync(x=>
                 x.Id!=id && x.RoutingRevisionId==plan.RoutingRevisionId && x.State==ControlPlanState.Approved
                 && x.ValidFrom<=(plan.ValidUntil??DateOnly.MaxValue)
