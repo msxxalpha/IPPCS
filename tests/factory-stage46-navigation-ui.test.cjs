@@ -49,8 +49,8 @@ test("key workflow scripts only bind direct static IDs that exist on their page"
  ];
  for(const [page,script] of pairs){
   const html=read(page),source=read(script);
-  const ids=new Set([...html.matchAll(/\\bid="([^"]+)"/g)].map(m=>m[1]));
-  const selectors=[...source.matchAll(/\\$\\("#([^"]+)"\\)/g)]
+  const ids=new Set([...html.matchAll(/id="([^"]+)"/g)].map(m=>m[1]));
+  const selectors=[...source.matchAll(/\$\("#([^"]+)"\)/g)]
    .map(m=>m[1]).filter(s=>/^[A-Za-z][A-Za-z0-9_-]*$/.test(s));
   for(const id of new Set(selectors)){
    assert.ok(ids.has(id),script+" references missing static element #"+id+" in "+page);
