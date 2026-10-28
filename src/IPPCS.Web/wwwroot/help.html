@@ -33,6 +33,10 @@
 <section id="help-rollout" aria-label="راهنمای استقرار">
 <div class="section-title"><h2>شروع اصولی استقرار — ۱۴ گام</h2><small>هر گام پس از تأمین داده و بررسی خروجی گام قبلی اجرا می‌شود.</small></div>
 <p>برای هر گام، اطلاعات مورد نیاز، اقدام در فرم و معیار بررسی نتیجه آمده است. علامت «بررسی شد» فقط پیشرفت شخصی روی صفحه است و در دیتابیس ثبت یا به معنای پذیرش رسمی نیست.</p>
+<div class="callout">
+<strong>پیش از استفاده از هر فرم، دیتابیس مستقل IPPCS را نصب کنید.</strong>
+برای اولین اجرای Visual Studio، از آخرین GitHub Actions موفقِ Draft PR، بسته <code>IPPCS_Dev_Complete_Install_SQL</code> را در قسمت Artifacts دریافت کنید؛ فایل SQL داخل آن در SSMS دیتابیس <code>IPPCS_Dev</code> و تمام جداول نسخه‌دار را می‌سازد. سپس Connection String و حساب مدیر محلی را با User Secrets تنظیم کنید. برای راهنمای کامل نصب <a href="https://github.com/msxxalpha/IPPCS/blob/feature/production-platform-foundation/database/README.md" target="_blank" rel="noopener noreferrer">مراحل ایمن SQL Server و Visual Studio</a> را بخوانید. این کار هیچ اتصال یا تغییر در دیتابیس دیگر سامانه‌های شرکت ندارد.
+</div>
 <div id="help-progress" class="help-progress" aria-live="polite"></div>
 <div id="help-steps" class="help-steps"></div>
 </section>
