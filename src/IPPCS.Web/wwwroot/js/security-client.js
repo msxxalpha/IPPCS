@@ -50,7 +50,20 @@
  // Pure DOM links only: never modify submitted payloads or operational data.
  function injectHelpLinks(){
   if(location.pathname==="/login.html"||location.pathname==="/help.html")return;
+  // Make navigation state explicit and close the mobile drawer after following a link.
   const nav=document.querySelector(".sidebar nav");
+  if(nav){
+   nav.querySelectorAll('a[href]').forEach(link=>{
+    try{
+     const target=new URL(link.href,location.origin);
+     if(target.origin===location.origin&&target.pathname===location.pathname){
+      link.setAttribute("aria-current","page");
+      link.classList.add("nav-current");
+     }
+    }catch{}
+    link.addEventListener("click",()=>document.querySelector(".sidebar")?.classList.remove("open"));
+   });
+  }
   if(nav&&!nav.querySelector("[data-ip-help-nav]")){
    const link=document.createElement("a");link.className="planning-link";
    link.setAttribute("data-ip-help-nav","");
@@ -70,6 +83,25 @@
    form.insertBefore(a,form.firstChild);
   }
  }
+ // Report script/runtime failures visibly instead of leaving a form that appears inert.
+ function reportClientFailure(message){
+  const existing=document.querySelector("[data-ip-client-error]");
+  if(existing)return;
+  const host=document.querySelector(".content")||document.querySelector("main")||document.body;
+  const banner=document.createElement("div");
+  banner.dataset.ipClientError="";
+  banner.className="notice error";
+  banner.setAttribute("role","alert");
+  banner.textContent="بخشی از فرم به‌درستی بارگذاری نشد. صفحه را تازه‌سازی کنید؛ اگر مشکل تکرار شد، متن خطا را برای پشتیبانی ارسال کنید. "+String(message||"").slice(0,220);
+  host.prepend(banner);
+ }
+ window.addEventListener("error",event=>{
+  if(event.filename&&event.filename.includes("/js/"))reportClientFailure(event.message);
+ });
+ window.addEventListener("unhandledrejection",event=>{
+  const reason=event.reason;
+  if(reason instanceof Error)reportClientFailure(reason.message);
+ });
  if(document.readyState==="loading")
   document.addEventListener("DOMContentLoaded",injectHelpLinks);
  else injectHelpLinks();
