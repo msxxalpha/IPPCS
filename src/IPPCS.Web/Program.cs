@@ -159,6 +159,7 @@ app.MapInProcessHandoffs();
 app.MapGenealogyExplorer();
 app.MapFactoryRecallImpact();
 app.MapFactoryExecutionInsights();
+app.MapFactorySpcEvidence();
 app.MapPlanningReconciliation();
 app.MapMpsChangeControl();
 app.MapFactoryRevisionGovernance();
