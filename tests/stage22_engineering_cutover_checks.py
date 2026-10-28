@@ -104,6 +104,14 @@ def stage22_acceptance(request, jalali, tomorrow, component_id):
                     {**base,"dryRun":False})
     assert applied["ecoApprovalStatus"]=="Executed",applied
     assert applied["journalId"],applied
+    control_new=request("/api/v1/control-plans","POST",{
+        "routingRevisionId":route_new["id"],"code":"CI-ST22-ROUTE-B-CONTROL",
+        "validFromJalali":tomorrow,"validUntilJalali":None},201)
+    request(f"/api/v1/control-plans/{control_new['id']}/characteristics","POST",{
+        "operationSequence":10,"code":"ST22-NEW-FINAL-CHECK",
+        "description":"New routing quality check","unit":"N",
+        "minimum":0,"maximum":100,"mandatory":True},201)
+    request(f"/api/v1/control-plans/{control_new['id']}/approve","POST")
     request("/api/v1/factory-engineering/cutover","POST",
             {**base,"dryRun":False},409)
     versions=request("/api/v1/routings")
