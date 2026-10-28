@@ -40,7 +40,7 @@ app.UseIpCsrfProtection();
 app.MapIpAuth();
 app.MapLocalAccounts();
 app.MapGet("/", () => Results.Redirect("/app.html"));
-app.MapGet("/health", () => Results.Ok(new { service = "IPPCS", status = "ready", version = "0.7.1" }));
+app.MapGet("/health", FactoryFirstRunHealth.Check);
 var api = app.MapGroup("/api/v1").RequireAuthorization("IpProductionUser");
 
 // Items are planning references, NOT warehouse inventory records.
