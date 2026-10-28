@@ -41,8 +41,11 @@ public sealed class FactoryApsRun
 public record FactoryDemandInput(Guid ItemId,string Reference,string DueOnJalali,decimal Quantity,string Category);
 public record FactorySopInput(string Code,string FromJalali,string ThroughJalali);
 public record FactoryApsUnavailableDay(Guid WorkCenterId,string DateJalali,string Reason,string? ReasonCode=null);
+public record FactoryApsUnavailableSlot(Guid WorkCenterId,string StartJalali,string StartTime,
+    string EndJalali,string EndTime,string Reason,string? ReasonCode=null);
 public record FactoryApsInput(Guid MpsVersionId,string StartJalali,int HorizonDays,
-    decimal CapacityMultiplier=1m,List<FactoryApsUnavailableDay>? UnavailableDays=null);
+    decimal CapacityMultiplier=1m,List<FactoryApsUnavailableDay>? UnavailableDays=null,
+    List<FactoryApsUnavailableSlot>? UnavailableSlots=null);
 public record ApsTask(Guid DemandLineId,Guid ItemId,DateOnly DueOn,decimal Quantity,Guid RoutingRevisionId,
     int OperationSequence,Guid WorkCenterId,decimal DurationMinutes,string OperationName);
 public record ApsAllocation(Guid ItemId,Guid WorkCenterId,int Sequence,decimal Quantity,
@@ -241,6 +244,43 @@ public static class FiniteFactoryScheduler
             }
         }
         return new(result,missing,result.Count(x=>x.Late));
+    }
+}
+
+// A scenario-only machine setup/maintenance window: half-open local Tehran
+// interval, not an equipment maintenance module or operational clock record.
+public static class FactoryApsScenarioSlots
+{
+    public static bool TryWindow(FactoryApsUnavailableSlot slot,DateOnly from,
+        int horizonDays,out WorkCenterOccupiedInterval window)
+    {
+        window=default!;
+        if(horizonDays is <1 or >90||slot.WorkCenterId==Guid.Empty||
+            !PersianPlanningDates.TryParse(slot.StartJalali,out var startDay)||
+            !PersianPlanningDates.TryParse(slot.EndJalali,out var endDay)||
+            !TimeOnly.TryParseExact(PersianPlanningDates.NormalizeDigits(slot.StartTime??""),
+                "HH:mm",CultureInfo.InvariantCulture,DateTimeStyles.None,out var startTime)||
+            !TimeOnly.TryParseExact(PersianPlanningDates.NormalizeDigits(slot.EndTime??""),
+                "HH:mm",CultureInfo.InvariantCulture,DateTimeStyles.None,out var endTime))
+            return false;
+        var start=startDay.ToDateTime(startTime);
+        var end=endDay.ToDateTime(endTime);
+        if(start<from.ToDateTime(TimeOnly.MinValue)||
+            end>from.AddDays(horizonDays).ToDateTime(TimeOnly.MinValue)||
+            end<=start||end-start>TimeSpan.FromDays(2))return false;
+        window=new WorkCenterOccupiedInterval(slot.WorkCenterId,start,end);
+        return true;
+    }
+
+    public static bool Overlaps(IEnumerable<WorkCenterOccupiedInterval> source)
+    {
+        foreach(var group in source.GroupBy(x=>x.WorkCenterId))
+        {
+            var sorted=group.OrderBy(x=>x.StartLocal).ToArray();
+            for(int i=1;i<sorted.Length;i++)
+                if(sorted[i].StartLocal<sorted[i-1].EndLocal)return true;
+        }
+        return false;
     }
 }
 
@@ -505,6 +545,35 @@ public static class FactoryDemandApsEndpoints
                 if(unavailable.Any(x=>!validCenterIds.Contains(x.WorkCenterId)))
                     return Results.BadRequest(new{message="مرکز کاری انتخاب‌شده برای روز عدم‌دسترسی وجود ندارد."});
             }
+            var scenarioSlots=new List<WorkCenterOccupiedInterval>();
+            var inputs=input.UnavailableSlots??new();
+            if(inputs.Count>100)return Results.BadRequest(new{
+                message="حداکثر ۱۰۰ بازه عدم‌دسترسی ساعتی در هر سناریوی APS مجاز است."});
+            foreach(var slot in inputs)
+            {
+                if(!FactoryApsScenarioSlots.TryWindow(slot,start,input.HorizonDays,
+                    out var interval)||string.IsNullOrWhiteSpace(slot.ReasonCode)||
+                    string.IsNullOrWhiteSpace(slot.Reason)||slot.Reason.Length>180)
+                    return Results.BadRequest(new{
+                        message="مرکز، تاریخ/ساعت شروع و پایان در افق، یا دلیل بازه عدم‌دسترسی نامعتبر است."});
+                var registered=await FactoryMasterData.Active(db,
+                    FactoryMasterData.CapacityBlackoutReason,slot.ReasonCode,ct);
+                if(registered is null||slot.Reason.Trim()!=registered.Label)
+                    return Results.Conflict(new{
+                        message="کد و عنوان دلیل توقف ساعتی باید با اطلاعات پایه فعال برابر باشند."});
+                scenarioSlots.Add(interval);
+            }
+            if(FactoryApsScenarioSlots.Overlaps(scenarioSlots))
+                return Results.Conflict(new{
+                    message="بازه‌های توقف ساعتی یک مرکز کاری همپوشانی دارند؛ سناریو را اصلاح کنید."});
+            if(scenarioSlots.Count>0)
+            {
+                var centerIds=await db.WorkCenters.AsNoTracking()
+                    .Select(x=>x.Id).ToHashSetAsync(ct);
+                if(scenarioSlots.Any(x=>!centerIds.Contains(x.WorkCenterId)))
+                    return Results.BadRequest(new{
+                        message="مرکز کاری یکی از بازه‌های توقف ساعتی وجود ندارد."});
+            }
             var bomRevisions=await db.ManufacturingBomRevisions.AsNoTracking()
                 .Include(x=>x.Lines).Where(x=>x.State==ManufacturingRevisionState.Approved).ToListAsync(ct);
             var balances=await db.PlanningBalances.AsNoTracking().ToListAsync(ct);
@@ -556,7 +625,7 @@ public static class FactoryDemandApsEndpoints
                 unavailable.UnionWith(evidence.ReservedDays);
                 result=FiniteFactoryScheduler.Schedule(tasks,shifts,start,
                     input.HorizonDays,input.CapacityMultiplier,unavailable,
-                    occupiedIntervals:evidence.OccupiedIntervals);
+                    occupiedIntervals:evidence.OccupiedIntervals.Concat(scenarioSlots).ToArray());
             }
             catch(Exception ex)when(ex is ArgumentException or InvalidOperationException
                 or OverflowException)
@@ -569,7 +638,9 @@ public static class FactoryDemandApsEndpoints
                             evidence.OpenClocks,evidence.BlockedOperations,
                             reservedDays=evidence.ReservedDays.Count,
                             occupiedIntervals=evidence.OccupiedIntervals.Count},
-                        unavailableDays=input.UnavailableDays?.Select(x=>new{x.WorkCenterId,x.DateJalali,x.Reason,x.ReasonCode})}),
+                        unavailableDays=input.UnavailableDays?.Select(x=>new{x.WorkCenterId,x.DateJalali,x.Reason,x.ReasonCode}),
+                        unavailableSlots=inputs.Select(x=>new{x.WorkCenterId,x.StartJalali,x.StartTime,
+                            x.EndJalali,x.EndTime,x.Reason,x.ReasonCode})}),
                 OutputJson=JsonSerializer.Serialize(result)};
             db.FactoryApsRuns.Add(snapshot);await db.SaveChangesAsync(ct);
             return Results.Ok(new{runId=snapshot.Id,snapshot.Algorithm,
@@ -584,7 +655,8 @@ public static class FactoryDemandApsEndpoints
                 executionEvidence=new{evidence.ActiveOrders,evidence.ActiveReservations,
                     evidence.OpenClocks,evidence.BlockedOperations,
                     reservedDays=evidence.ReservedDays.Count,
-                    occupiedIntervals=evidence.OccupiedIntervals.Count},
+                    occupiedIntervals=evidence.OccupiedIntervals.Count,
+                    scenarioUnavailableSlots=scenarioSlots.Count},
                 disclaimer="پیش‌نمایش ظرفیت محدود با فرضیات مواد مستقل IPPCS، رزرو و ساعت‌های عملیاتی ثبت‌شده. ابزار مشترک و خرابی ثبت‌نشده هنوز اعمال نمی‌شوند؛ مجوز آزادسازی نیست."});
         }).RequireAuthorization("IpPlanningWrite");
         return routes;
