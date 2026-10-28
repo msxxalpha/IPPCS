@@ -72,6 +72,13 @@ function pageCard(page,query){
   const block=create("div",undefined,"help-form");block.id="form-"+id;
   block.append(create("h4",title));
   fields([["شناسه فرم",id],["چگونه استفاده شود",usage]],block);
+  const labels=window.IPPCSHelpFields?.[page.page]?.[id]||[];
+  if(labels.length){
+   block.append(create("strong","فیلدهای واقعی فرم و داده‌هایی که باید آماده کنید:"));
+   const ul=create("ul",undefined,"help-workflows");
+   for(const label of labels)ul.append(create("li",label));
+   block.append(ul);
+  }
   block.append(plainLink(page.page,"رفتن به صفحه این فرم"));
   card.append(block);
  }
