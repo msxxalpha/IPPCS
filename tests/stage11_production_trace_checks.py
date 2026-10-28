@@ -64,7 +64,7 @@ def stage11_acceptance(request, component_id, center_id, jalali):
         res=request(f"/api/v1/manufacturing-orders/{order['id']}/production-readiness")
         assert res["isFinalQualityReady"],res
         qc=request(f"/api/v1/manufacturing-orders/{order['id']}/inspection-summary")
-        assert qc["resultsCount"]==0
+        assert qc["resultsCount"]==1,qc
     assert request(f"/api/v1/manufacturing-orders/{semi_order['id']}/assembly-genealogy",
                    status=409)["message"]
     print("PASS: SQL semi-finished to assembly genealogy, BOM coverage and QC readiness.")
