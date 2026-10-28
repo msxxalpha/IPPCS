@@ -1,5 +1,8 @@
 # IPPCS — سامانه مستقل برنامه‌ریزی و کنترل تولید کمک‌فنر
 
+> **نخستین نسخه آزمایشی برای Visual Studio — First UAT 1:** پس از سبزشدن CI، یک بسته یکپارچه `IPPCS_First_UAT_1_VisualStudio_SQL_Complete` با تمام فایل‌های پروژه، اسکریپت کامل SQL Server 2022 و راهنمای آزمون تولید می‌شود؛ برای شروع نیازی به Clone نیست. [بسته و روش آزمون نخست](docs/FIRST_UAT_TEST_PACK.md) · [راهنمای کامل نصب](docs/FIRST_RUN_VISUAL_STUDIO.md). شناسه نسخه در صفحه ورود و `/health`: `0.8.0-first-uat1`. برای استفاده تکرارپذیر، شاخه ثابت `uat/first-factory-test-2026-10-28` ایجاد می‌شود. نسخه فقط برای **آزمون بسته و محلی** است؛ وضعیت ۱۸ ماژول همچنان تأییدنشده در کارخانه است.
+
+
 > **مرحله ۴۳ — آماده‌سازی اولین اجرای Visual Studio و SQL Server:** برای اولین نصب دیتابیس، دیگر نیازی به ساخت دستی جدول‌ها نیست؛ در آخرین GitHub Actions موفق، Artifact `IPPCS_Dev_Complete_Install_SQL` یک فایل کامل `IPPCS_Dev_Complete_Install.sql` قابل اجرا در SSMS ارائه می‌دهد که از تمام EF Migrationهای نسخه‌دار تولید و روی SQL موقت آزموده می‌شود. [راهنمای SQL](database/README.md) · [شروع در Visual Studio](docs/FIRST_RUN_VISUAL_STUDIO.md) · [اولویت نواقص ۱۸ ماژول](docs/STAGE43_MODULE_AUDIT_AND_ONE_FILE_SQL.md). راهنمای داخلی نیز در `/help.html` کاربرد همهٔ ۶۴ فرم و ترتیب ۱۴گانه استقرار را توضیح می‌دهد. **هیچ ماژول یا اتصال کالیبراسیون، انبار، خرید، فروش یا منابع انسانی ایجاد نمی‌شود.**
 
 
