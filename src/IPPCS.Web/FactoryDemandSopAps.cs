@@ -630,8 +630,9 @@ public static class FactoryDemandApsEndpoints
             }
             if(sharedTools.Count>0)
             {
+                var assignedIds=sharedTools.Keys.ToArray();
                 var centerIds=await db.WorkCenters.AsNoTracking()
-                    .Where(x=>sharedTools.Keys.Contains(x.Id)).Select(x=>x.Id)
+                    .Where(x=>assignedIds.Contains(x.Id)).Select(x=>x.Id)
                     .ToHashSetAsync(ct);
                 if(centerIds.Count!=sharedTools.Count)
                     return Results.BadRequest(new{message="یک یا چند مرکز ابزار مشترک وجود ندارند."});
