@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>IPPCS | گزارش‌های عملیاتی و مدیریتی کارخانه</title>
+<link rel="stylesheet" href="/css/production.css">
+<script defer src="/js/security-client.js"></script>
+<script defer src="/js/jalali-datepicker.js"></script>
+<script defer src="/js/factory-choices.js"></script>
+<script defer src="/js/factory-reports.js"></script>
+</head>
+<body>
+<div class="app-shell">
+<aside class="sidebar"><div class="brand"><div class="brand-logo">IP</div><div><strong>ایندامین سایپا</strong><small>گزارش‌های IPPCS</small></div></div>
+<nav aria-label="گزارش و ماژول">
+<a class="planning-link" href="/app.html">صفحه اصلی</a>
+<a class="planning-link" href="/factory-release-readiness.html">ماتریس پذیرش ۱۸ ماژول</a>
+<a class="planning-link" href="/factory-analytical-verification.html">آزمون محاسبات تخصصی</a>
+<a class="planning-link" href="/planning.html">MPS / MRP / CRP</a>
+<a class="planning-link" href="/execution.html">اجرای خط و OEE</a>
+<a class="planning-link" href="/control-plan.html">کنترل کیفیت</a>
+<a class="planning-link" href="/production-deviations.html">اقدامات اصلاحی</a>
+</nav></aside>
+<div class="main">
+<header class="topbar"><div><span class="eyebrow">داده‌های ثبت‌شده در IPPCS</span>
+<h1>گزارش‌های مدیریتی و عملیاتی تولید</h1></div>
+<button type="button" data-ip-logout class="btn-outline">خروج</button></header>
+<main class="content">
+<div class="callout">این گزارش‌ها فقط بر مبنای شواهد داخلی سامانه تهیه می‌شوند؛ عبور یک قطعه از چند عملیات معادل تولید چند محصول نهایی نیست. ارقام کیفیت، انحرافات و وضعیت دستورها جایگزین آزمون و تأیید رسمی کارخانه نیستند.</div>
+<div id="report-message" class="notice" role="status" aria-live="polite" hidden></div>
+<form class="panel" id="report-filters">
+<h3>بازه و ابعاد گزارش</h3>
+<div class="form-grid">
+<label>از تاریخ شمسی <span class="jalali-field"><input id="report-from" required data-jalali-date placeholder="۱۴۰۵/۰۸/۰۱" aria-label="از تاریخ شمسی"><button type="button" class="date-trigger" data-jalali-trigger aria-label="تقویم شروع">▣</button></span></label>
+<label>تا تاریخ شمسی <span class="jalali-field"><input id="report-through" required data-jalali-date placeholder="۱۴۰۵/۰۸/۳۰" aria-label="تا تاریخ شمسی"><button type="button" class="date-trigger" data-jalali-trigger aria-label="تقویم پایان">▣</button></span></label>
+<label>محصول / قطعه <select id="report-item" aria-label="فیلتر محصول"><option value="">همه اقلام</option></select></label>
+<label>مرکز کاری (فقط عبور عملیات و قرنطینه) <select id="report-center" aria-label="فیلتر مرکز کاری"><option value="">همه مراکز</option></select></label>
+</div>
+<div class="form-actions"><button id="report-run" class="btn-main" type="submit">محاسبه و نمایش گزارش‌ها</button></div>
+<p>بازه مجاز حداکثر ۳۶۶ روز است. فیلتر محصول روی تمام بخش‌ها اعمال می‌شود. فیلتر مرکز فقط بر عبور عملیات و قرنطینه مؤثر است، نه CAPA و موعد دستور ساخت.</p>
+</form>
+<div class="summary-stats" aria-label="خلاصه شاخص‌ها">
+<div><span>تعداد دستور با موعد در بازه</span><strong id="kpi-orders">—</strong></div>
+<div><span>دستور تکمیل‌شده در این گروه</span><strong id="kpi-complete">—</strong></div>
+<div><span>تعداد تایید عبور عملیات</span><strong id="kpi-events">—</strong></div>
+<div><span>رخداد قرنطینه حل‌نشدهٔ فعلی</span><strong id="kpi-holds">—</strong></div>
+<div><span>اقدام اصلاحی سررسیدگذشتهٔ فعلی</span><strong id="kpi-capa">—</strong></div>
+</div>
+<section class="panel table-panel" aria-labelledby="rpt-order-title">
+<div class="section-title"><h3 id="rpt-order-title">۱. پایش موعد و تحقق دستورات ساخت</h3>
+<button class="btn-outline" type="button" data-export="orders" disabled>خروجی CSV</button></div>
+<p>گروه دستورات غیرلغوشده دارای موعد در بازه؛ درصد به‌موقع فقط بین تکمیل‌شده‌های دارای زمان ثبت پایان است.</p><div class="factory-responsive-table" id="rpt-orders"></div>
+</section>
+<section class="panel table-panel" aria-labelledby="rpt-center-title">
+<div class="section-title"><h3 id="rpt-center-title">۲. کارکرد ثبت‌شده مراکز و کیفیت عبور عملیات</h3>
+<button class="btn-outline" type="button" data-export="centers" disabled>خروجی CSV</button></div>
+<p>مجموع تأییدهای سالم/ضایعات/دوباره‌کاری هر عملیات؛ نرخ سالم، سهم از جمع عبورهای ثبت‌شده است و OEE محسوب نمی‌شود.</p><div class="factory-responsive-table" id="rpt-centers"></div>
+</section>
+<section class="panel table-panel" aria-labelledby="rpt-daily-title">
+<div class="section-title"><h3 id="rpt-daily-title">۳. روند روزانه ثبت عملیات</h3>
+<button class="btn-outline" type="button" data-export="daily" disabled>خروجی CSV</button></div>
+<p>روزها بر مبنای زمان تهران هستند. روز بدون تأیید ثبت‌شده در این جدول نمایش داده نمی‌شود.</p><div class="factory-responsive-table" id="rpt-daily"></div>
+</section>
+<section class="panel table-panel" aria-labelledby="rpt-quality-title">
+<div class="section-title"><h3 id="rpt-quality-title">۴. پرونده‌های قرنطینه آغازشده در دوره</h3></div>
+<div class="summary-stats">
+<div><span>رخدادهای قرنطینه</span><strong id="q-raised">—</strong></div>
+<div><span>تعداد رخدادهای باز فعلی</span><strong id="q-open">—</strong></div>
+<div><span>مقدار رخدادهای باز فعلی</span><strong id="q-quantity">—</strong></div>
+</div><p>مقدار قرنطینه، مانده موجودی یا مقدار فیزیکی در انبار نیست.</p>
+</section>
+<section class="panel table-panel" aria-labelledby="rpt-capa-title">
+<div class="section-title"><h3 id="rpt-capa-title">۵. Pareto اولیه انحراف و وضعیت CAPA</h3>
+<button class="btn-outline" type="button" data-export="capa" disabled>خروجی CSV</button></div>
+<p>شمارش پرونده‌های ثبت‌شده در بازه، تفکیک نوع و کد علت ریشه‌ای؛ وضعیت و تأخیر بر اساس زمان محاسبه کنونی هستند.</p><div class="factory-responsive-table" id="rpt-capa"></div>
+</section>
+<section class="panel"><h3>تعاریف و قابلیت اتکا</h3><ul id="report-definitions"><li>برای مشاهده تعاریف، گزارش را اجرا کنید.</li></ul>
+<p>برای تحلیل دقیق OEE، تحقق وابسته به MPS، SPC و هزینه تبدیل، گزارش تخصصی متناظر در صفحات ماژول و کارگاه آزمون تحلیلی را نیز بررسی کنید.</p></section>
+</main></div></div>
+</body></html>
