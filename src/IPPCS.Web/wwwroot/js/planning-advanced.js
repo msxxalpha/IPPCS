@@ -62,6 +62,8 @@ function showResources(){
  table("#sop-table",[["شناسه","code"],["از","fromJalali"],["تا","throughJalali"],
   ["نیاز",x=>format(x.demandQuantity)],["بار (دقیقه)",x=>format(x.roughCutMinutes)],
   ["ظرفیت (دقیقه)",x=>format(x.availableMinutes)],["اضافه‌بار",x=>format(x.overloadMinutes)]],state.sop);
+ fill($("#print-aps-select"),state.runs,
+  x=>x.startJalali+" | "+x.horizonDays+" روز | "+x.algorithm);
  table("#aps-runs",[["تاریخ آغاز","startJalali"],["افق (روز)","horizonDays"],
   ["نسخه","algorithm"],["زمان محاسبه",x=>new Date(x.calculatedUtc).toLocaleString("fa-IR-u-ca-persian")]],state.runs);
 }
@@ -178,6 +180,13 @@ async function reloadMaterial(){
  ],evidence.rows);
 }
 function register(){
+ $("#print-aps-button").addEventListener("click",()=>{
+  const id=$("#print-aps-select").value;
+  if(!id){flash("سناریوی قابل چاپ را انتخاب کنید.",true);return;}
+  window.open("/factory-print.html?"+new URLSearchParams({
+   kind:"aps",id,back:"/planning-advanced.html"
+  }).toString(),"_blank","noopener");
+ });
  $$("nav [data-view]").forEach(btn=>btn.onclick=()=>{
   $$("section.page").forEach(section=>section.hidden=section.id!==btn.dataset.view);
   $$("nav [data-view]").forEach(b=>b.classList.toggle("nav-active",b===btn));
