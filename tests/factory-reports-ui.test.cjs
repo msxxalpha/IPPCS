@@ -34,6 +34,9 @@ test("report metrics are server-side, date bounded and authenticated, no warehou
  assert.match(api,/ManufacturingQualityHolds/);
  assert.match(api,/ProductionDeviations/);
  assert.doesNotMatch(api,/\/api\/v1\/(warehouse|sales|purchasing|hr)/i);
+ assert.match(api,/MapGet\("\/dimensions"/);
+ assert.match(api,/items\.Count > 1500 \|\| centers\.Count > 1500/);
+ assert.match(js,/factory-reports\/dimensions/);
  assert.match(api,/overdueOpenNow/);
  assert.match(api,/missingCompletionTimestamp/);
 });
