@@ -45,3 +45,16 @@ def stage37_acceptance(request, mps_id, center_id, jalali):
     assert request(f"/api/v1/factory-aps/runs/{computed['runId']}")["result"]
     print("PASS: APS blackout master codes, title consistency, deactivated and unrecognized code interlocks.")
     print("PASS: SQL valid timed APS blackout, overlap, invalid time and master-code guards.")
+    # Stage 42: tool groups are IPPCS-owned lookup values, never equipment
+    # calibration or inventory assets. Invalid choices fail closed.
+    fixture=request(catalog,"POST",{"kind":"SharedToolGroup",
+        "code":"CI_SHARED_FIXTURE","label":"CI shared damper fixture","sortOrder":1},201)
+    tool={"workCenterId":center_id,"toolGroupCode":"CI_SHARED_FIXTURE"}
+    post({**partial,"sharedTools":[{**tool,"toolGroupCode":"NOT_IN_CATALOG"}]},409)
+    post({**partial,"sharedTools":[tool,tool]},400)
+    result=post({**partial,"sharedTools":[tool]},200)
+    assert result["executionEvidence"]["sharedToolAssignments"]==1,result
+    request(catalog+"/"+fixture["id"],"PUT",{
+        "label":"CI shared damper fixture","sortOrder":1,"isActive":False})
+    post({**partial,"sharedTools":[tool]},409)
+    print("PASS: SQL APS shared-tool active catalog selection, duplicate assignment and deactivation checks.")
