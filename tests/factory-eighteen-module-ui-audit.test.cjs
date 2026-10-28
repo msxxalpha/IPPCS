@@ -8,7 +8,7 @@ const pages=[
  "execution.html","control-plan.html","engineering-rebind.html",
  "factory-recall.html","production-deviations.html",
  "factory-master-data.html","factory-release-readiness.html",
- "factory-analytical-verification.html","system-users.html","login.html"
+ "factory-analytical-verification.html","factory-reports.html","system-users.html","login.html"
 ];
 const text=file=>fs.readFileSync(path.join(root,file),"utf8");
 test("all 14 entry pages serving the 18 modules are Persian RTL, accessible and load real assets",()=>{
