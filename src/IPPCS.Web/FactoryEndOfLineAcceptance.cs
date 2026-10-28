@@ -137,8 +137,10 @@ public static class FactoryEndOfLineAcceptance
             .ToArray();
         if(rows.Length==0||rows.Sum(x=>x.GoodQuantity)<=0)
             throw new ArgumentException("Finished lot evidence is missing.",nameof(finalLots));
-        return FormattableString.Invariant(
-            $"By={actor};Lots={rows.Length};Good={rows.Sum(x=>x.GoodQuantity)};SHA256={FinalLotDigest(rows)}");
+        var good=rows.Sum(x=>x.GoodQuantity);
+        // SQL decimal(18,4) materialization may print 2.0000; certificates
+        // use one normalized, invariant numeric representation instead.
+        return $"By={actor};Lots={rows.Length};Good={good.ToString("G29",CultureInfo.InvariantCulture)};SHA256={FinalLotDigest(rows)}";
     }
 
     public static bool TryReadCertificate(string? details,out string actor,
