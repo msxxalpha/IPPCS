@@ -45,6 +45,7 @@ function showResources(){
  fill($("#cost-order"),state.orders,x=>x.number);
  fill($("#cost-center"),state.centers,x=>x.code+" | "+x.name);
  fill($("#aps-blackout-center"),state.centers,x=>x.code+" | "+x.name);
+ fill($("#aps-slot-center"),state.centers,x=>x.code+" | "+x.name);
  fill($("#maintenance-center"),state.centers,x=>x.code+" | "+x.name);
  fill($("#sop-bridge-sop"),state.sop,x=>x.code+" | "+x.fromJalali+" تا "+x.throughJalali);
  fill($("#demand-mps-target"),state.mps.filter(x=>x.state===0),x=>x.code);
@@ -72,6 +73,9 @@ async function load(){
  IPPCSChoices.fill($("#aps-blackout-reason-code"),reasons,{
   value:"code",label:x=>x.code+" — "+x.label,
   placeholder:"دلیل عدم‌دسترسی را انتخاب کنید"});
+ IPPCSChoices.fill($("#aps-slot-reason-code"),reasons,{
+  value:"code",label:x=>x.code+" — "+x.label,
+  placeholder:"دلیل توقف ساعتی را انتخاب کنید"});
 }
 function addForm(id,callback){
  const form=$(id);
@@ -238,6 +242,45 @@ function register(){
    format(data.availableMinutes)+" دقیقه. "+(data.warnings?.join("؛ ")||""));
  });
  const apsBlackouts=[];
+ const apsSlots=[];
+ function renderSlots(){
+  const holder=$("#aps-slot-list");holder.replaceChildren();
+  apsSlots.forEach((slot,i)=>{
+   const row=document.createElement("div");row.className="row";row.style.padding="6px 0";
+   const caption=document.createElement("span");
+   caption.textContent=center(slot.workCenterId)+" | "+slot.startJalali+
+    " "+slot.startTime+" تا "+slot.endJalali+" "+slot.endTime+
+    " | "+slot.reasonCode+" — "+slot.reason;
+   const remove=document.createElement("button");remove.type="button";
+   remove.className="btn-outline";remove.textContent="حذف";
+   remove.onclick=()=>{apsSlots.splice(i,1);renderSlots();};
+   row.append(caption,remove);holder.append(row);
+  });
+ }
+ $("#aps-add-slot").onclick=()=>{
+  const workCenterId=$("#aps-slot-center").value;
+  const startJalali=$("#aps-slot-start").value.trim();
+  const endJalali=$("#aps-slot-end").value.trim();
+  const startTime=$("#aps-slot-start-time").value;
+  const endTime=$("#aps-slot-end-time").value;
+  const reasonCode=$("#aps-slot-reason-code").value;
+  const selected=[...$("#aps-slot-reason-code").options].find(x=>x.value===reasonCode);
+  const reason=selected?.textContent?.split(" — ").slice(1).join(" — ")||"";
+  if(!workCenterId||!IPPCSJalali.parse(startJalali)||!IPPCSJalali.parse(endJalali)||
+     !/^\\d{2}:\\d{2}$/.test(startTime)||!/^\\d{2}:\\d{2}$/.test(endTime)||
+     !reasonCode||!reason){
+   flash("مرکز، دو تاریخ شمسی، دو ساعت و دلیل توقف از فهرست لازم هستند.",true);return;
+  }
+  if(apsSlots.length>=100){flash("حداکثر ۱۰۰ بازه ساعتی مجاز است.",true);return;}
+  if(apsSlots.some(x=>x.workCenterId===workCenterId&&
+    x.startJalali===startJalali&&x.startTime===startTime)){
+   flash("شروع بازه برای این مرکز تکراری است.",true);return;
+  }
+  apsSlots.push({workCenterId,startJalali,startTime,endJalali,endTime,reason,reasonCode});
+  $("#aps-slot-start").value="";$("#aps-slot-end").value="";
+  $("#aps-slot-reason-code").value="";
+  renderSlots();
+ };
  function renderBlackouts(){
   const holder=$("#aps-blackout-list");holder.replaceChildren();
   apsBlackouts.forEach((block,i)=>{
@@ -266,7 +309,8 @@ function register(){
  addForm("#aps-form",async f=>{
   const result=await api("/factory-aps/calculate","POST",{
    mpsVersionId:formval(f,"mpsId"),startJalali:formval(f,"start"),
-   horizonDays:number(f,"horizon"),capacityMultiplier:number(f,"capacity"),unavailableDays:apsBlackouts
+   horizonDays:number(f,"horizon"),capacityMultiplier:number(f,"capacity"),unavailableDays:apsBlackouts,
+   unavailableSlots:apsSlots
   });
   renderAps(result);
   flash("زمان‌بندی محدودیت‌دار ثبت شد. عملیات فاقد ظرفیت به‌صورت جداگانه نمایش داده می‌شوند.");
