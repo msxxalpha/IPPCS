@@ -42,7 +42,7 @@ jobs:
           node --check src/IPPCS.Web/wwwroot/js/factory-reports.js
           node --check src/IPPCS.Web/wwwroot/js/login.js
       - name: Jalali browser calendar and recall UI tests
-        run: node --test tests/jalali.test.cjs tests/factory-recall-ui.test.cjs tests/eco-ui.test.cjs tests/factory-master-ui.test.cjs tests/factory-first-run-ui.test.cjs tests/factory-analytical-ui.test.cjs tests/factory-eighteen-module-ui-audit.test.cjs tests/factory-reports-ui.test.cjs tests/factory-stage39-acceptance-ui.test.cjs tests/factory-stage40-spc-ui.test.cjs tests/factory-stage41-aps-ui.test.cjs
+        run: node --test tests/jalali.test.cjs tests/factory-recall-ui.test.cjs tests/eco-ui.test.cjs tests/factory-master-ui.test.cjs tests/factory-first-run-ui.test.cjs tests/factory-analytical-ui.test.cjs tests/factory-eighteen-module-ui-audit.test.cjs tests/factory-reports-ui.test.cjs tests/factory-stage39-acceptance-ui.test.cjs tests/factory-stage40-spc-ui.test.cjs tests/factory-stage41-aps-ui.test.cjs tests/factory-stage42-help.test.cjs tests/factory-stage42-shared-tool-ui.test.cjs
       - name: Verify committed migrations match EF Core model
         run: |
           dotnet tool install --global dotnet-ef --version 10.0.0
