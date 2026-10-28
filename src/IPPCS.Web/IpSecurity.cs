@@ -135,6 +135,15 @@ public sealed class IpDevelopmentBootstrap(IServiceProvider services,IConfigurat
             log.LogWarning("IPPCS development database is not ready. Apply reviewed migrations before admin bootstrap.");
             return;
         }
+        // A newly CREATEd database can connect successfully while Identity
+        // and production tables are still missing. Do not access AspNetRoles
+        // until ALL committed migrations are applied.
+        var pending=await db.Database.GetPendingMigrationsAsync(cancellationToken);
+        if(pending.Any())
+        {
+            log.LogWarning("IPPCS database has {Count} pending migrations; complete initial SQL installation before starting local accounts.",pending.Count());
+            return;
+        }
         var roles=scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
         var users=scope.ServiceProvider.GetRequiredService<UserManager<IdentityUser>>();
         if(!await roles.RoleExistsAsync("Administrator"))
