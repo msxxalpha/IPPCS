@@ -133,6 +133,19 @@ jobs:
           curl --fail --silent --show-error -b /tmp/ippcs-cookie \
             http://127.0.0.1:5295/api/v1/items > /tmp/ippcs-items.json
           python3 -c 'import json;assert any(x["code"]=="SHOCK-CI-001" for x in json.load(open("/tmp/ippcs-items.json")))'
+          # Stage 38: read-only management report must require login, honor the
+          # Jalali reporting window, and expose explicit non-inventory metrics.
+          report_unauth=$(curl -s -o /dev/null -w '%{http_code}' \
+            'http://127.0.0.1:5295/api/v1/factory-reports/overview?fromJalali=1405%2F08%2F01&throughJalali=1405%2F08%2F02')
+          test "$report_unauth" = "401"
+          curl --fail --silent --show-error -b /tmp/ippcs-cookie \
+            'http://127.0.0.1:5295/api/v1/factory-reports/overview?fromJalali=1405%2F08%2F01&throughJalali=1405%2F08%2F02' \
+            > /tmp/ippcs-report.json
+          python3 -c 'import json;d=json.load(open("/tmp/ippcs-report.json"));assert all(k in d for k in ("orders","centers","daily","quality","capa","definitions"));assert d["definitions"]["timeZone"]=="Asia/Tehran"'
+          bad_range=$(curl -s -o /dev/null -w '%{http_code}' -b /tmp/ippcs-cookie \
+            'http://127.0.0.1:5295/api/v1/factory-reports/overview?fromJalali=1405%2F08%2F05&throughJalali=1405%2F08%2F01')
+          test "$bad_range" = "400"
+          echo "PASS: bounded management reports, authenticated access and date validation."
           if ! python3 tests/production_e2e_smoke.py; then
             echo "Production E2E failed; application warnings:"
             grep -E "IPPCS_CONCURRENCY_RELEASE|DbUpdateConcurrencyException|fail:|warn:" /tmp/ippcs-web.log | tail -n 50 || true
