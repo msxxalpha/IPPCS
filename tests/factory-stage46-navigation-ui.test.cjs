@@ -37,3 +37,23 @@ test("shift capacity action passes a selector to the table renderer",()=>{
  assert.match(script,/table\("#shift-capacity-table",\[/);
  assert.doesNotMatch(script,/table\(\$\("#shift-capacity-table"\),\[/);
 });
+
+test("key workflow scripts only bind direct static IDs that exist on their page",()=>{
+ const pairs=[
+  ["app.html","js/production.js"],
+  ["planning.html","js/planning-stage3.js"],
+  ["planning-advanced.html","js/planning-advanced.js"],
+  ["execution.html","js/execution.js"],
+  ["control-plan.html","js/control-plan.js"],
+  ["production-deviations.html","js/production-deviations.js"]
+ ];
+ for(const [page,script] of pairs){
+  const html=read(page),source=read(script);
+  const ids=new Set([...html.matchAll(/\\bid="([^"]+)"/g)].map(m=>m[1]));
+  const selectors=[...source.matchAll(/\\$\\("#([^"]+)"\\)/g)]
+   .map(m=>m[1]).filter(s=>/^[A-Za-z][A-Za-z0-9_-]*$/.test(s));
+  for(const id of new Set(selectors)){
+   assert.ok(ids.has(id),script+" references missing static element #"+id+" in "+page);
+  }
+ }
+});
