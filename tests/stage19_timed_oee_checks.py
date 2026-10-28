@@ -13,6 +13,14 @@ def stage19_acceptance(request, jalali, component):
       "workCenterId":center["id"],"setupMinutes":1,
       "runMinutesPerUnit":1,"yieldPercent":100},201)
     request(f"/api/v1/routings/{routing['id']}/approve","POST")
+    control=request("/api/v1/control-plans","POST",{
+      "routingRevisionId":routing["id"],"code":"CI-ST19-CONTROL",
+      "validFromJalali":jalali,"validUntilJalali":None},201)
+    request(f"/api/v1/control-plans/{control['id']}/characteristics","POST",{
+      "operationSequence":10,"code":"ST19-FINAL-CHECK",
+      "description":"Timed-stop process quality check","unit":"N",
+      "minimum":0,"maximum":100,"mandatory":True},201)
+    request(f"/api/v1/control-plans/{control['id']}/approve","POST")
     bom=request("/api/v1/bom-revisions","POST",{
       "parentItemId":item["id"],"revision":"CI-ST19-BOM",
       "validFromJalali":jalali,"validUntilJalali":None},201)
