@@ -74,6 +74,7 @@ public record ManufacturingLotLinkInput(Guid SourceConfirmationId, Guid Destinat
 public static class ManufacturingInspectionRules
 {
     public static bool Passed(ManufacturingInspectionRequirement item,decimal value) =>
+        (item.Minimum.HasValue || item.Maximum.HasValue) &&
         (!item.Minimum.HasValue || value>=item.Minimum.Value) &&
         (!item.Maximum.HasValue || value<=item.Maximum.Value);
     public static bool GatePassed(ManufacturingOrderOperation operation) =>
