@@ -46,6 +46,7 @@ function showResources(){
  fill($("#cost-center"),state.centers,x=>x.code+" | "+x.name);
  fill($("#aps-blackout-center"),state.centers,x=>x.code+" | "+x.name);
  fill($("#aps-slot-center"),state.centers,x=>x.code+" | "+x.name);
+ fill($("#aps-tool-center"),state.centers,x=>x.code+" | "+x.name);
  fill($("#maintenance-center"),state.centers,x=>x.code+" | "+x.name);
  fill($("#sop-bridge-sop"),state.sop,x=>x.code+" | "+x.fromJalali+" تا "+x.throughJalali);
  fill($("#demand-mps-target"),state.mps.filter(x=>x.state===0),x=>x.code);
@@ -76,6 +77,10 @@ async function load(){
  IPPCSChoices.fill($("#aps-slot-reason-code"),reasons,{
   value:"code",label:x=>x.code+" — "+x.label,
   placeholder:"دلیل توقف ساعتی را انتخاب کنید"});
+ const groups=await api("/factory-master-options?kind=SharedToolGroup");
+ IPPCSChoices.fill($("#aps-tool-code"),groups,{
+  value:"code",label:x=>x.code+" — "+x.label,
+  placeholder:"گروه ابزار تعریف‌شده را انتخاب کنید"});
 }
 function addForm(id,callback){
  const form=$(id);
@@ -243,6 +248,33 @@ function register(){
  });
  const apsBlackouts=[];
  const apsSlots=[];
+ const sharedTools=[];
+ function renderTools(){
+  const host=$("#aps-tool-list");host.replaceChildren();
+  for(const [index,entry] of sharedTools.entries()){
+   const row=document.createElement("div");row.className="row";
+   const text=document.createElement("span");
+   text.textContent=center(entry.workCenterId)+" | "+entry.toolGroupCode;
+   const button=document.createElement("button");
+   button.type="button";button.className="btn-outline";button.textContent="حذف";
+   button.onclick=()=>{sharedTools.splice(index,1);renderTools();};
+   row.append(text,button);host.append(row);
+  }
+ }
+ $("#aps-add-tool").onclick=()=>{
+  const workCenterId=$("#aps-tool-center").value;
+  const toolGroupCode=$("#aps-tool-code").value;
+  if(!workCenterId||!toolGroupCode){
+   flash("انتخاب مرکز و ابزار مشترک از اطلاعات پایه الزامی است.",true);return;
+  }
+  if(sharedTools.some(x=>x.workCenterId===workCenterId)){
+   flash("هر مرکز کاری در یک سناریو فقط به یک گروه ابزار اختصاص می‌یابد.",true);return;
+  }
+  if(sharedTools.length>=100){
+   flash("حداکثر ۱۰۰ انتساب ابزار مشترک در سناریو مجاز است.",true);return;
+  }
+  sharedTools.push({workCenterId,toolGroupCode});renderTools();
+ };
  function renderSlots(){
   const holder=$("#aps-slot-list");holder.replaceChildren();
   apsSlots.forEach((slot,i)=>{
@@ -310,7 +342,7 @@ function register(){
   const result=await api("/factory-aps/calculate","POST",{
    mpsVersionId:formval(f,"mpsId"),startJalali:formval(f,"start"),
    horizonDays:number(f,"horizon"),capacityMultiplier:number(f,"capacity"),unavailableDays:apsBlackouts,
-   unavailableSlots:apsSlots
+   unavailableSlots:apsSlots,sharedTools
   });
   renderAps(result);
   flash("زمان‌بندی محدودیت‌دار ثبت شد. عملیات فاقد ظرفیت به‌صورت جداگانه نمایش داده می‌شوند.");
