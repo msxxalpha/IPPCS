@@ -73,6 +73,7 @@ function show(data){
   const line=document.createElement("li");line.textContent=text;list.append(line);
  }
  for(const button of document.querySelectorAll("[data-export]"))button.disabled=false;
+ $("report-print").disabled=false;
  message("گزارش محاسبه شد؛ تاریخچه وضعیت دستور و اقدام اصلاحی بازسازی نشده است و وضعیت فعلی نمایش داده می‌شود.");
 }
 function safeCsv(value){
@@ -114,6 +115,15 @@ async function get(path){
  return data;
 }
 async function init(){
+ $("report-print").addEventListener("click",()=>{
+  if(!dataset){message("ابتدا گزارش را محاسبه کنید.",true);return;}
+  const q=new URLSearchParams({kind:"report",
+    fromJalali:dataset.fromJalali,throughJalali:dataset.throughJalali,
+    back:"/factory-reports.html"});
+  if(dataset.itemId)q.set("itemId",dataset.itemId);
+  if(dataset.workCenterId)q.set("workCenterId",dataset.workCenterId);
+  window.open("/factory-print.html?"+q.toString(),"_blank","noopener");
+ });
  const today=todayJalali();
  $("report-through").value=today;
  $("report-from").value=today.slice(0,8)+"01";
@@ -130,6 +140,7 @@ async function init(){
   if($("report-center").value)params.set("workCenterId",$("report-center").value);
   const btn=$("report-run");btn.disabled=true;dataset=null;
   for(const button of document.querySelectorAll("[data-export]"))button.disabled=true;
+  $("report-print").disabled=true;
   message("در حال دریافت اطلاعات ثبت‌شده…");
   try{show(await get("/api/v1/factory-reports/overview?"+params));}
   catch(err){message(err.message,true);}finally{btn.disabled=false;}
