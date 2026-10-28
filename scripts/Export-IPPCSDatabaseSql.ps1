@@ -16,7 +16,11 @@ if (-not $Output) {
 }
 $TempFile = Join-Path ([System.IO.Path]::GetTempPath()) (
     'ippcs-ef-' + [Guid]::NewGuid().ToString('N') + '.sql')
+# SQL export needs a DbContext model, not a connection. Do not change the
+# persistent User Secrets or environment of the calling Visual Studio process.
+$previousMode = [Environment]::GetEnvironmentVariable('IPPCS_EF_MODEL_ONLY', 'Process')
 try {
+    [Environment]::SetEnvironmentVariable('IPPCS_EF_MODEL_ONLY', '1', 'Process')
     if (-not (Get-Command dotnet -ErrorAction SilentlyContinue)) {
         throw 'Install .NET SDK 10 before exporting IPPCS SQL.'
     }
@@ -40,5 +44,6 @@ try {
     Write-Warning 'Review target and back up existing IPPCS data before execution. This file has no bootstrap password.'
 }
 finally {
+    [Environment]::SetEnvironmentVariable('IPPCS_EF_MODEL_ONLY', $previousMode, 'Process')
     Remove-Item -LiteralPath $TempFile -Force -ErrorAction SilentlyContinue
 }
