@@ -267,7 +267,7 @@ function register(){
   const selected=[...$("#aps-slot-reason-code").options].find(x=>x.value===reasonCode);
   const reason=selected?.textContent?.split(" — ").slice(1).join(" — ")||"";
   if(!workCenterId||!IPPCSJalali.parse(startJalali)||!IPPCSJalali.parse(endJalali)||
-     !/^\\d{2}:\\d{2}$/.test(startTime)||!/^\\d{2}:\\d{2}$/.test(endTime)||
+     !/^[0-9]{2}:[0-9]{2}$/.test(startTime)||!/^[0-9]{2}:[0-9]{2}$/.test(endTime)||
      !reasonCode||!reason){
    flash("مرکز، دو تاریخ شمسی، دو ساعت و دلیل توقف از فهرست لازم هستند.",true);return;
   }
