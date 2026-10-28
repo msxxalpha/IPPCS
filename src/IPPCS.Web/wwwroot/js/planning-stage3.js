@@ -49,6 +49,8 @@ function render(){
  options($("#mps-comparison-source"),state.mps.filter(x=>x.state===1),x=>x.code);
  options($("#mps-comparison-candidate"),state.mps,x=>x.code+" / "+(x.state===1?"مصوب":"پیش‌نویس"));
  options($("#calculate-mps"),state.mps.filter(x=>x.state===1),x=>x.code);
+ options($("#print-mps-select"),state.mps,x=>x.code+" | "+stateName(x.state));
+ options($("#print-bom-select"),state.bom,x=>x.revision+" | "+name(x.parentItemId)+" | "+stateName(x.state));
  table("#bom-table",[
   ["محصول",r=>name(r.parentItemId)],["نسخه","revision"],["از","validFromJalali"],
   ["تا",r=>r.validUntilJalali||"نامحدود"],["وضعیت",r=>stateName(r.state)],
@@ -106,7 +108,18 @@ function register(formId,fn){const form=$(formId);form.addEventListener("submit"
  catch(e){alertText(e.message,true);}finally{btn.disabled=false;}
 });}
 function boot(){
- $$("nav [data-section]").forEach(b=>b.onclick=()=>{
+ for(const [button,selector,kind] of [
+  ["#print-mps-button","#print-mps-select","mps"],
+  ["#print-bom-button","#print-bom-select","bom"]
+ ]){
+  $(button).addEventListener("click",()=>{
+   const id=$(selector).value;
+   if(!id){alertText("ابتدا نسخه قابل چاپ را انتخاب کنید.",true);return;}
+   const q=new URLSearchParams({kind,id,back:"/planning.html"});
+   window.open("/factory-print.html?"+q.toString(),"_blank","noopener");
+  });
+ }
+ $("nav [data-section]").forEach(b=>b.onclick=()=>{
   $$("section.page").forEach(s=>s.hidden=s.id!==b.dataset.section);
   $$("nav [data-section]").forEach(btn=>btn.classList.toggle("nav-active",btn===b));
   $("#title").textContent=b.textContent;$("#alert").hidden=true;
