@@ -32,6 +32,14 @@ def stage20_acceptance(request, jalali, tomorrow, component_id):
       "sequence":10,"name":"night shift op","workCenterId":id,
       "setupMinutes":1,"runMinutesPerUnit":1,"yieldPercent":100},201)
     request(f"/api/v1/routings/{route['id']}/approve","POST")
+    control=request("/api/v1/control-plans","POST",{
+      "routingRevisionId":route["id"],"code":"CI-ST20-CONTROL",
+      "validFromJalali":jalali,"validUntilJalali":None},201)
+    request(f"/api/v1/control-plans/{control['id']}/characteristics","POST",{
+      "operationSequence":10,"code":"ST20-FINAL-CHECK",
+      "description":"Overnight process quality check","unit":"N",
+      "minimum":0,"maximum":100,"mandatory":True},201)
+    request(f"/api/v1/control-plans/{control['id']}/approve","POST")
     bom=request("/api/v1/bom-revisions","POST",{
       "parentItemId":item["id"],"revision":"CI-ST20-BOM",
       "validFromJalali":jalali,"validUntilJalali":None},201)
