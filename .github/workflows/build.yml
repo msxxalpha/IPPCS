@@ -115,6 +115,7 @@ jobs:
           dotnet ef migrations script 0 --idempotent --no-build --configuration Release --project src/IPPCS.Web/IPPCS.Web.csproj --startup-project src/IPPCS.Web/IPPCS.Web.csproj --output /tmp/ippcs-install-ef.sql
           python3 scripts/build_ippcs_install_sql.py --source /tmp/ippcs-install-ef.sql --database IPPCS_InstallerSmoke --output /tmp/ippcs-install-smoke.sql
           export IPPCS_INSTALLER_CONNECTION="Server=127.0.0.1,1433;Database=master;User Id=sa;Password=${CI_DB_PASSWORD};Encrypt=True;TrustServerCertificate=True;"
+          export IPPCS_INSTALLER_DATABASE="IPPCS_InstallerSmoke"
           dotnet run --project tools/IPPCS.SqlInstaller/IPPCS.SqlInstaller.csproj --configuration Release -- /tmp/ippcs-install-smoke.sql
           # Repeat to prove EF history guards and seed inserts are idempotent.
           dotnet run --project tools/IPPCS.SqlInstaller/IPPCS.SqlInstaller.csproj --configuration Release --no-build -- /tmp/ippcs-install-smoke.sql
