@@ -42,8 +42,6 @@ public static class FactoryPrintDocuments
         string status,bool approved,Guid id,FactoryPrintField[] fields,
         FactoryPrintTable[] tables,string? specialWarning=null)
     {
-        if(tables.Any(t=>t.Rows.Length>800))
-            throw new InvalidOperationException("سند بیش از سقف ۸۰۰ ردیف دارد؛ خروجی ناقص چاپ نمی‌شود.");
         return new(kind,title,code,status,approved,DateTime.UtcNow,fields,tables,
             FactoryWarning+(specialWarning is null?"":" "+specialWarning),id.ToString("D"));
     }
