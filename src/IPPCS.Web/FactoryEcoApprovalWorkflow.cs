@@ -130,6 +130,13 @@ public static class FactoryEcoApprovalWorkflow
         return null;
     }
 
+    public static bool ReviewDecisionAllowed(bool approve,FactoryEcoApproval request,
+        FactoryEcoPreflight? current,DateOnly today) =>
+        request.Status==FactoryEcoApprovalStatus.Submitted &&
+        (!approve || (current is not null&&current.Issues.Count==0&&
+            current.ItemId==request.ItemId&&current.Digest==request.CandidateDigest&&
+            request.CutoverOn>=today));
+
     private static bool SafeText(string? value,int min,int max)=>
         !string.IsNullOrWhiteSpace(value)&&value.Trim().Length>=min&&
         value.Trim().Length<=max&&
@@ -244,12 +251,17 @@ public static class FactoryEcoApprovalWorkflow
                     return Results.Conflict(new{message="این درخواست قبلاً بررسی یا اجرا شده است."});
                 if(row.RequestedBy.Equals(actor,StringComparison.OrdinalIgnoreCase))
                     return Results.Conflict(new{message="تأییدکننده کیفیت باید فردی مستقل از درخواست‌کننده باشد."});
-                var check=await Preflight(db,row.Kind,row.BaselineId,
-                    row.CandidateId,row.CutoverOn,ct);
-                if(check is null||check.Issues.Count>0||
-                    check.ItemId!=row.ItemId||check.Digest!=row.CandidateDigest||
-                    row.CutoverOn<Today())
-                    return Results.Conflict(new{message="نسخه‌های مهندسی از زمان درخواست تغییر کرده یا اعتبار برش منقضی شده است؛ بررسی مستقل مجاز نیست."});
+                // A reviewer must still be able to formally REJECT a stale,
+                // superseded, or expired request. Only an APPROVAL requires
+                // current, unchanged engineering evidence and cutover dates.
+                // Otherwise obsolete requests remain permanently "Submitted".
+                if(input.Approve)
+                {
+                    var check=await Preflight(db,row.Kind,row.BaselineId,
+                        row.CandidateId,row.CutoverOn,ct);
+                    if(!ReviewDecisionAllowed(true,row,check,Today()))
+                        return Results.Conflict(new{message="نسخه‌های مهندسی از زمان درخواست تغییر کرده یا اعتبار برش منقضی شده است؛ تأیید مستقل مجاز نیست. بازبین می‌تواند درخواست منسوخ را با ثبت مدرک رد کند."});
+                }
                 row.QualityReviewedBy=actor;
                 row.QualityReviewedUtc=DateTime.UtcNow;
                 row.QualityEvidenceReference=input.EvidenceReference.Trim();
