@@ -66,4 +66,18 @@ public sealed class ControlPlanAndGenealogyTests
         Assert.False(ManufacturingInspectionRules.TryLinkLot(order,target,source,1,0,0,out error));
         Assert.False(ManufacturingInspectionRules.TryLinkLot(order,source,target,5,0,9,out error));
     }
+    [Fact]
+    public void Numeric_inspection_without_any_specification_limit_fails_closed()
+    {
+        var requirement = new ManufacturingInspectionRequirement();
+        Assert.False(ManufacturingInspectionRules.Passed(requirement, 0m));
+        requirement.Minimum = 12m;
+        Assert.True(ManufacturingInspectionRules.Passed(requirement, 12m));
+        Assert.False(ManufacturingInspectionRules.Passed(requirement, 11.999m));
+        requirement.Minimum = null;
+        requirement.Maximum = 12m;
+        Assert.True(ManufacturingInspectionRules.Passed(requirement, 12m));
+        Assert.False(ManufacturingInspectionRules.Passed(requirement, 12.001m));
+    }
+
 }
