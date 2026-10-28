@@ -135,9 +135,9 @@ async function init(){
   catch(err){message(err.message,true);}finally{btn.disabled=false;}
  });
  try{
-  const [items,centers]=await Promise.all([get("/api/v1/items"),get("/api/v1/work-centers")]);
-  fill("report-item",items,x=>x.code+" — "+x.name,"همه اقلام");
-  fill("report-center",centers,x=>x.code+" — "+x.name,"همه مراکز");
+  const dimensions=await get("/api/v1/factory-reports/dimensions");
+  fill("report-item",dimensions.items,x=>x.code+" — "+x.name,"همه اقلام");
+  fill("report-center",dimensions.centers,x=>x.code+" — "+x.name,"همه مراکز");
  }catch(err){message("خطای دریافت فیلترها: "+err.message,true);}
 }
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",init);
