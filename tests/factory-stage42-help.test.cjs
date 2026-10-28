@@ -15,7 +15,7 @@ test("all existing application forms have purpose and instructions, not only gen
   const markup=read(page.page.slice(1));
   const formIds=[...markup.matchAll(/<form\b[^>]*\bid="([^"]+)"/g)]
     .map(m=>m[1]).sort();
-  const documented=page.forms.map(row=>row[0]).sort();
+  const documented=Array.from(page.forms,row=>row[0]).sort();
   assert.deepEqual(documented,formIds,"Incomplete guide: "+page.page);
   assert.ok(page.purpose.length>20&&page.before.length>15,page.page);
   for(const [id,title,usage] of page.forms){
