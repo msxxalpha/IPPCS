@@ -14,7 +14,9 @@
 
 ## ۱. دریافت نسخه ثابت، نه شاخه توسعه متغیر
 
-در Visual Studio یا PowerShell:
+**روش ساده‌تر بدون Git و بدون ساخت دستی پروژه:** در [Draft PR #1](https://github.com/msxxalpha/IPPCS/pull/1)، آخرین **GitHub Actions موفقِ همین نسخه** را باز کنید؛ از Artifacts بسته `IPPCS_First_UAT_1_VisualStudio_SQL_Complete` را دانلود و Extract کنید. بسته شامل **همه سورس‌های VS، فایل IPPCS.sln، فایل SQL کامل، اسکریپت‌های آزمون و این راهنما** است؛ فایل `TESTED_COMMIT.txt` شناسه Commit آزموده‌شده را نشان می‌دهد. **این بسته فاقد نام کاربری/رمز پیش‌فرض و داده عملیاتی شرکت است.** پوشه استخراج‌شده را در Visual Studio باز کنید. برای دریافت مجدد یا نگهداری در Git، روش بعد را دنبال کنید.
+
+**روش دوم با Git و شاخه پایدار:** در Visual Studio یا PowerShell:
 
 ```powershell
 git clone --branch uat/first-factory-test-2026-10-28 https://github.com/msxxalpha/IPPCS.git
@@ -34,7 +36,7 @@ git switch --track origin/uat/first-factory-test-2026-10-28
 
 ## ۲. SQL Server 2022 آزمایشی و دیتابیس تازه
 
-الف) از آخرین GitHub Actions موفق همان Commit، Artifact `IPPCS_Dev_Complete_Install_SQL` را دانلود و از ZIP استخراج کنید. این اسکریپت شامل ساخت DB، تمام جدول‌های EF/Identity، روابط، Seed اطلاعات پایه و تاریخچه Migration است.
+الف) اگر بسته کامل `IPPCS_First_UAT_1_VisualStudio_SQL_Complete` را دریافت کرده‌اید، فایل `database/IPPCS_Dev_Complete_Install.sql` از قبل داخل آن است. در غیر این صورت از آخرین GitHub Actions موفق همان Commit، Artifact `IPPCS_Dev_Complete_Install_SQL` را دانلود و از ZIP استخراج کنید. این اسکریپت شامل ساخت DB، تمام جدول‌های EF/Identity، روابط، Seed اطلاعات پایه و تاریخچه Migration است.
 
 ب) در SSMS با اتصال به **SQL Server آزمایشی**، فایل `IPPCS_Dev_Complete_Install.sql` را باز و F5 اجرا کنید. قبل از اجرا باید `CREATE DATABASE [IPPCS_Dev]` را ببینید.
 
