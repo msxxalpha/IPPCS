@@ -93,6 +93,7 @@
     table($("#bom-list"),[["ترتیب","sequence"],["جزء",x=>nameBy(state.items,x.componentItemId)],["مصرف",x=>num(x.quantityPer)],["ضایعات %",x=>num(x.scrapPercent)]],data);
   }
   function displayRoutings(){
+    fillSelect($("#print-routing-select"),state.routings);
     fillSelect($("#operation-route"),state.routings.filter(x=>x.state===0).map(x=>({id:x.id,code:x.revisionCode,name:nameBy(state.items,x.itemId)})));
     table($("#routing-list"),
       [["محصول",x=>nameBy(state.items,x.itemId)],["نسخه","revisionCode"],["شروع اعتبار","effectiveFromJalali"],
@@ -107,6 +108,9 @@
       ["از",x=>String(x.startTime).slice(0,5)],["تا",x=>String(x.endTime).slice(0,5)],["ضریب ظرفیت %",x=>num(x.effectiveCapacityPercent)]],state.shifts);
   }
   function displayPlans(){
+    IPPCSChoices.fill($("#print-plan-select"),state.plans,{
+      value:"id",label:x=>nameBy(state.items,x.itemId)+" · "+num(x.quantity)+" · "+stringDate(x.dueDateUtc)
+    });
     table($("#plan-list"),[["محصول",x=>nameBy(state.items,x.itemId)],["مقدار",x=>num(x.quantity)],["موعد شمسی",x=>stringDate(x.dueDateUtc)]],state.plans,
       {label:()=>"محاسبه نیاز مواد",run:async row=>{
         const data=await api(`/api/v1/planning/gross-requirements/${row.id}`);
@@ -133,6 +137,18 @@
     });
   }
   function start(){
+    for(const [button,select,kind] of [
+      ["#print-routing-button","#print-routing-select","routing"],
+      ["#print-plan-button","#print-plan-select","plan"]
+    ]){
+      $(button).addEventListener("click",()=>{
+        const id=$(select).value;
+        if(!id){notice("ابتدا برنامه یا نسخه مسیر را انتخاب کنید.",true);return;}
+        window.open("/factory-print.html?"+new URLSearchParams({
+          kind,id,back:"/app.html"
+        }).toString(),"_blank","noopener");
+      });
+    }
     const grid=$("#module-grid");
     modules.forEach(([title,description,status,page],i)=>{
       const card=document.createElement("article");card.className="module-card";
