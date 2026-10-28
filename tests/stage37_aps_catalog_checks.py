@@ -31,4 +31,17 @@ def stage37_acceptance(request, mps_id, center_id, jalali):
         "isActive":True})
     assert "MAINTENANCE" in {x["code"] for x in request(
         catalog+"?kind=CapacityBlackoutReason")}
+    # Stage 41: machine setup is a half-open local interval in the scenario,
+    # not a full-day shutdown or a mutation to the approved MPS.
+    slot={"workCenterId":center_id,"startJalali":jalali,
+        "startTime":"10:00","endJalali":jalali,"endTime":"12:00",
+        "reason":selected["label"],"reasonCode":"MAINTENANCE"}
+    partial={**payload,"unavailableDays":[],"unavailableSlots":[slot]}
+    post({**partial,"unavailableSlots":[{**slot,"endTime":"09:00"}]},400)
+    post({**partial,"unavailableSlots":[{**slot,"reasonCode":"NOT_IN_CATALOG"}]},409)
+    post({**partial,"unavailableSlots":[slot,{**slot,"startTime":"11:00","endTime":"13:00"}]},409)
+    computed=post(partial,200)
+    assert computed["executionEvidence"]["scenarioUnavailableSlots"]==1,computed
+    assert request(f"/api/v1/factory-aps/runs/{computed['runId']}")["result"]
     print("PASS: APS blackout master codes, title consistency, deactivated and unrecognized code interlocks.")
+    print("PASS: SQL valid timed APS blackout, overlap, invalid time and master-code guards.")
