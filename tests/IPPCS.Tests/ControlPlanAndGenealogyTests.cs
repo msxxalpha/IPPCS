@@ -101,4 +101,14 @@ public sealed class ControlPlanAndGenealogyTests
         Assert.False(ManufacturingInspectionRules.HasMandatoryFinalCharacteristic(characteristics,new RoutingRevision()));
     }
 
+    [Theory]
+    [InlineData(0,false)]
+    [InlineData(1,true)]
+    [InlineData(2,false)]
+    public void Order_release_requires_exactly_one_applicable_approved_control_plan(
+        int count,bool expected)
+    {
+        Assert.Equal(expected,ManufacturingInspectionRules.ExactlyOneApplicableControlPlan(count));
+    }
+
 }
