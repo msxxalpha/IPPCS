@@ -34,6 +34,21 @@ public static class FactoryManagementReports
         var api = endpoints.MapGroup("/api/v1/factory-reports")
             .RequireAuthorization("IpProductionUser");
 
+        // No silent truncation of the 500-row general item selector on report filters.
+        api.MapGet("/dimensions", async (ProductionDb db, CancellationToken ct) =>
+        {
+            var items = await db.Items.AsNoTracking().OrderBy(x => x.Code)
+                .Select(x => new { x.Id, x.Code, x.Name }).Take(1501).ToListAsync(ct);
+            var centers = await db.WorkCenters.AsNoTracking().OrderBy(x => x.Code)
+                .Select(x => new { x.Id, x.Code, x.Name }).Take(1501).ToListAsync(ct);
+            if (items.Count > 1500 || centers.Count > 1500)
+                return Results.Conflict(new
+                {
+                    message = "تعداد گزینه‌های فیلتر بیش از ۱۵۰۰ است؛ برای جلوگیری از گزارش ناقص از فیلتر جست‌وجوی سروری استفاده کنید."
+                });
+            return Results.Ok(new { items, centers });
+        });
+
         api.MapGet("/overview", async (string fromJalali, string throughJalali,
             Guid? itemId, Guid? workCenterId, ProductionDb db, CancellationToken ct) =>
         {
