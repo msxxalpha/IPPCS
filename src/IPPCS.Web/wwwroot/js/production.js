@@ -211,7 +211,7 @@
         const d=await api("/api/v1/work-shifts/capacity?workCenterId="+
           encodeURIComponent(center)+"&startJalali="+encodeURIComponent(date)+
           "&days="+days);
-        table($("#shift-capacity-table"),[
+        table("#shift-capacity-table",[
           ["تاریخ شمسی","dateJalali"],
           ["روز",x=>dayNames[x.weekday]],
           ["ظرفیت مفید (دقیقه)",x=>num(x.effectiveMinutes)],
