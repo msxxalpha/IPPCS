@@ -74,6 +74,10 @@ function render(){
   ["برنامه",x=>num(x.plannedQuantity)],["شروع","plannedStartJalali"],["موعد","dueOnJalali"],
   ["وضعیت",x=>status(x.status)],["تولید سالم",x=>num(x.operations.at(-1)?.goodQuantity||0)]
  ],S.orders,[
+  {label:"نسخه چاپی دستور",run:async x=>{
+    const q=new URLSearchParams({kind:"order",id:x.id,back:"/execution.html"});
+    window.open("/factory-print.html?"+q.toString(),"_blank","noopener");
+  }},
   {label:"آزادسازی",show:x=>can("Planner")&&x.status===0,run:async x=>{await request("/manufacturing-orders/"+x.id+"/release","POST");flash("دستور آزاد شد و عملیات مسیر ساخت ثبت شدند.");await reload();}},
   {label:"تعلیق",show:x=>canHold()&&(x.status===1||x.status===2),run:async x=>{
    const reason=window.prompt("علت توقف یا قرنطینه دستور را وارد کنید:");if(reason===null)return;
