@@ -59,7 +59,12 @@ api.MapPost("/items", async (ItemInput input, ProductionDb db, CancellationToken
         message="واحد اندازه‌گیری در اطلاعات پایه تعریف نشده یا غیرفعال است."});
     if (await db.Items.AnyAsync(x => x.Code == code, ct)) return Results.Conflict("Duplicate item code.");
     var item = new PlanningItem { Code = code, Name = input.Name.Trim(), Unit = unit.Code, Type = input.Type };
-    db.Items.Add(item); await db.SaveChangesAsync(ct);
+    db.Items.Add(item);
+    try { await db.SaveChangesAsync(ct); }
+    catch (DbUpdateException)
+    {
+        return Results.Conflict(new{message="کد قلم هم‌زمان توسط درخواست دیگری ثبت شده است."});
+    }
     return Results.Created($"/api/v1/items/{item.Id}", item);
 });
 api.MapGet("/items/{id:guid}", async (Guid id, ProductionDb db, CancellationToken ct) =>
@@ -69,13 +74,28 @@ api.MapGet("/work-centers", async (ProductionDb db, CancellationToken ct) =>
     await db.WorkCenters.AsNoTracking().OrderBy(x => x.Code).ToListAsync(ct));
 api.MapPost("/work-centers", async (WorkCenterInput input, ProductionDb db, CancellationToken ct) =>
 {
-    if (string.IsNullOrWhiteSpace(input.Code) || input.NominalUnitsPerHour <= 0)
-        return Results.BadRequest("Code and positive nominal capacity are required.");
-    var code = input.Code.Trim();
-    if (await db.WorkCenters.AnyAsync(x => x.Code == code, ct)) return Results.Conflict("Duplicate work-center code.");
-    var center = new WorkCenter { Code = code, Name = input.Name.Trim(), NominalUnitsPerHour = input.NominalUnitsPerHour };
-    db.WorkCenters.Add(center); await db.SaveChangesAsync(ct);
-    return Results.Created($"/api/v1/work-centers/{center.Id}", center);
+    // The first-run master form must fail with a controlled 400, never a
+    // NullReferenceException or an opaque SQL truncation error.
+    if (string.IsNullOrWhiteSpace(input.Code) ||
+        input.Code.Trim().Length>64 ||
+        string.IsNullOrWhiteSpace(input.Name) ||
+        input.Name.Trim().Length>256 ||
+        input.NominalUnitsPerHour<=0 ||
+        input.NominalUnitsPerHour>1_000_000m)
+        return Results.BadRequest(new{
+            message="کد و نام معتبر و ظرفیت اسمی مثبت (حداکثر یک میلیون واحد در ساعت) لازم است."});
+    var code=input.Code.Trim();
+    if(await db.WorkCenters.AnyAsync(x=>x.Code==code,ct))
+        return Results.Conflict(new{message="کد مرکز کاری قبلاً ثبت شده است."});
+    var center=new WorkCenter{Code=code,Name=input.Name.Trim(),
+        NominalUnitsPerHour=input.NominalUnitsPerHour};
+    db.WorkCenters.Add(center);
+    try { await db.SaveChangesAsync(ct); }
+    catch(DbUpdateException)
+    {
+        return Results.Conflict(new{message="کد مرکز کاری هم‌زمان توسط درخواست دیگری ثبت شده است."});
+    }
+    return Results.Created($"/api/v1/work-centers/{center.Id}",center);
 });
 
 api.MapGet("/bom/{parentId:guid}", async (Guid parentId, ProductionDb db, CancellationToken ct) =>
