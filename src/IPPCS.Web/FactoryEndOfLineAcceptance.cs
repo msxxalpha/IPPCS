@@ -1,5 +1,7 @@
 using System.Data;
 using System.Globalization;
+using System.Security.Cryptography;
+using System.Text;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 
@@ -107,22 +109,55 @@ public static class FactoryEndOfLineAcceptance
             latest is null?null:ReadApprovedBy(latest.Details),latest?.AtUtc,
             "تأیید کنترل نهایی صرفاً ثبت داخلی کنترل کیفیت تولید است؛ اجازه ارسال محصول، گواهی مشتری، انتقال موجودی یا ثبت فروش نیست.");
     }
-    // Check the original immutable EOL evidence rather than trusting the
-    // mere existence of an audit event. This is a recorded actor, not a
-    // cryptographic signature or customer release authorization.
+    // Version 2 seals the complete identities and quantities of individual
+    // final confirmations. The legacy three-field certificate remains readable
+    // for existing records, but all NEW signatures use the strong snapshot.
+    // SHA256 detects data drift; it is NOT an external PKI signature.
+    public static string FinalLotDigest(IReadOnlyList<ManufacturingConfirmation> finalLots)
+    {
+        var lines=finalLots.Where(x=>x.GoodQuantity+x.ScrapQuantity+x.ReworkQuantity>0)
+            .OrderBy(x=>x.Id).Select(x=>string.Join("|",
+                x.Id.ToString("N"),x.OperationId.ToString("N"),
+                Convert.ToBase64String(Encoding.UTF8.GetBytes(x.LotCode??"")),
+                x.GoodQuantity.ToString("G29",CultureInfo.InvariantCulture),
+                x.ScrapQuantity.ToString("G29",CultureInfo.InvariantCulture),
+                x.ReworkQuantity.ToString("G29",CultureInfo.InvariantCulture),
+                x.OccurredUtc.Ticks.ToString(CultureInfo.InvariantCulture)));
+        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(
+            string.Join("\n",lines))));
+    }
+
+    public static string CreateCertificate(string actor,
+        IReadOnlyList<ManufacturingConfirmation> finalLots)
+    {
+        if(string.IsNullOrWhiteSpace(actor)||actor.Length>128||
+            actor.Any(c=>char.IsControl(c)||c==';'))
+            throw new ArgumentException("Invalid QA reviewer identity.",nameof(actor));
+        var rows=finalLots.Where(x=>x.GoodQuantity+x.ScrapQuantity+x.ReworkQuantity>0)
+            .ToArray();
+        if(rows.Length==0||rows.Sum(x=>x.GoodQuantity)<=0)
+            throw new ArgumentException("Finished lot evidence is missing.",nameof(finalLots));
+        return FormattableString.Invariant(
+            $"By={actor};Lots={rows.Length};Good={rows.Sum(x=>x.GoodQuantity)};SHA256={FinalLotDigest(rows)}");
+    }
+
     public static bool TryReadCertificate(string? details,out string actor,
         out int lotCount,out decimal goodQuantity)
     {
         actor="";lotCount=0;goodQuantity=0;
         var parts=details?.Split(';');
-        if(parts is null||parts.Length!=3||
+        if(parts is null||parts.Length is not (3 or 4)||
             !parts[0].StartsWith("By=",StringComparison.Ordinal)||
             !parts[1].StartsWith("Lots=",StringComparison.Ordinal)||
             !parts[2].StartsWith("Good=",StringComparison.Ordinal))
             return false;
+        if(parts.Length==4 && (!parts[3].StartsWith("SHA256=",StringComparison.Ordinal)||
+            parts[3].Length!=71||!parts[3][7..].All(c=>
+                c is >= '0' and <= '9' or >= 'A' and <= 'F')))
+            return false;
         actor=parts[0][3..];
         return !string.IsNullOrWhiteSpace(actor)&&actor.Length<=128&&
-            !actor.Contains('\n')&&!actor.Contains('\r')&&
+            !actor.Any(char.IsControl)&&
             int.TryParse(parts[1][5..],NumberStyles.None,
                 CultureInfo.InvariantCulture,out lotCount)&&lotCount>0&&
             decimal.TryParse(parts[2][5..],NumberStyles.AllowDecimalPoint,
@@ -133,8 +168,13 @@ public static class FactoryEndOfLineAcceptance
     {
         var confirmed=finalLots.Where(x=>
             x.GoodQuantity+x.ScrapQuantity+x.ReworkQuantity>0).ToArray();
-        return TryReadCertificate(details,out _,out var lotCount,out var good)&&
-            confirmed.Length==lotCount&&confirmed.Sum(x=>x.GoodQuantity)==good;
+        if(!TryReadCertificate(details,out _,out var lotCount,out var good)||
+            confirmed.Length!=lotCount||confirmed.Sum(x=>x.GoodQuantity)!=good)
+            return false;
+        var hashPart=details!.Split(';');
+        return hashPart.Length==3 ||
+            string.Equals(hashPart[3][7..],FinalLotDigest(confirmed),
+                StringComparison.Ordinal);
     }
     private static string? ReadApprovedBy(string? details)=>
         TryReadCertificate(details,out var actor,out _,out _)?actor:null;
@@ -211,12 +251,20 @@ public static class FactoryEndOfLineAcceptance
                 if(report is null)return Results.NotFound();
                 if(!report.CanApprove)
                     return Results.Conflict(new{message="گیت‌های کیفیت یا ردیابی بچ مونتاژ تکمیل نیست.",report});
-                var actor=(ctx.User.Identity?.Name??"unknown").Replace(";","_");
-                if(actor.Length>128)actor=actor[..128];
+                var actor=ctx.User.Identity?.Name?.Trim();
+                if(string.IsNullOrWhiteSpace(actor)||actor.Length>128||
+                    actor.Any(c=>char.IsControl(c)||c==';'))
+                    return Results.Forbid();
+                var finalId=await db.ManufacturingOrderOperations.AsNoTracking()
+                    .Where(x=>x.OrderId==id).OrderByDescending(x=>x.Sequence)
+                    .Select(x=>(Guid?)x.Id).FirstOrDefaultAsync(ct);
+                if(!finalId.HasValue)
+                    return Results.Conflict(new{message="آخرین عملیات دستور قابل تشخیص نیست."});
+                var finalLots=await db.ManufacturingConfirmations.AsNoTracking()
+                    .Where(x=>x.OperationId==finalId.Value).ToListAsync(ct);
                 db.ManufacturingOrderAudits.Add(new ManufacturingOrderAudit{
                     OrderId=id,Action=ApprovedAction,
-                    Details=FormattableString.Invariant(
-                        $"By={actor};Lots={report.FinalLotCount};Good={report.FinalGoodQuantity}")
+                    Details=CreateCertificate(actor,finalLots)
                 });
                 await db.SaveChangesAsync(ct);await tx.CommitAsync(ct);
                 return Results.Ok(new{orderId=id,approved=true,approvedBy=actor,
