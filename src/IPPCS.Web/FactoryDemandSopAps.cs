@@ -541,7 +541,8 @@ public static class FactoryDemandApsEndpoints
         api.MapGet("/factory-aps/runs/{id:guid}",async(Guid id,ProductionDb db,CancellationToken ct)=>{
             var run=await db.FactoryApsRuns.AsNoTracking().SingleOrDefaultAsync(x=>x.Id==id,ct);
             if(run is null)return Results.NotFound();
-            return Results.Ok(new{run.Id,run.Algorithm,
+            return Results.Ok(new{run.Id,run.Algorithm,run.MpsVersionId,run.HorizonDays,
+                startJalali=PersianPlanningDates.Format(run.StartOn),run.CalculatedUtc,
                 result=JsonSerializer.Deserialize<JsonElement>(run.OutputJson)});
         });
         api.MapPost("/factory-aps/calculate",async(FactoryApsInput input,ProductionDb db,CancellationToken ct)=>{
