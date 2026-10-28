@@ -204,9 +204,10 @@ public static class ManufacturingControlPlanEndpoints
             ProductionDb db,CancellationToken ct)=>{
             if(input.OperationSequence<=0||string.IsNullOrWhiteSpace(input.Code)||input.Code.Trim().Length>64
                 ||string.IsNullOrWhiteSpace(input.Description)||input.Description.Length>240
-                ||string.IsNullOrWhiteSpace(input.Unit)||input.Unit.Length>32
+                 ||string.IsNullOrWhiteSpace(input.Unit)||input.Unit.Length>32
+                ||(!input.Minimum.HasValue&&!input.Maximum.HasValue)
                 ||(input.Minimum.HasValue&&input.Maximum.HasValue&&input.Minimum>input.Maximum))
-                return Results.BadRequest(new{message="مشخصات کنترل کیفی و حدود مجاز معتبر نیست."});
+                return Results.BadRequest(new{message="مشخصه عددی باید دست‌کم یک حد پذیرش معتبر داشته باشد و حداقل از حداکثر بیشتر نباشد."});
             var unit=await FactoryMasterData.Active(db,
                 FactoryMasterData.UnitOfMeasure,input.Unit,ct);
             if(unit is null)return Results.Conflict(new{
@@ -259,9 +260,10 @@ public static class ManufacturingControlPlanEndpoints
                 return Results.Conflict(new{message="بازه کنترل پلن باید در محدوده اعتبار مسیر ساخت مصوب باشد."});
             var sequences=route.Operations.Select(x=>x.Sequence).ToHashSet();
             if(plan.Characteristics.Any(x=>!sequences.Contains(x.OperationSequence)||
+                (!x.Minimum.HasValue&&!x.Maximum.HasValue)||
                 (x.Minimum.HasValue&&x.Maximum.HasValue&&x.Minimum>x.Maximum)||
                 string.IsNullOrWhiteSpace(x.Code)))
-                return Results.Conflict(new{message="یک یا چند مشخصه کنترل پلن با عملیات مسیر ساخت منطبق نیست."});
+                return Results.Conflict(new{message="مشخصه‌های کنترل پلن باید با عملیات مسیر منطبق باشند و هر مشخصه عددی دست‌کم یک حد پذیرش معتبر داشته باشد."});
             var overlap=await db.ManufacturingControlPlans.AsNoTracking().AnyAsync(x=>
                 x.Id!=id && x.RoutingRevisionId==plan.RoutingRevisionId && x.State==ControlPlanState.Approved
                 && x.ValidFrom<=(plan.ValidUntil??DateOnly.MaxValue)
