@@ -110,6 +110,16 @@
   </div>
   <div id="aps-slot-list" aria-live="polite"></div>
 </div>
+<div class="wide panel" style="padding:12px">
+ <h3>ابزار مشترک بین مراکز کاری</h3>
+ <p>اگر دو یا چند مرکز در یک سناریوی APS از یک ابزار/فیکسچر مشترک استفاده می‌کنند، همان کد ابزار را برای آن مراکز انتخاب کنید. موتور مانع تخصیص همزمان این مراکز می‌شود؛ هیچ ارتباطی با سامانه کالیبراسیون یا تجهیزات خارجی وجود ندارد.</p>
+ <div class="form-grid">
+  <label>مرکز کاری<select id="aps-tool-center"></select></label>
+  <label>گروه ابزار مشترک (اطلاعات پایه)<select id="aps-tool-code"></select></label>
+  <div class="form-actions"><button id="aps-add-tool" type="button" class="btn-outline">انتساب ابزار به مرکز در سناریو</button></div>
+ </div>
+ <div id="aps-tool-list" aria-live="polite"></div>
+</div>
 <div class="form-actions"><button type="submit" class="btn-main">محاسبه زمان‌بندی محدودیت‌دار</button></div></form>
 <div class="panel"><h3>نمای گانت عملیاتی بر اساس روز و مرکز کاری</h3>
 <div id="aps-gantt"></div>
