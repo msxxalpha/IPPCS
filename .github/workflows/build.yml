@@ -44,6 +44,23 @@ jobs:
           node --check src/IPPCS.Web/wwwroot/js/factory-print.js
       - name: Jalali browser calendar and recall UI tests
         run: node --test tests/jalali.test.cjs tests/factory-recall-ui.test.cjs tests/eco-ui.test.cjs tests/factory-master-ui.test.cjs tests/factory-first-run-ui.test.cjs tests/factory-analytical-ui.test.cjs tests/factory-eighteen-module-ui-audit.test.cjs tests/factory-reports-ui.test.cjs tests/factory-stage39-acceptance-ui.test.cjs tests/factory-stage40-spc-ui.test.cjs tests/factory-stage41-aps-ui.test.cjs tests/factory-stage42-help.test.cjs tests/factory-stage42-shared-tool-ui.test.cjs tests/factory-stage44-print-ui.test.cjs
+      - name: First-test PowerShell script syntax preflight (Windows compatible)
+        shell: pwsh
+        run: |
+          foreach($script in @(
+            'scripts/Export-IPPCSDatabaseSql.ps1',
+            'scripts/Test-IPPCS-FirstTest.ps1',
+            'scripts/Validate-IPPCS.ps1'
+          )){
+            $tokens=$null
+            $parseErrors=$null
+            [System.Management.Automation.Language.Parser]::ParseFile(
+              (Resolve-Path $script).Path,[ref]$tokens,[ref]$parseErrors) | Out-Null
+            if($parseErrors.Count -gt 0){
+              $parseErrors | ForEach-Object { Write-Error "$script : $($_.Message)" }
+              throw "Invalid PowerShell first-run script: $script"
+            }
+          }
       - name: Verify committed migrations match EF Core model
         env:
           IPPCS_EF_MODEL_ONLY: '1'
