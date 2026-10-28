@@ -160,7 +160,9 @@ function makeCells(doc){
  el("print-disclaimer").textContent=fmt(doc.warning);
  el("print-footer-code").textContent=fmt(doc.reference);
  const watermark=el("print-watermark");
- watermark.textContent=doc.officiallyApproved?"":"پیش‌نویس / فاقد تصویب اجرایی";
+ watermark.textContent=doc.status.includes("لغوشده")?"سند لغوشده":
+  doc.status.includes("تعلیق")?"دستور معلق":
+  doc.officiallyApproved?"":"پیش‌نویس / فاقد تصویب اجرایی";
  const facts=el("print-meta");facts.replaceChildren();
  for(const f of doc.fields||[]){
   const wrapper=node("div",null,"print-field");
