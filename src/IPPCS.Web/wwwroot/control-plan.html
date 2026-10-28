@@ -166,6 +166,15 @@
   <div id="spc-evidence-findings"></div>
   <div id="spc-evidence-signals"></div>
  </div>
+ <div class="panel">
+  <h3>برآورد آزمایشی پوشش تعداد نمونه‌ها</h3>
+  <p>این محاسبه صرفاً برای بررسی اولیه فاصله تعداد نمونه‌ها با یک فراوانی فرضی است؛ نه طرح نمونه‌برداری مصوب. نتیجه با هر تعداد، گواهی MSA/رعایت نمونه‌برداری در سطح بچ یا مجوز ترخیص نمی‌سازد.</p>
+  <div class="form-grid">
+   <label>فرض محاسبه: هر چند قطعه یک نمونه؟<input id="sampling-every-units" type="number" min="1" max="10000" step="1" value="5"></label>
+   <div class="form-actions"><button id="sampling-coverage-check" class="btn-outline" type="button">بررسی فرضی تعداد نمونه‌ها</button></div>
+  </div>
+  <div id="sampling-coverage-summary" aria-live="polite"></div>
+ </div>
  <div class="panel"><h3>تاریخچه اندازه‌ها و حدود کنترل محاسباتی</h3><div id="spc-samples"></div></div>
 </section>
 <section id="tracegraph" class="page" hidden>
