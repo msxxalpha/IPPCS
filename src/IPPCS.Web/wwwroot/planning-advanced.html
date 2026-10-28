@@ -96,6 +96,20 @@
   </div>
   <div id="aps-blackout-list"></div>
 </div>
+<div class="wide panel" style="padding:12px">
+  <h3>بازه‌های ساعتی توقف ماشین، تعویض ابزار یا تعمیرات</h3>
+  <p>بازه نیمه‌باز به وقت محلی تهران فقط در همین سناریوی APS اعمال می‌شود. بازه می‌تواند از نیمه‌شب عبور کند؛ مرکز، دلیل ثبت‌شده در اطلاعات پایه و آغاز/پایان دقیق الزامی است. تغییری در دستور واقعی، رزرو فعال یا برنامه MPS ایجاد نمی‌شود.</p>
+  <div class="form-grid">
+    <label>مرکز کاری<select id="aps-slot-center"></select></label>
+    <label>شروع (شمسی)<span class="jalali-field"><input id="aps-slot-start" data-jalali-date placeholder="تاریخ شروع"><button type="button" class="date-trigger" data-jalali-trigger>▣</button></span></label>
+    <label>ساعت شروع<input id="aps-slot-start-time" type="time" value="10:00"></label>
+    <label>پایان (شمسی)<span class="jalali-field"><input id="aps-slot-end" data-jalali-date placeholder="تاریخ پایان"><button type="button" class="date-trigger" data-jalali-trigger>▣</button></span></label>
+    <label>ساعت پایان<input id="aps-slot-end-time" type="time" value="12:00"></label>
+    <label>دلیل توقف (اطلاعات پایه)<select id="aps-slot-reason-code"></select></label>
+    <div class="form-actions"><button id="aps-add-slot" type="button" class="btn-outline">افزودن توقف ساعتی به سناریو</button></div>
+  </div>
+  <div id="aps-slot-list" aria-live="polite"></div>
+</div>
 <div class="form-actions"><button type="submit" class="btn-main">محاسبه زمان‌بندی محدودیت‌دار</button></div></form>
 <div class="panel"><h3>نمای گانت عملیاتی بر اساس روز و مرکز کاری</h3>
 <div id="aps-gantt"></div>
