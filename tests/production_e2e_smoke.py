@@ -82,7 +82,16 @@ order = request("/api/v1/manufacturing-orders", "POST", {
     "plannedQuantity": 10, "plannedStartJalali": JALALI_NOW, "dueOnJalali": JALALI_NOW
 }, 201)
 order_id = order["id"]
+draft_print = request(f"/api/v1/factory-print/order/{order_id}")
+assert draft_print["status"].startswith("پیش‌نویس"),draft_print
+assert draft_print["officiallyApproved"] is False,draft_print
+assert draft_print["reference"] == order["number"],draft_print
+assert draft_print["tables"][0]["columns"][0] == "ردیف",draft_print
 released = request(f"/api/v1/manufacturing-orders/{order_id}/release", "POST")
+released_print = request(f"/api/v1/factory-print/order/{order_id}")
+assert released_print["status"].startswith("آزادشده"),released_print
+assert released_print["officiallyApproved"] is True,released_print
+assert len(released_print["tables"][0]["rows"]) == 2,released_print
 assert released["status"] == 1 and len(released["operations"]) == 2
 first, second = released["operations"]
 request(f"/api/v1/manufacturing-orders/{order_id}/operations/{first['id']}/confirm", "POST", {
