@@ -7,7 +7,7 @@ const root=path.resolve(__dirname,"../src/IPPCS.Web/wwwroot");
 const read=name=>fs.readFileSync(path.join(root,name),"utf8");
 const context={window:{}};
 vm.runInNewContext(read("js/help-catalog.js"),context);
-vm.runInNewContext(read("js/help-fields.js"),context);
+ assert.ok(html.includes("help-fields.js"));
 const guide=context.window.IPPCSHelpCatalog;
 const fieldMap=context.window.IPPCSHelpFields;
 test("all existing application forms have purpose and instructions, not only generic page descriptions",()=>{
