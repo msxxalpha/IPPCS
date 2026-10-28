@@ -34,7 +34,7 @@
    "/planning-advanced.html","/engineering-rebind.html","/mps-pegging.html",
    "/production-deviations.html","/system-users.html","/factory-recall.html",
    "/factory-master-data.html","/factory-release-readiness.html","/factory-analytical-verification.html",
-   "/factory-reports.html"
+   "/factory-reports.html","/help.html"
   ]);
   const returnTo=allowed.has(location.pathname)?location.pathname:"/app.html";
   if(location.pathname!=="/login.html")location.assign("/login.html?returnUrl="+encodeURIComponent(returnTo));
@@ -46,5 +46,32 @@
   try{await secureFetch("/api/v1/auth/logout",{method:"POST"});location.assign("/login.html");}
   catch(err){btn.disabled=false;window.alert(err.message);}
  });
+ // Universal, contextual Persian help on every authenticated application form.
+ // Pure DOM links only: never modify submitted payloads or operational data.
+ function injectHelpLinks(){
+  if(location.pathname==="/login.html"||location.pathname==="/help.html")return;
+  const nav=document.querySelector(".sidebar nav");
+  if(nav&&!nav.querySelector("[data-ip-help-nav]")){
+   const link=document.createElement("a");link.className="planning-link";
+   link.setAttribute("data-ip-help-nav","");
+   link.href="/help.html";link.textContent="راهنمای فرم‌ها و ترتیب استقرار";
+   nav.append(link);
+  }
+  const forms=document.querySelectorAll("form[id]");
+  for(const form of forms){
+   if(form.querySelector("[data-ip-form-help]"))continue;
+   const a=document.createElement("a");
+   a.setAttribute("data-ip-form-help","");
+   a.className="help-jump";
+   a.href="/help.html#page="+encodeURIComponent(location.pathname)+
+    "&form="+encodeURIComponent(form.id);
+   a.textContent="؟ راهنمای این فرم";
+   a.title="کاربرد، پیش‌نیاز و روش ورود اطلاعات این فرم";
+   form.insertBefore(a,form.firstChild);
+  }
+ }
+ if(document.readyState==="loading")
+  document.addEventListener("DOMContentLoaded",injectHelpLinks);
+ else injectHelpLinks();
  window.IPPCSSecurity={secureFetch,goLogin};
 })();
