@@ -89,6 +89,14 @@ def stage16_acceptance(request, jalali, center_id, semi_item):
       f"/api/v1/manufacturing-orders/{final['id']}/inspections/{characteristic['id']}",
       "POST",{"value":55,"nonconformingQuantity":0,"note":"CI measured damping force"})
     assert measured["passed"] and measured["orderStatus"]==4,measured
+    # Stage 40: recorded sample evidence is readable but cannot assert MSA or
+    # a validated SPC baseline merely because a single real QC value exists.
+    diagnostic=request(
+      f"/api/v1/manufacturing-orders/{final['id']}/spc/{characteristic['id']}/evidence")
+    assert diagnostic["sampleCount"]==1 and not diagnostic["referenceHistoryLongEnough"],diagnostic
+    assert (diagnostic["assessment"]=="InsufficientReferenceHistory" and
+      diagnostic["capabilityApproved"] is False and
+      diagnostic["measurementSystemVerified"] is False),diagnostic
     handoff=request(f"/api/v1/manufacturing-orders/{final['id']}/handoff-audit")
     assert handoff["pairsWithUntracedOutput"]==1, handoff
     request(f"/api/v1/manufacturing-orders/{final['id']}/approve-end-of-line",
