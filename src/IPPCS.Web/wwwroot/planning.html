@@ -45,6 +45,11 @@
     <label>ترتیب عملیات<input name="sequence" type="number" min="1" value="10" required></label>
     <div class="form-actions"><button class="btn-main" type="submit">افزودن جزء</button></div>
   </form>
+  <div class="panel form-grid">
+    <h3 class="wide">چاپ صورت ساختار BOM</h3>
+    <label>نسخه BOM<select id="print-bom-select"></select></label>
+    <div class="form-actions"><button id="print-bom-button" type="button" class="btn-outline">چاپ ساختار مواد و اجزای محصول</button></div>
+  </div>
   <div class="panel"><h3>سوابق نسخه‌های BOM</h3><div id="bom-table"></div></div>
   <div class="panel"><h3>کنترل پیش از تصویب نسخه‌های BOM و Routing</h3>
    <p>این بررسی وضعیت نسخه پیش‌نویس، بازه تاریخی، اجزای تکراری، عملیات و چرخه BOM را نمایش می‌دهد. تصمیم نهایی تصویب در سمت سرور با قفل تراکنشی دوباره ارزیابی می‌شود.</p>
@@ -91,6 +96,12 @@
     <label>مرجع داخلی برنامه<input name="reference" maxlength="120" placeholder="برنامه هفتگی"></label>
     <div class="form-actions"><button class="btn-main" type="submit">ثبت ردیف برنامه</button></div>
   </form>
+  <div class="panel form-grid">
+   <h3 class="wide">نسخه چاپی حرفه‌ای MPS</h3>
+   <p class="wide">خروجی A4، شامل نسخه واقعی، وضعیت تصویب، ردیف‌های برنامه، سررسیدهای شمسی و محل امضا است. نسخه پیش‌نویس با واترمارک مشخص می‌شود.</p>
+   <label>نسخه برنامه برای چاپ<select id="print-mps-select"></select></label>
+   <div class="form-actions"><button id="print-mps-button" type="button" class="btn-outline">پیش‌نمایش و چاپ برنامه MPS</button></div>
+  </div>
   <div class="panel"><h3>نسخه‌ها و ردیف‌های برنامه اصلی تولید</h3><div id="mps-table"></div></div>
   <div class="panel"><h3>ردیف‌های برنامه پیش‌نویس (قابل اصلاح)</h3><div id="mps-lines-table"></div></div>
 <form id="mps-controlled-revision-form" class="panel form-grid">
