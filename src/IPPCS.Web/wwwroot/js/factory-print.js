@@ -114,8 +114,17 @@ function fromEol(order,check){
   warning:check.disclaimer
  };
 }
-function fromAps(run,detail){
+function jalaliDate(iso){
+ if(!iso)return "—";
+ if(!/^\\d{4}-\\d{2}-\\d{2}/.test(String(iso)))return fmt(iso);
+ const date=new Date(String(iso).slice(0,10)+"T12:00:00Z");
+ return Number.isNaN(date.getTime())?fmt(iso):new Intl.DateTimeFormat(
+  "fa-IR-u-ca-persian",{timeZone:"UTC",year:"numeric",month:"2-digit",day:"2-digit"}).format(date);
+}
+function fromAps(run,detail,items=[],centers=[]){
  const data=detail?.result||{};
+ const item=id=>items.find(x=>x.id===id)?.code||fmt(id);
+ const center=id=>centers.find(x=>x.id===id)?.code||fmt(id);
  const allocations=data.allocations||data.Allocations||[];
  const unscheduled=data.unscheduled||data.Unscheduled||[];
  return {
@@ -129,13 +138,13 @@ function fromAps(run,detail){
    {title:"برنامه تخصیص عملیات و مراکز",columns:[
     "شناسه محصول","مرکز","مرحله","عملیات","مقدار","موعد",
     "شروع شمسی","ساعت شروع","پایان شمسی","ساعت پایان","دیرکرد"],
-    rows:allocations.slice(0,800).map(x=>[
-     fmt(x.itemId),fmt(x.workCenterId),fmt(x.sequence),fmt(x.operationName),
-     fmt(x.quantity),fmt(x.dueOn||x.dueJalali),
-     fmt(x.startDate||x.startJalali),fmt(x.startsAt),
-     fmt(x.finishDate||x.finishJalali),fmt(x.finishesAt),x.late?"بله":"خیر"])},
+    rows:allocations.map(x=>[
+     item(x.itemId),center(x.workCenterId),fmt(x.sequence),fmt(x.operationName),
+     fmt(x.quantity),jalaliDate(x.dueOn||x.dueJalali),
+     jalaliDate(x.startDate||x.startJalali),fmt(x.startsAt),
+     jalaliDate(x.finishDate||x.finishJalali),fmt(x.finishesAt),x.late?"بله":"خیر"])},
    {title:"عملیات زمان‌بندی‌نشده",columns:["محصول","مرحله","علت"],
-    rows:unscheduled.slice(0,800).map(x=>[fmt(x.itemId),fmt(x.sequence),fmt(x.reason)])}
+    rows:unscheduled.map(x=>[item(x.itemId),fmt(x.sequence),fmt(x.reason)])}
   ],
   warning:"نتیجه APS سناریویی است، نه دستور ساخت آزادشده یا رزرو قطعی ماشین. "+
    "اطلاعات خام برنامه در زمان چاپ از Snapshot ذخیره‌شده خوانده شده‌اند."
@@ -209,11 +218,12 @@ async function boot(){
      get("/manufacturing-orders/"+id+"/end-of-line-check")]);
     documentData=fromEol(order,check);
    }else if(kind==="aps"){
-    const [runs,detail]=await Promise.all([
-     get("/factory-aps/runs"),get("/factory-aps/runs/"+id)]);
-    const selected=runs.find(x=>x.id===id);
-    if(!selected)throw Error("سناریوی APS قدیمی‌تر از لیست ۱۰۰ نتیجه اخیر است؛ چاپ ناقص ممنوع.");
-    documentData=fromAps(selected,detail);
+    const [detail,items,centers]=await Promise.all([
+     get("/factory-aps/runs/"+id),get("/items"),get("/work-centers")]);
+    const result=detail.result||{};
+    if((result.allocations||[]).length>800||(result.unscheduled||[]).length>800)
+     throw Error("سناریوی APS بیش از سقف چاپ ۸۰۰ ردیف است؛ چاپ ناقص ممنوع.");
+    documentData=fromAps(detail,detail,items,centers);
    }else{
     documentData=await get("/factory-print/"+kind+"/"+id);
    }
