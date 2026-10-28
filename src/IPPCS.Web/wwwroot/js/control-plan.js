@@ -154,7 +154,10 @@ async function reloadSpcRequirements(){
 async function spcReport(){
  const order=$("#spc-order").value,req=$("#spc-requirement").value;
  if(!order||!req)throw Error("دستور و مشخصه بازرسی انتخاب نشده است.");
- const r=await api("/manufacturing-orders/"+order+"/spc/"+req);
+ const [r,evidence]=await Promise.all([
+  api("/manufacturing-orders/"+order+"/spc/"+req),
+  api("/manufacturing-orders/"+order+"/spc/"+req+"/evidence")
+ ]);
  const fmt=x=>x===null||x===undefined?"نامشخص":x;
  table("#spc-summary",[["شاخص","name"],["مقدار","value"]],[
   {name:"تعداد نمونه",value:r.sampleCount},
@@ -169,7 +172,22 @@ async function spcReport(){
   ["زمان",x=>new Date(x.recordedUtc).toLocaleString("fa-IR-u-ca-persian",{timeZone:"Asia/Tehran"})],
   ["مقدار","value"],["نتیجه",x=>x.passed?"قبول":"مردود"]
  ],r.samples);
- alertTo(r.warning);
+ table("#spc-evidence-summary",[["بررسی","name"],["نتیجه","value"]],[
+  {name:"تعداد نمونه ثبت‌شده",value:evidence.sampleCount},
+  {name:"روزهای دارای ثبت نمونه (تهران)",value:evidence.distinctSampleDays},
+  {name:"مردود حدود مشخصات",value:evidence.specViolations},
+  {name:"اختلاف نتیجه تاریخی و حدود مشخصات",value:evidence.invalidHistoricalPassFlags},
+  {name:"زمان ثبت تکراری",value:evidence.duplicateTimestamps},
+  {name:"حداقل ۲۵ نمونه برای بازبینی اولیه",value:evidence.referenceHistoryLongEnough?"بله":"خیر"},
+  {name:"امکان تخمین مقدماتی حدود",value:evidence.provisionalLimitAvailable?"بله":"خیر"},
+  {name:"شواهد معتبر MSA / Gage R&R",value:"ثبت نشده / تأیید نشده"},
+  {name:"تأیید قابلیت فرایند یا ترخیص",value:"خیر"}
+ ]);
+ table("#spc-evidence-findings",[["یافته و اقدام","description"]],
+  evidence.findings.map(description=>({description})));
+ table("#spc-evidence-signals",[["قاعده","rule"],["از نمونه","startIndex"],
+  ["تا نمونه","endIndex"],["توضیح","description"]],evidence.signals);
+ alertTo(evidence.disclaimer+" "+(r.warning||""));
 }
 async function reloadTraceLots(){
  const order=$("#trace-order").value;
