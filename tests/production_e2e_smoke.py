@@ -82,6 +82,9 @@ uncontrolled = request("/api/v1/manufacturing-orders", "POST", {
     "number": "CI-MISSING-CONTROL-PLAN", "itemId": product["id"],
     "plannedQuantity": 2, "plannedStartJalali": JALALI_NOW, "dueOnJalali": JALALI_NOW
 }, 201)
+uncontrolled_check=request(f"/api/v1/manufacturing-orders/{uncontrolled['id']}/release-check")
+assert not uncontrolled_check["canRelease"] and any(
+    x["code"]=="ControlPlanUnavailable" for x in uncontrolled_check["issues"]),uncontrolled_check
 request(f"/api/v1/manufacturing-orders/{uncontrolled['id']}/release", "POST", status=409)
 control = request("/api/v1/control-plans", "POST", {
     "routingRevisionId": route_id, "code": "CI-CONTROLPLAN-001",
@@ -100,6 +103,8 @@ order = request("/api/v1/manufacturing-orders", "POST", {
     "plannedQuantity": 10, "plannedStartJalali": JALALI_NOW, "dueOnJalali": JALALI_NOW
 }, 201)
 order_id = order["id"]
+order_check=request(f"/api/v1/manufacturing-orders/{order_id}/release-check")
+assert order_check["canRelease"] and not order_check["issues"],order_check
 draft_print = request(f"/api/v1/factory-print/order/{order_id}")
 assert draft_print["status"].startswith("پیش‌نویس"),draft_print
 assert draft_print["officiallyApproved"] is False,draft_print
