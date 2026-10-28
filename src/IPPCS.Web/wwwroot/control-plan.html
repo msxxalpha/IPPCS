@@ -47,6 +47,11 @@
 <label>اجباری بودن<select name="mandatory"><option value="true">بله</option><option value="false">خیر</option></select></label>
 <div class="form-actions"><button class="btn-main" type="submit">ثبت مشخصه</button></div>
 </form>
+<div class="panel form-grid">
+ <h3 class="wide">چاپ کنترل پلن نسخه‌دار</h3>
+ <label>کنترل پلن<select id="print-control-plan-select"></select></label>
+ <div class="form-actions"><button id="print-control-plan-button" class="btn-outline" type="button">چاپ برگه کنترل پلن</button></div>
+</div>
 <div class="panel"><h3>نسخه‌های کنترل پلن و مشخصه‌ها</h3><div id="plan-table"></div></div>
 </section>
 <section id="inspection" class="page" hidden>
@@ -124,7 +129,11 @@
    <button id="eol-approve" type="button" class="btn-main">تأیید داخلی نهایی توسط کیفیت</button>
   </div>
  </div>
- <div class="panel"><h3>خلاصه کنترل نهایی و وضعیت تأیید</h3><div id="eol-summary"></div></div>
+ <div class="panel">
+ <div class="form-actions"><button id="print-eol-certificate" type="button" class="btn-outline">چاپ گواهی داخلی EOL ثبت‌شده</button></div>
+ <p>چاپ گواهی فقط پس از ثبت تأیید نهایی معتبر و بررسی سازگاری امضای بچ امکان‌پذیر است؛ چاپ پیش‌نویس به‌جای گواهی مجاز نیست.</p>
+</div>
+<div class="panel"><h3>خلاصه کنترل نهایی و وضعیت تأیید</h3><div id="eol-summary"></div></div>
  <div class="panel"><h3>موانع و کنترل‌های ناقص</h3><div id="eol-issues"></div></div>
  <div class="panel"><h3>پوشش شجره نیمه‌ساخته برای هر بچ مونتاژ</h3><div id="eol-coverage"></div></div>
 </section>
