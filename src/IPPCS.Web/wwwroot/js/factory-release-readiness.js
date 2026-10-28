@@ -70,9 +70,53 @@ async function reload(){
  }catch(error){notice(error.message,true);}
  finally{button.disabled=false;}
 }
+const priorityPages=new Set([
+ "/engineering-rebind.html","/control-plan.html",
+ "/production-deviations.html","/planning-advanced.html"
+]);
+function priorityCard(item){
+ const card=node("article",undefined,"factory-setup-card");
+ const heading=node("div",undefined,"factory-setup-heading");
+ const severity=item.severity==="Critical"?"بحرانی":item.severity==="High"?
+  "اولویت بالا":"نیازمند بررسی";
+ heading.append(node("strong",item.area+" — "+item.identifier),
+  node("span",severity,"factory-setup-pending"));
+ card.append(heading,node("p",item.description));
+ const anchor=node("a","ورود به ماژول مرتبط","planning-link");
+ anchor.href=priorityPages.has(item.page)?item.page:"/app.html";
+ card.append(anchor);return card;
+}
+async function reloadPriority(){
+ const button=$("priority-refresh");
+ button.disabled=true;
+ try{
+  const response=await IPPCSSecurity.secureFetch(
+   "/api/v1/factory-release-readiness/priority-queue");
+  if(!response.ok){
+   let detail;try{detail=await response.json();}catch{}
+   throw Error(detail?.message||"دریافت صف اقدامات ممکن نیست.");
+  }
+  const data=await response.json();
+  if(data.kind!=="FactoryPriorityExceptionsOnly"||
+   data.productionReleaseAuthorized!==false||data.factoryAcceptedModules!==0||
+   !Array.isArray(data.rows)||data.total!==data.rows.length)
+   throw Error("ساختار صف اقدامات معتبر نیست؛ وضعیت پذیرش کارخانه قابل استنباط نیست.");
+  const rows=$("priority-list");rows.replaceChildren();
+  $("priority-total").textContent=Number(data.total).toLocaleString("fa-IR");
+  $("priority-critical").textContent=Number(data.critical).toLocaleString("fa-IR");
+  $("priority-high").textContent=Number(data.high).toLocaleString("fa-IR");
+  if(!data.rows.length)
+   rows.append(node("p","در محدوده داده قابل محاسبه موردی دیده نشد؛ پذیرش و آزمون کارخانه همچنان باز است."));
+  for(const entry of data.rows)rows.append(priorityCard(entry));
+  $("priority-disclaimer").textContent=data.disclaimer;
+ }catch(error){notice(error.message,true);}
+ finally{button.disabled=false;}
+}
 function start(){
  $("readiness-refresh").addEventListener("click",reload);
+ $("priority-refresh").addEventListener("click",reloadPriority);
  reload();
+ reloadPriority();
 }
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",start);
 else start();
