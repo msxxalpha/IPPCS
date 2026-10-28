@@ -42,7 +42,7 @@ jobs:
           node --check src/IPPCS.Web/wwwroot/js/factory-reports.js
           node --check src/IPPCS.Web/wwwroot/js/login.js
       - name: Jalali browser calendar and recall UI tests
-        run: node --test tests/jalali.test.cjs tests/factory-recall-ui.test.cjs tests/eco-ui.test.cjs tests/factory-master-ui.test.cjs tests/factory-first-run-ui.test.cjs tests/factory-analytical-ui.test.cjs tests/factory-eighteen-module-ui-audit.test.cjs tests/factory-reports-ui.test.cjs
+        run: node --test tests/jalali.test.cjs tests/factory-recall-ui.test.cjs tests/eco-ui.test.cjs tests/factory-master-ui.test.cjs tests/factory-first-run-ui.test.cjs tests/factory-analytical-ui.test.cjs tests/factory-eighteen-module-ui-audit.test.cjs tests/factory-reports-ui.test.cjs tests/factory-stage39-acceptance-ui.test.cjs
       - name: Verify committed migrations match EF Core model
         run: |
           dotnet tool install --global dotnet-ef --version 10.0.0
@@ -146,6 +146,11 @@ jobs:
             'http://127.0.0.1:5295/api/v1/factory-reports/overview?fromJalali=1405%2F08%2F05&throughJalali=1405%2F08%2F01')
           test "$bad_range" = "400"
           echo "PASS: bounded management reports, authenticated access and date validation."
+          curl --fail --silent --show-error -b /tmp/ippcs-cookie \
+            http://127.0.0.1:5295/api/v1/factory-release-readiness/priority-queue \
+            > /tmp/ippcs-uat-queue.json
+          python3 -c 'import json;d=json.load(open("/tmp/ippcs-uat-queue.json"));assert d["kind"]=="FactoryPriorityExceptionsOnly";assert d["factoryAcceptedModules"]==0 and d["productionReleaseAuthorized"] is False;assert d["total"]==len(d["rows"]);assert d["critical"]+d["high"]+d["medium"]==d["total"]'
+          echo "PASS: evidence-only ECO/CAPA/EOL/APS priority queue and no fabricated factory acceptance."
           if ! python3 tests/production_e2e_smoke.py; then
             echo "Production E2E failed; application warnings:"
             grep -E "IPPCS_CONCURRENCY_RELEASE|DbUpdateConcurrencyException|fail:|warn:" /tmp/ippcs-web.log | tail -n 50 || true
