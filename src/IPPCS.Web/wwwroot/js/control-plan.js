@@ -32,6 +32,7 @@ async function load(){[state.routes,state.plans,state.orders]=await Promise.all(
  api("/routings"),api("/control-plans"),api("/manufacturing-orders")]);
  select($("#plan-routing"),state.routes.filter(x=>x.state===1),x=>x.revisionCode+" | "+x.itemId.slice(0,8));
  select($("#draft-plan"),state.plans.filter(x=>x.state===0),x=>x.code);
+ select($("#print-control-plan-select"),state.plans,x=>x.code+" · "+(x.state===1?"مصوب":"پیش‌نویس"));
  for(const el of [$("#inspection-order"),$("#link-order")])select(el,state.orders.filter(x=>x.status!==0&&x.status!==5),x=>x.number);
  select($("#assembly-order"),state.orders.filter(x=>x.kind===1&&x.status!==0&&x.status!==5),x=>x.number);
  select($("#semi-source-order"),state.orders.filter(x=>x.kind===0&&x.status===4),x=>x.number);
@@ -366,7 +367,21 @@ async function loadCharacteristicUnits(){
  if(!rows.length)alertTo("واحدهای اندازه‌گیری کنترل کیفی در اطلاعات پایه تعریف نشده‌اند.",true);
 }
 function boot(){
- $$("nav [data-section]").forEach(button=>button.addEventListener("click",()=>{
+ $("#print-control-plan-button").addEventListener("click",()=>{
+  const id=$("#print-control-plan-select").value;
+  if(!id){alertTo("ابتدا کنترل پلن را انتخاب کنید.",true);return;}
+  window.open("/factory-print.html?"+new URLSearchParams({
+   kind:"control-plan",id,back:"/control-plan.html"
+  }),"_blank","noopener");
+ });
+ $("#print-eol-certificate").addEventListener("click",()=>{
+  const id=$("#eol-order").value;
+  if(!id){alertTo("ابتدا دستور مونتاژ را انتخاب کنید.",true);return;}
+  window.open("/factory-print.html?"+new URLSearchParams({
+   kind:"eol",id,back:"/control-plan.html"
+  }),"_blank","noopener");
+ });
+ $("nav [data-section]").forEach(button=>button.addEventListener("click",()=>{
  $$("section.page").forEach(section=>section.hidden=section.id!==button.dataset.section);
  $$("nav [data-section]").forEach(b=>b.classList.toggle("nav-active",b===button));
  $("#page-title").textContent=button.textContent;$("#feedback").hidden=true;
