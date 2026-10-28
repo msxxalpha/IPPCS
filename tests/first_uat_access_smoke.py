@@ -36,6 +36,7 @@ def get(path):
 def main():
     health = json.loads(get("/health"))
     assert health["status"] == "ready", health
+    assert health["version"] == "0.8.0-first-uat1", health
     for page in PAGES:
         content = get(page)
         assert b"<html" in content.lower(), page
