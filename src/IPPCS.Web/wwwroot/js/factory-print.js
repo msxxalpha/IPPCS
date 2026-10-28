@@ -116,7 +116,7 @@ function fromEol(order,check){
 }
 function jalaliDate(iso){
  if(!iso)return "—";
- if(!/^\\d{4}-\\d{2}-\\d{2}/.test(String(iso)))return fmt(iso);
+ if(!/^\d{4}-\d{2}-\d{2}/.test(String(iso)))return fmt(iso);
  const date=new Date(String(iso).slice(0,10)+"T12:00:00Z");
  return Number.isNaN(date.getTime())?fmt(iso):new Intl.DateTimeFormat(
   "fa-IR-u-ca-persian",{timeZone:"UTC",year:"numeric",month:"2-digit",day:"2-digit"}).format(date);
