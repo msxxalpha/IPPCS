@@ -40,7 +40,7 @@ public sealed class FactoryStageFortySpcEvidenceTests
     [Fact]
     public void Six_strictly_increasing_points_trigger_trend_but_flat_steps_break_it()
     {
-        var values=Enumerable.Range(0,19).Select(i=>i%2==0?10m:12m)
+        var values=Enumerable.Range(0,19).Select(i=>i%2==0?16m:12m)
             .Concat(new decimal[]{13,14,15,16,17,18}).ToArray();
         var r=FactorySpcEvidence.Review(Guid.NewGuid(),Requirement(),Entries(values));
         Assert.Contains(r.Signals,s=>s.Rule=="SixPointTrend"&&s.StartIndex==20&&s.EndIndex==25);
