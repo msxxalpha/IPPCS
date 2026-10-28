@@ -11,6 +11,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Verify and package the exact Draft PR head, not GitHub's temporary merge ref.
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
@@ -82,12 +85,35 @@ jobs:
           path: database/IPPCS_Dev_Complete_Install.sql
           if-no-files-found: error
           retention-days: 30
+      - name: Bundle first UAT Visual Studio source and SQL as one zip artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist/IPPCS_First_UAT_1
+          git archive HEAD | tar -xf - -C dist/IPPCS_First_UAT_1
+          mkdir -p dist/IPPCS_First_UAT_1/database
+          cp database/IPPCS_Dev_Complete_Install.sql dist/IPPCS_First_UAT_1/database/
+          git rev-parse HEAD > dist/IPPCS_First_UAT_1/TESTED_COMMIT.txt
+          test -s dist/IPPCS_First_UAT_1/IPPCS.sln
+          test -s dist/IPPCS_First_UAT_1/database/IPPCS_Dev_Complete_Install.sql
+          test -s dist/IPPCS_First_UAT_1/docs/FIRST_UAT_TEST_PACK.md
+          echo "PASS: complete source + standalone SQL + visual studio/UAT guide bundled."
+      - name: Publish first UAT complete source plus SQL package
+        uses: actions/upload-artifact@v4
+        with:
+          name: IPPCS_First_UAT_1_VisualStudio_SQL_Complete
+          path: dist/IPPCS_First_UAT_1/
+          if-no-files-found: error
+          retention-days: 30
   # Independently isolated SQL acceptance; one workflow run includes both gates.
   sqlserver-schema:
     runs-on: ubuntu-latest
     timeout-minutes: 18
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Verify and package the exact Draft PR head, not GitHub's temporary merge ref.
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
