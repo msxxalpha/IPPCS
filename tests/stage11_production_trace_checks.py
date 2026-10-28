@@ -13,6 +13,14 @@ def stage11_acceptance(request, component_id, center_id, jalali):
           "workCenterId":center_id,"setupMinutes":1,
           "runMinutesPerUnit":1,"yieldPercent":100},201)
         request(f"/api/v1/routings/{route['id']}/approve","POST")
+        plan=request("/api/v1/control-plans","POST",{
+          "routingRevisionId":route["id"],"code":prefix+"-CONTROL",
+          "validFromJalali":jalali,"validUntilJalali":None},201)
+        request(f"/api/v1/control-plans/{plan['id']}/characteristics","POST",{
+          "operationSequence":10,"code":prefix+"-FINAL-CHECK",
+          "description":"Final process check","unit":"N",
+          "minimum":0,"maximum":100,"mandatory":True},201)
+        request(f"/api/v1/control-plans/{plan['id']}/approve","POST")
         bom=request("/api/v1/bom-revisions","POST",{
           "parentItemId":item,"revision":prefix+"-BOM",
           "validFromJalali":jalali,"validUntilJalali":None},201)
@@ -31,7 +39,12 @@ def stage11_acceptance(request, component_id, center_id, jalali):
         output=request(f"/api/v1/manufacturing-orders/{order['id']}/operations/{op['id']}/confirm",
           "POST",{"goodQuantity":units,"scrapQuantity":0,"reworkQuantity":0,
           "lotCode":lot})
-        assert output["status"]==4,output
+        if output["status"]!=4:
+            requirements=request(f"/api/v1/manufacturing-orders/{order['id']}/inspection-requirements")["requirements"]
+            assert len(requirements)==1,requirements
+            result=request(f"/api/v1/manufacturing-orders/{order['id']}/inspections/{requirements[0]['id']}",
+              "POST",{"value":50,"nonconformingQuantity":0,"note":"CI final process check"})
+            assert result["orderStatus"]==4,result
         confirmations=request(f"/api/v1/manufacturing-orders/{order['id']}/confirmations")
         return order,confirmations[0]
     semi_order,source=completed(semi["id"],"CI-SEMIO11",4,"CI-SEMI-BATCH11")
