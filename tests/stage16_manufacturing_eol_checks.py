@@ -115,6 +115,14 @@ def stage16_acceptance(request, jalali, center_id, semi_item):
     assert approved["approved"] and approved["finalGoodQuantity"]==2,approved
     signed=request(f"/api/v1/manufacturing-orders/{final['id']}/end-of-line-check")
     assert signed["alreadyApproved"] and not signed["canApprove"],signed
+    # Stage 39: a newly issued EOL signature must seal the exact individual
+    # final-lot snapshot, not just the number of lots and total good units.
+    audit=request(f"/api/v1/manufacturing-orders/{final['id']}/history")["events"]
+    certificates=[x for x in audit if x["action"]=="EndOfLineApproved"]
+    assert len(certificates)==1,certificates
+    import re
+    assert re.fullmatch(r"By=[^;]+;Lots=1;Good=2;SHA256=[A-F0-9]{64}",
+      certificates[0]["details"]),certificates
     request(f"/api/v1/manufacturing-orders/{final['id']}/approve-end-of-line","POST",status=409)
     request(internal,"POST",{
       "sourceConfirmationId":first["id"],"destinationConfirmationId":last["id"],
