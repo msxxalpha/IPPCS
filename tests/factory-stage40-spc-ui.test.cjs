@@ -27,3 +27,18 @@ test("SPC evidence is read only, role protected and bounded; never calls it fina
  assert.match(api,/I3Sigma/);
  assert.doesNotMatch(api,/MapPost\(|MapPut\(|MapDelete\(/);
 });
+
+test("sampling coverage what-if uses real inspection counts but cannot approve policy, MSA, or release",()=>{
+ const page=read("wwwroot/control-plan.html");
+ const script=read("wwwroot/js/control-plan.js");
+ const api=read("FactorySamplingCoverage.cs");
+ for(const id of ["sampling-every-units","sampling-coverage-check","sampling-coverage-summary"])
+  assert.ok(page.includes('id="'+id+'"'),id);
+ assert.match(script,/samplingCoverage/);
+ assert.match(script,/sampling-coverage/);
+ assert.match(api,/RequireAuthorization\("IpProductionUser"\)/);
+ assert.match(api,/Take\(501\)/);
+ for(const flag of ["PerLotSamplingVerified","SamplingPolicyApproved",
+   "MeasurementSystemVerified"])assert.ok(api.includes(flag));
+ assert.doesNotMatch(api,/MapPost\(|MapPut\(|MapDelete\(/);
+});
