@@ -12,7 +12,10 @@ form.addEventListener("submit",async e=>{
   if(!response.ok)throw new Error(response.status===423?"حساب موقتاً قفل شده است.":"نام کاربری یا رمز عبور صحیح نیست.");
   const requested=new URLSearchParams(location.search).get("returnUrl");
   const allowed=["/app.html","/planning.html","/execution.html",
-   "/factory-recall.html"];
+   "/factory-recall.html","/help.html","/control-plan.html","/planning-advanced.html",
+   "/engineering-rebind.html","/mps-pegging.html","/production-deviations.html",
+   "/system-users.html","/factory-master-data.html","/factory-release-readiness.html",
+   "/factory-analytical-verification.html","/factory-reports.html"];
   location.replace(allowed.includes(requested)?requested:"/app.html");
  }catch(ex){error.hidden=false;error.textContent=ex.message;submit.disabled=false;}
 });
