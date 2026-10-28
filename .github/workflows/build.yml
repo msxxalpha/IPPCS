@@ -45,10 +45,14 @@ jobs:
       - name: Jalali browser calendar and recall UI tests
         run: node --test tests/jalali.test.cjs tests/factory-recall-ui.test.cjs tests/eco-ui.test.cjs tests/factory-master-ui.test.cjs tests/factory-first-run-ui.test.cjs tests/factory-analytical-ui.test.cjs tests/factory-eighteen-module-ui-audit.test.cjs tests/factory-reports-ui.test.cjs tests/factory-stage39-acceptance-ui.test.cjs tests/factory-stage40-spc-ui.test.cjs tests/factory-stage41-aps-ui.test.cjs tests/factory-stage42-help.test.cjs tests/factory-stage42-shared-tool-ui.test.cjs tests/factory-stage44-print-ui.test.cjs
       - name: Verify committed migrations match EF Core model
+        env:
+          IPPCS_EF_MODEL_ONLY: '1'
         run: |
           dotnet tool install --global dotnet-ef --version 10.0.0
           dotnet ef migrations has-pending-model-changes --project src/IPPCS.Web/IPPCS.Web.csproj --startup-project src/IPPCS.Web/IPPCS.Web.csproj
       - name: Generate reviewed one-file IPPCS_Dev SQL installer
+        env:
+          IPPCS_EF_MODEL_ONLY: '1'
         run: |
           python3 -m unittest discover -s tests -p 'test_ippcs_sql_installer.py'
           dotnet ef migrations script 0 --idempotent --no-build --configuration Release --project src/IPPCS.Web/IPPCS.Web.csproj --startup-project src/IPPCS.Web/IPPCS.Web.csproj --output /tmp/ippcs-complete-ef.sql
