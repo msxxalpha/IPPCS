@@ -29,6 +29,9 @@ $health=(Fetch '/health').Content | ConvertFrom-Json
 if($health.status -ne 'ready'){
     throw 'IPPCS database is not fully ready. Recheck dedicated SQL installation and ConnectionStrings:Production.'
 }
+if($health.version -ne '0.8.0-first-uat1'){
+    throw "Wrong IPPCS build: running $($health.version), expected 0.8.0-first-uat1. Checkout the correct first-test branch."
+}
 Write-Host '2/4 Checking all application entry points...' -ForegroundColor Cyan
 $pages=@(
     '/login.html','/app.html','/planning.html','/planning-advanced.html',
