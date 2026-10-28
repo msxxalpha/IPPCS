@@ -97,6 +97,13 @@ def stage16_acceptance(request, jalali, center_id, semi_item):
     assert (diagnostic["assessment"]=="InsufficientReferenceHistory" and
       diagnostic["capabilityApproved"] is False and
       diagnostic["measurementSystemVerified"] is False),diagnostic
+    sampling=request(
+      f"/api/v1/manufacturing-orders/{final['id']}/sampling-coverage/{characteristic['id']}?everyUnits=1")
+    assert sampling["reportedOperationUnits"]==2 and sampling["minimumSamplesUnderHypothesis"]==2,sampling
+    assert sampling["actualRecordedSamples"]==1 and sampling["apparentCountGap"]==1,sampling
+    assert (sampling["samplingPolicyApproved"] is False and
+      sampling["perLotSamplingVerified"] is False and
+      sampling["measurementSystemVerified"] is False),sampling
     handoff=request(f"/api/v1/manufacturing-orders/{final['id']}/handoff-audit")
     assert handoff["pairsWithUntracedOutput"]==1, handoff
     request(f"/api/v1/manufacturing-orders/{final['id']}/approve-end-of-line",
