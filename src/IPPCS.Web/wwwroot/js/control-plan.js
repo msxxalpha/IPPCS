@@ -189,6 +189,24 @@ async function spcReport(){
   ["تا نمونه","endIndex"],["توضیح","description"]],evidence.signals);
  alertTo(evidence.disclaimer+" "+(r.warning||""));
 }
+async function samplingCoverage(){
+ const order=$("#spc-order").value,req=$("#spc-requirement").value;
+ const everyUnits=Number($("#sampling-every-units").value);
+ if(!order||!req||!Number.isInteger(everyUnits)||everyUnits<1||everyUnits>10000)
+  throw Error("دستور، مشخصه و فاصله فرضی ۱ تا ۱۰۰۰۰ قطعه در هر نمونه معتبر لازم است.");
+ const r=await api("/manufacturing-orders/"+order+"/sampling-coverage/"+req+
+  "?everyUnits="+everyUnits);
+ table("#sampling-coverage-summary",[["شاخص","name"],["نتیجه","value"]],[
+  {name:"مقدار گزارش‌شده این عملیات",value:r.reportedOperationUnits},
+  {name:"تعداد نمونه مورد انتظار بر اساس فرض",value:r.minimumSamplesUnderHypothesis},
+  {name:"نمونه ثبت‌شده",value:r.actualRecordedSamples},
+  {name:"کسری ظاهری شمار نمونه",value:r.apparentCountGap},
+  {name:"تطبیق نمونه به بچ",value:"تأیید نشده"},
+  {name:"برنامه نمونه‌برداری مصوب",value:"در این سناریو ثبت نشده"},
+  {name:"مدرک MSA قابل اتکا",value:"تأیید نشده"}
+ ]);
+ alertTo(r.disclaimer);
+}
 async function reloadTraceLots(){
  const order=$("#trace-order").value;
  if(!order){select($("#trace-confirmation"),[],x=>x.lotCode);return;}
@@ -404,6 +422,7 @@ function boot(){
  register("#factory-serial-trace-form",traceFactorySerial);
  $("#spc-order").onchange=()=>reloadSpcRequirements().catch(e=>alertTo(e.message,true));
  $("#spc-refresh").onclick=()=>spcReport().catch(e=>alertTo(e.message,true));
+ $("#sampling-coverage-check").onclick=()=>samplingCoverage().catch(e=>alertTo(e.message,true));
  $("#trace-order").onchange=()=>reloadTraceLots().catch(e=>alertTo(e.message,true));
  $("#trace-refresh").onclick=()=>traceGraph().catch(e=>alertTo(e.message,true));
  $("#inspection-refresh").onclick=()=>inspections().catch(e=>alertTo(e.message,true));
