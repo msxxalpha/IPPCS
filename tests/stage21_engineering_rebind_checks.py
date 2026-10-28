@@ -27,6 +27,14 @@ def stage21_acceptance(request, jalali, tomorrow, component_id):
             "workCenterId":center["id"],"setupMinutes":1,
             "runMinutesPerUnit":1,"yieldPercent":100},201)
         request(f"/api/v1/routings/{r['id']}/approve","POST")
+        plan=request("/api/v1/control-plans","POST",{
+            "routingRevisionId":r["id"],"code":code+"-CONTROL",
+            "validFromJalali":from_date,"validUntilJalali":to_date},201)
+        request(f"/api/v1/control-plans/{plan['id']}/characteristics","POST",{
+            "operationSequence":10,"code":code+"-FINAL-CHECK",
+            "description":"Engineering route quality check","unit":"N",
+            "minimum":0,"maximum":100,"mandatory":True},201)
+        request(f"/api/v1/control-plans/{plan['id']}/approve","POST")
         return r
     baseline=route("CI-ST21-OLD",jalali,jalali)
     candidate=route("CI-ST21-NEW",tomorrow,None)
