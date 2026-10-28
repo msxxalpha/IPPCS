@@ -31,3 +31,9 @@ test("responsive application CSS includes keyboard focus, mobile layout and redu
  assert.match(css,/focus-visible/);
  assert.match(css,/prefers-reduced-motion/);
 });
+
+test("shift capacity action passes a selector to the table renderer",()=>{
+ const script=read("js/production.js");
+ assert.match(script,/table\("#shift-capacity-table",\[/);
+ assert.doesNotMatch(script,/table\(\$\("#shift-capacity-table"\),\[/);
+});
