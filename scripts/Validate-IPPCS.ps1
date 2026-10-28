@@ -43,16 +43,12 @@ try {
         foreach ($Script in $Scripts) {
             Invoke-Gate "Node syntax: $($Script.Name)" 'node' @('--check', $Script.FullName)
         }
-        $BrowserTests = @(
-            $JalaliTests,
-            (Join-Path $Root 'tests/factory-recall-ui.test.cjs'),
-            (Join-Path $Root 'tests/eco-ui.test.cjs'),
-            (Join-Path $Root 'tests/factory-master-ui.test.cjs'),
-            (Join-Path $Root 'tests/factory-first-run-ui.test.cjs'),
-            (Join-Path $Root 'tests/factory-analytical-ui.test.cjs'),
-            (Join-Path $Root 'tests/factory-eighteen-module-ui-audit.test.cjs')
-        )
-        Invoke-Gate 'Jalali and accessible factory UI browser contract tests' 'node' (@('--test') + $BrowserTests)
+        # Discover ALL current browser contracts, including SPC, APS, help
+        # and first-run SQL checks. Do not silently skip later stage tests.
+        $BrowserTests = @(Get-ChildItem -LiteralPath (Join-Path $Root 'tests') -Filter '*.test.cjs' -File |
+            Sort-Object Name | ForEach-Object { $_.FullName })
+        if ($BrowserTests.Count -eq 0) { throw 'No Node browser contract tests found.' }
+        Invoke-Gate 'Complete Jalali, RTL and factory UI browser contract suite' 'node' (@('--test') + $BrowserTests)
     }
 
     if (-not $SkipEfCheck) {
