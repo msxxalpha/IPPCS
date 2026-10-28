@@ -46,7 +46,7 @@ function table(hostId,columns,rows){
  for(const row of rows){
   const tr=document.createElement("tr");
   for(const [,field] of columns){
-   const td=document.createElement("td");
+   const td=document.createElement("td");td.dataset.label=columns.find(([,f])=>f===field)?.[0]||"";
    const value=field==="category"?(categories[row[field]]||row[field]):row[field];
    td.textContent=number(value);tr.append(td);
   }
