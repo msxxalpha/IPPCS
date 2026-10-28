@@ -104,6 +104,11 @@
           <label>بازده عملیات (%) <input name="yield" type="number" step="any" min="0.001" max="100" value="100" required></label>
           <div class="form-actions"><button class="btn-main" type="submit">افزودن عملیات</button></div>
         </form>
+        <div class="panel form-grid">
+         <h3 class="wide">چاپ برگه مسیر ساخت</h3>
+         <label>نسخه مسیر<select id="print-routing-select"></select></label>
+         <div class="form-actions"><button id="print-routing-button" type="button" class="btn-outline">پیش‌نمایش و چاپ Routing</button></div>
+        </div>
         <div class="panel table-panel"><h3>نسخه‌ها و عملیات مسیر ساخت</h3><div id="routing-list"></div></div>
       </section>
       <section id="shifts" class="page" hidden>
@@ -136,6 +141,11 @@
           <label>موعد تولید (هجری شمسی) <span class="jalali-field"><input name="due" data-jalali-date required placeholder="انتخاب تاریخ"><button type="button" data-jalali-trigger class="date-trigger">▣</button></span></label>
           <div class="form-actions"><button class="btn-main" type="submit">ثبت برنامه</button></div>
         </form>
+        <div class="panel form-grid">
+         <h3 class="wide">چاپ برنامه مقدماتی تولید</h3>
+         <label>برنامه انتخابی<select id="print-plan-select"></select></label>
+         <div class="form-actions"><button id="print-plan-button" type="button" class="btn-outline">برگه چاپی برنامه تولید</button></div>
+        </div>
         <div class="panel table-panel"><h3>برنامه‌های ثبت‌شده</h3><div id="plan-list"></div></div>
         <div class="panel" id="requirements-panel" hidden><h3>نیاز ناخالص مواد (پیش‌نمایش)</h3><p>این محاسبه هنوز موجودی، زمان تأمین و ظرفیت را کسر نمی‌کند؛ MRP خالص نیست.</p><div id="requirements-list"></div></div>
       </section>
