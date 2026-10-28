@@ -17,6 +17,14 @@ def stage25_acceptance(request,jalali,component_id):
         "workCenterId":center["id"],"setupMinutes":1,
         "runMinutesPerUnit":2,"yieldPercent":100},201)
     request(f"/api/v1/routings/{route['id']}/approve","POST")
+    control=request("/api/v1/control-plans","POST",{
+        "routingRevisionId":route["id"],"code":"CI-ST25-CONTROL",
+        "validFromJalali":jalali,"validUntilJalali":None},201)
+    request(f"/api/v1/control-plans/{control['id']}/characteristics","POST",{
+        "operationSequence":10,"code":"ST25-FINAL-CHECK",
+        "description":"Hold interlock process quality check","unit":"N",
+        "minimum":0,"maximum":100,"mandatory":True},201)
+    request(f"/api/v1/control-plans/{control['id']}/approve","POST")
     bom=request("/api/v1/bom-revisions","POST",{
         "parentItemId":item["id"],"revision":"CI-ST25-A",
         "validFromJalali":jalali,"validUntilJalali":None},201)
