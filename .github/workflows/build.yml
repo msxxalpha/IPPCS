@@ -186,6 +186,9 @@ jobs:
             grep -E "IPPCS_CONCURRENCY_RELEASE|DbUpdateConcurrencyException|fail:|warn:" /tmp/ippcs-web.log | tail -n 50 || true
             exit 1
           fi
+          # First VS run must serve every UI page, allow actual Administrator
+          # sign-in, expose all 18 modules and render a real SQL order print.
+          python3 tests/first_uat_access_smoke.py
           echo "PASS: unauthorized=401, CSRF denied=400, login successful, protected SQL Server insert and read round trip."
       - name: Cleanup
         if: always()
