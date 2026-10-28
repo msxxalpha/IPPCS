@@ -86,7 +86,7 @@ function fromReport(data,params){
 }
 function fromEol(order,check){
  if(!check.alreadyApproved ||
-    (check.issues||[]).some(x=>x.code==="InvalidFinalCertificate"))
+    (check.issues||[]).some(x=>x.code!=="AlreadyApproved"))
   throw Error("گواهی داخلی EOL معتبر و ثبت‌شده موجود نیست؛ چاپ گواهی تأیید ممنوع است.");
  return {
   kind:"eol",title:"گواهی کنترل داخلی پایان خط (EOL)",
