@@ -11,7 +11,7 @@ const pages=[
  "factory-analytical-verification.html","factory-reports.html","system-users.html","login.html"
 ];
 const text=file=>fs.readFileSync(path.join(root,file),"utf8");
-test("all 14 entry pages serving the 18 modules are Persian RTL, accessible and load real assets",()=>{
+test("all 15 entry pages serving the 18 modules are Persian RTL, accessible and load real assets",()=>{
  for(const file of pages){
   const html=text(file);
   assert.match(html,/<html[^>]*lang="fa"/,file);
