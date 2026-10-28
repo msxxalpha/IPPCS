@@ -46,16 +46,26 @@ dotnet user-secrets set "Bootstrap:AdminPassword" "<YOUR-STRONG-LOCAL-TEST-PASSW
 
 اطلاعات ورود را در چت یا GitHub ارسال نکنید. این حساب فقط در اولین راه‌اندازیِ موفق، پس از آماده‌سازی SQL ساخته می‌شود. روی حساب‌های قبلی رمز را بازنویسی نمی‌کند.
 
-## ۵. اعمال Migration افزایشی روی **فقط IPPCS_Dev**
+## ۵. ساخت دیتابیس یکپارچه IPPCS (پیشنهادی برای شروع شما)
 
-پیش از اجرای دستور، یک بار Connection String را کنترل کنید. هرگز همین دستور را روی دیتابیس سامانه‌های فعلی انبار، فروش، خرید، منابع انسانی یا سایر بانک‌های عملیاتی اجرا نکنید.
+اکنون **هنوز هیچ دیتابیسی ندارید**؛ نیازی نیست جدول‌ها یا دیتابیس را دستی بسازید. برای نخستین اجرا می‌توانید از فایل SQL یکپارچه و نسخه‌دار استفاده کنید:
+
+1. در آخرین GitHub Actions موفق شاخه Draft، بخش **Artifacts** را باز کنید و `IPPCS_Dev_Complete_Install_SQL` را دریافت کنید؛ فایل داخل ZIP با نام `IPPCS_Dev_Complete_Install.sql` است.
+2. در **SQL Server Management Studio** به اینستنس آزمایشی متصل شوید. فایل را باز و محتوای ابتدای آن، به‌خصوص `CREATE DATABASE [IPPCS_Dev]` را بازبینی کنید.
+3. فایل را در SSMS اجرا کنید. دیتابیس IPPCS_Dev، جدول‌های Identity و کل مدل برنامه‌ریزی/کیفیت/تولید، ایندکس‌ها، کلیدهای خارجی و داده‌های مرجع پیش‌فرض به ترتیب Migration ایجاد می‌شوند. هیچ رمز مدیر در اسکریپت نیست.
+4. اجرای موفق را با خواندن `IPPCS_Dev.dbo.__EFMigrationsHistory` و وجود `ManufacturingOrders` و `AspNetUsers` بررسی کنید.
+5. Connection String تنظیم‌شده در گام ۳ باید **دقیقاً به همین دیتابیس `IPPCS_Dev`** متصل شود.
+
+برای ساخت مجدد فایل از روی همین Commit بدون نیاز به دریافت Artifact می‌توانید اجرا کنید:
 
 ```powershell
 dotnet tool install --global dotnet-ef --version 10.0.0
-dotnet ef database update --project .\src\IPPCS.Web\IPPCS.Web.csproj --startup-project .\src\IPPCS.Web\IPPCS.Web.csproj
+powershell -ExecutionPolicy Bypass -File .\scripts\Export-IPPCSDatabaseSql.ps1 -Database IPPCS_Dev
 ```
 
-اگر `dotnet-ef` از قبل نصب است، به‌جای `install` از `dotnet tool update --global dotnet-ef --version 10.0.0` استفاده کنید. اعمال Migration اولین بار جدول‌های محلی IPPCS را ایجاد و فهرست‌های دلایل پیش‌فرض را وارد می‌کند؛ به حذف یا ساخت مجدد پایگاه اصلی نیازی نیست. برای هر پایگاه دادهٔ دارای دادهٔ واقعی، ابتدا نسخه پشتیبان و بازبینی Migration الزامی است.
+تولید محلی فایل علاوه بر SDK 10 به **Python 3** نیاز دارد. این دستور فقط SQL ایجاد می‌کند، نه آن‌که آن را اجرا کند. روش جایگزین برای توسعه‌دهندگان: بعد از تنظیم Connection String، `dotnet ef database update --project .\src\IPPCS.Web\IPPCS.Web.csproj --startup-project .\src\IPPCS.Web\IPPCS.Web.csproj`. **برای ایجاد اولیه یکی از این دو مسیر کافی است.**
+
+مطابق [راهنمای کامل دیتابیس](../database/README.md)، هرگز اسکریپت را روی بانک‌های موجود شرکت اجرا نکنید. اگر دیتابیس IPPCS از قبل داده دارد، قبل از ارتقا Backup بگیرید و Migrationها را بازبینی کنید.
 
 ## ۶. اجرای نسخه در Visual Studio
 
@@ -69,11 +79,11 @@ dotnet ef database update --project .\src\IPPCS.Web\IPPCS.Web.csproj --startup-p
 
 ## ۷. ترتیب پیشنهادی آزمونِ سریع ولی قابل پیگیری
 
-ابتدا به `/factory-release-readiness.html` بروید. این صفحه فقط‌خواندنی است و ۱۸ ماژول، پیش‌نیازها و مسیر ورود به فرم‌های آنها را نشان می‌دهد.
+پس از ورود به `/help.html` بروید و **راهنمای ۶۴ فرم و ترتیب ۱۴گانه راه‌اندازی** را مرور کنید. سپس به `/factory-release-readiness.html` بروید. این صفحه فقط‌خواندنی است و ۱۸ ماژول، پیش‌نیازها و مسیر ورود به فرم‌های آنها را نشان می‌دهد.
 
 ترتیب پیشنهادی داده‌سازی آزمایشی:
 
-1. از `/app.html` یک محصول و یک نیمه‌ساخته، مرکز کاری و شیفت آزمایشی تعریف کنید.
+1. ابتدا در `/factory-master-data.html` فهرست‌های واحد اندازه‌گیری، علت توقف/قرنطینه و ابزار مشترک را مرور کنید؛ سپس در `/app.html` یک محصول و نیمه‌ساخته، مرکز و شیفت آزمایشی تعریف کنید.
 2. از `/planning.html` BOM نسخه‌دار و Routing معتبر، سپس MPS آزمایشی ایجاد کنید. موجودی برنامه‌ریزی صرفاً فرض داخلی IPPCS است؛ دادهٔ انبار واقعی وارد یا فراخوانی نمی‌شود.
 3. از `/factory-master-data.html` دلایل توقف، دلایل قرنطینه، گروه‌های علت CAPA و نقش‌های مسئول پیگیری را مرور کنید.
 4. از `/execution.html` دستور ساخت آزمایشی صادر و مسیر عملیات را ثبت کنید؛ وضعیت دستور و توقف/قرنطینه را ببینید.
