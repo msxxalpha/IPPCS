@@ -34,7 +34,7 @@
    "/planning-advanced.html","/engineering-rebind.html","/mps-pegging.html",
    "/production-deviations.html","/system-users.html","/factory-recall.html",
    "/factory-master-data.html","/factory-release-readiness.html","/factory-analytical-verification.html",
-   "/factory-reports.html","/help.html"
+   "/factory-reports.html","/help.html","/factory-print.html"
   ]);
   const returnTo=allowed.has(location.pathname)?location.pathname:"/app.html";
   if(location.pathname!=="/login.html")location.assign("/login.html?returnUrl="+encodeURIComponent(returnTo));
