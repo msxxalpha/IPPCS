@@ -123,6 +123,7 @@ function jalaliDate(iso){
 }
 function fromAps(run,detail,items=[],centers=[]){
  const data=detail?.result||{};
+ const pick=(o,key)=>o?.[key]??o?.[key[0].toUpperCase()+key.slice(1)];
  const item=id=>items.find(x=>x.id===id)?.code||fmt(id);
  const center=id=>centers.find(x=>x.id===id)?.code||fmt(id);
  const allocations=data.allocations||data.Allocations||[];
@@ -139,12 +140,14 @@ function fromAps(run,detail,items=[],centers=[]){
     "شناسه محصول","مرکز","مرحله","عملیات","مقدار","موعد",
     "شروع شمسی","ساعت شروع","پایان شمسی","ساعت پایان","دیرکرد"],
     rows:allocations.map(x=>[
-     item(x.itemId),center(x.workCenterId),fmt(x.sequence),fmt(x.operationName),
-     fmt(x.quantity),jalaliDate(x.dueOn||x.dueJalali),
-     jalaliDate(x.startDate||x.startJalali),fmt(x.startsAt),
-     jalaliDate(x.finishDate||x.finishJalali),fmt(x.finishesAt),x.late?"بله":"خیر"])},
+     item(pick(x,"itemId")),center(pick(x,"workCenterId")),fmt(pick(x,"sequence")),
+     fmt(pick(x,"operationName")),fmt(pick(x,"quantity")),
+     jalaliDate(pick(x,"dueOn")||pick(x,"dueJalali")),
+     jalaliDate(pick(x,"startDate")||pick(x,"startJalali")),fmt(pick(x,"startsAt")),
+     jalaliDate(pick(x,"finishDate")||pick(x,"finishJalali")),fmt(pick(x,"finishesAt")),
+     pick(x,"late")?"بله":"خیر"])},
    {title:"عملیات زمان‌بندی‌نشده",columns:["محصول","مرحله","علت"],
-    rows:unscheduled.map(x=>[item(x.itemId),fmt(x.sequence),fmt(x.reason)])}
+    rows:unscheduled.map(x=>[item(pick(x,"itemId")),fmt(pick(x,"sequence")),fmt(pick(x,"reason"))])}
   ],
   warning:"نتیجه APS سناریویی است، نه دستور ساخت آزادشده یا رزرو قطعی ماشین. "+
    "اطلاعات خام برنامه در زمان چاپ از Snapshot ذخیره‌شده خوانده شده‌اند."
