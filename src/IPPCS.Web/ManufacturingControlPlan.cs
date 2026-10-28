@@ -77,6 +77,7 @@ public static class ManufacturingInspectionRules
         (item.Minimum.HasValue || item.Maximum.HasValue) &&
         (!item.Minimum.HasValue || value>=item.Minimum.Value) &&
         (!item.Maximum.HasValue || value<=item.Maximum.Value);
+    public static bool ExactlyOneApplicableControlPlan(int count) => count==1;
     public static bool HasMandatoryFinalCharacteristic(
         IReadOnlyCollection<ControlPlanCharacteristic> characteristics,
         RoutingRevision route)
