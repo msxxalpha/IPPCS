@@ -242,7 +242,10 @@ public static class ManufacturingExecutionEndpoints
                 .Where(x=>x.RoutingRevisionId==order.RoutingRevisionId && x.State==ControlPlanState.Approved
                     && x.ValidFrom<=order.PlannedStart
                     && (x.ValidUntil==null || order.PlannedStart<=x.ValidUntil)).ToListAsync(ct);
-            if(controlPlans.Count>1)return Results.Conflict(new{message="برای این دستور چند کنترل پلن مصوب هم‌زمان معتبر است."});
+            if(!ManufacturingInspectionRules.ExactlyOneApplicableControlPlan(controlPlans.Count))
+                return Results.Conflict(new{message=controlPlans.Count==0
+                    ?"برای تاریخ شروع برنامه‌ریزی‌شده دستور، یک کنترل پلن مصوب و معتبر الزامی است."
+                    :"برای این دستور چند کنترل پلن مصوب هم‌زمان معتبر است."});
             if(route?.State!=RoutingState.Approved||bom?.State!=ManufacturingRevisionState.Approved
                 ||route.EffectiveFrom>order.PlannedStart||(route.EffectiveTo.HasValue&&route.EffectiveTo.Value<order.PlannedStart)
                 ||bom.ValidFrom>order.PlannedStart||(bom.ValidUntil.HasValue&&bom.ValidUntil.Value<order.PlannedStart)
