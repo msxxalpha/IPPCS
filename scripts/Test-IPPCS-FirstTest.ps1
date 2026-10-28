@@ -14,13 +14,13 @@ if($target.Scheme -ne 'https' -or
    $target.AbsolutePath -ne '/' -or $target.Query -ne '') {
     throw 'For credential safety, this test accepts only a local HTTPS URL (e.g. https://localhost:7295).'
 }
-if([string]::IsNullOrWhiteSpace($Username))throw 'Enter a real local IPPCS username.'
+if([string]::IsNullOrWhiteSpace($Username)) { throw 'Enter a real local IPPCS username.' }
 $root=$BaseUrl.TrimEnd('/')
 $session=New-Object Microsoft.PowerShell.Commands.WebRequestSession
 
 function Fetch([string]$Path) {
     $response=Invoke-WebRequest -Uri ($root+$Path) -WebSession $session -UseBasicParsing -TimeoutSec 20
-    if($response.StatusCode -ne 200)throw "$Path returned HTTP $($response.StatusCode)."
+    if($response.StatusCode -ne 200) { throw "$Path returned HTTP $($response.StatusCode)." }
     return $response
 }
 
@@ -62,7 +62,7 @@ try{
     Remove-Variable plain,body,password -ErrorAction SilentlyContinue
 }
 $who=(Fetch '/auth/me').Content | ConvertFrom-Json
-if($who.username -ne $Username)throw 'Logged-in account does not match the requested IPPCS username.'
+if($who.username -ne $Username) { throw 'Logged-in account does not match the requested IPPCS username.' }
 
 Write-Host '4/4 Checking master data and all 18 module route contracts...' -ForegroundColor Cyan
 $readiness=(Fetch '/api/v1/factory-release-readiness').Content | ConvertFrom-Json
