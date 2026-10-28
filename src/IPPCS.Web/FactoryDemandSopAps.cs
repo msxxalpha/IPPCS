@@ -43,9 +43,11 @@ public record FactorySopInput(string Code,string FromJalali,string ThroughJalali
 public record FactoryApsUnavailableDay(Guid WorkCenterId,string DateJalali,string Reason,string? ReasonCode=null);
 public record FactoryApsUnavailableSlot(Guid WorkCenterId,string StartJalali,string StartTime,
     string EndJalali,string EndTime,string Reason,string? ReasonCode=null);
+public record FactoryApsSharedTool(Guid WorkCenterId,string ToolGroupCode);
 public record FactoryApsInput(Guid MpsVersionId,string StartJalali,int HorizonDays,
     decimal CapacityMultiplier=1m,List<FactoryApsUnavailableDay>? UnavailableDays=null,
-    List<FactoryApsUnavailableSlot>? UnavailableSlots=null);
+    List<FactoryApsUnavailableSlot>? UnavailableSlots=null,
+    List<FactoryApsSharedTool>? SharedTools=null);
 public record ApsTask(Guid DemandLineId,Guid ItemId,DateOnly DueOn,decimal Quantity,Guid RoutingRevisionId,
     int OperationSequence,Guid WorkCenterId,decimal DurationMinutes,string OperationName);
 public record ApsAllocation(Guid ItemId,Guid WorkCenterId,int Sequence,decimal Quantity,
@@ -69,17 +71,39 @@ public static class FiniteFactoryScheduler
         IReadOnlySet<(Guid WorkCenterId,DateOnly Date)>? unavailableDays=null,
         IReadOnlyDictionary<Guid,DateOnly>? earliestStartDates=null,
         IReadOnlyDictionary<Guid,IReadOnlyCollection<Guid>>? prerequisites=null,
-        IReadOnlyList<WorkCenterOccupiedInterval>? occupiedIntervals=null)
+        IReadOnlyList<WorkCenterOccupiedInterval>? occupiedIntervals=null,
+        IReadOnlyDictionary<Guid,string>? sharedToolGroups=null)
     {
         if(horizonDays is <1 or >90 || multiplier<=0 || multiplier>2)
             throw new ArgumentException("افق برنامه‌ریزی یا ضریب ظرفیت نامعتبر است.");
         var result=new List<ApsAllocation>();
         var missing=new List<ApsUnscheduled>();
         var occupied=new Dictionary<(Guid,DateOnly),List<(int start,int end)>>();
+        // Group reservations include recorded machine clocks, planned machine
+        // slots and scenario downtime, not only newly scheduled operations.
+        var toolBusy=new Dictionary<string,List<(DateTime start,DateTime end)>>(
+            StringComparer.Ordinal);
+        var initialOccupied=(occupiedIntervals??[]).ToArray();
+        foreach(var evidence in initialOccupied)
+        {
+            if(sharedToolGroups is null||
+                !sharedToolGroups.TryGetValue(evidence.WorkCenterId,out var tool))continue;
+            if(!toolBusy.TryGetValue(tool,out var windows))
+                toolBusy[tool]=windows=new();
+            windows.Add((evidence.StartLocal,evidence.EndLocal));
+        }
+        foreach(var windows in toolBusy.Values)
+        {
+            var ordered=windows.OrderBy(x=>x.start).ToArray();
+            for(int n=1;n<ordered.Length;n++)
+                if(ordered[n].start<ordered[n-1].end)
+                    throw new InvalidOperationException(
+                        "اشغال واقعی/سناریویی ابزار مشترک دارای تداخل است و قابل زمان‌بندی نیست.");
+        }
         // Recorded actual center occupancy is measured in Tehran-local wall time.
         // Half-open intervals [start,end) are rounded outward to whole minutes.
         var horizonEnd=start.AddDays(horizonDays);
-        foreach(var record in occupiedIntervals??[])
+        foreach(var record in initialOccupied)
         {
             if(record.WorkCenterId==Guid.Empty || record.StartLocal.Kind!=DateTimeKind.Unspecified ||
                record.EndLocal.Kind!=DateTimeKind.Unspecified ||
@@ -124,6 +148,14 @@ public static class FiniteFactoryScheduler
                         if(current<b&&a<finish&&(next is null||b<next))next=b;
                     }
                 }
+                if(sharedToolGroups is not null &&
+                    sharedToolGroups.TryGetValue(center,out var groupCode) &&
+                    toolBusy.TryGetValue(groupCode,out var groupWindows))
+                {
+                    foreach(var span in groupWindows)
+                        if(current<span.end&&span.start<finish&&
+                            (next is null||span.end<next))next=span.end;
+                }
                 if(next is null)return current;
                 if(next<=current)throw new InvalidOperationException("تاریخچه رزرو زمانی مرکز کاری نامعتبر است.");
                 current=next.Value;
@@ -132,6 +164,13 @@ public static class FiniteFactoryScheduler
         }
         void Occupy(Guid center,DateTime from,DateTime until)
         {
+            if(sharedToolGroups is not null &&
+                sharedToolGroups.TryGetValue(center,out var groupCode))
+            {
+                if(!toolBusy.TryGetValue(groupCode,out var list))
+                    toolBusy[groupCode]=list=new();
+                list.Add((from,until));
+            }
             for(var localDay=DateOnly.FromDateTime(from);
                 localDay<=DateOnly.FromDateTime(until);localDay=localDay.AddDays(1))
             {
@@ -574,6 +613,29 @@ public static class FactoryDemandApsEndpoints
                     return Results.BadRequest(new{
                         message="مرکز کاری یکی از بازه‌های توقف ساعتی وجود ندارد."});
             }
+            var sharedToolInputs=input.SharedTools??new();
+            if(sharedToolInputs.Count>100)
+                return Results.BadRequest(new{message="در هر سناریوی APS حداکثر ۱۰۰ انتساب ابزار مشترک مجاز است."});
+            var sharedTools=new Dictionary<Guid,string>();
+            foreach(var assignment in sharedToolInputs)
+            {
+                var code=FactoryMasterData.NormalizeCode(assignment.ToolGroupCode);
+                if(assignment.WorkCenterId==Guid.Empty ||
+                    !FactoryMasterData.ValidCode(FactoryMasterData.SharedToolGroup,code)||
+                    !sharedTools.TryAdd(assignment.WorkCenterId,code))
+                    return Results.BadRequest(new{message="انتساب مرکز به ابزار مشترک معتبر یا یکتا نیست."});
+                if(await FactoryMasterData.Active(db,
+                    FactoryMasterData.SharedToolGroup,code,ct) is null)
+                    return Results.Conflict(new{message="کد ابزار مشترک در اطلاعات پایه تعریف نشده یا غیرفعال است."});
+            }
+            if(sharedTools.Count>0)
+            {
+                var centerIds=await db.WorkCenters.AsNoTracking()
+                    .Where(x=>sharedTools.Keys.Contains(x.Id)).Select(x=>x.Id)
+                    .ToHashSetAsync(ct);
+                if(centerIds.Count!=sharedTools.Count)
+                    return Results.BadRequest(new{message="یک یا چند مرکز ابزار مشترک وجود ندارند."});
+            }
             var bomRevisions=await db.ManufacturingBomRevisions.AsNoTracking()
                 .Include(x=>x.Lines).Where(x=>x.State==ManufacturingRevisionState.Approved).ToListAsync(ct);
             var balances=await db.PlanningBalances.AsNoTracking().ToListAsync(ct);
@@ -625,7 +687,8 @@ public static class FactoryDemandApsEndpoints
                 unavailable.UnionWith(evidence.ReservedDays);
                 result=FiniteFactoryScheduler.Schedule(tasks,shifts,start,
                     input.HorizonDays,input.CapacityMultiplier,unavailable,
-                    occupiedIntervals:evidence.OccupiedIntervals.Concat(scenarioSlots).ToArray());
+                    occupiedIntervals:evidence.OccupiedIntervals.Concat(scenarioSlots).ToArray(),
+                    sharedToolGroups:sharedTools);
             }
             catch(Exception ex)when(ex is ArgumentException or InvalidOperationException
                 or OverflowException)
@@ -640,7 +703,8 @@ public static class FactoryDemandApsEndpoints
                             occupiedIntervals=evidence.OccupiedIntervals.Count},
                         unavailableDays=input.UnavailableDays?.Select(x=>new{x.WorkCenterId,x.DateJalali,x.Reason,x.ReasonCode}),
                         unavailableSlots=inputs.Select(x=>new{x.WorkCenterId,x.StartJalali,x.StartTime,
-                            x.EndJalali,x.EndTime,x.Reason,x.ReasonCode})}),
+                            x.EndJalali,x.EndTime,x.Reason,x.ReasonCode}),
+                        sharedTools=sharedToolInputs.Select(x=>new{x.WorkCenterId,x.ToolGroupCode})}),
                 OutputJson=JsonSerializer.Serialize(result)};
             db.FactoryApsRuns.Add(snapshot);await db.SaveChangesAsync(ct);
             return Results.Ok(new{runId=snapshot.Id,snapshot.Algorithm,
@@ -656,7 +720,8 @@ public static class FactoryDemandApsEndpoints
                     evidence.OpenClocks,evidence.BlockedOperations,
                     reservedDays=evidence.ReservedDays.Count,
                     occupiedIntervals=evidence.OccupiedIntervals.Count,
-                    scenarioUnavailableSlots=scenarioSlots.Count},
+                    scenarioUnavailableSlots=scenarioSlots.Count,
+                    sharedToolAssignments=sharedTools.Count},
                 disclaimer="پیش‌نمایش ظرفیت محدود با فرضیات مواد مستقل IPPCS، رزرو و ساعت‌های عملیاتی ثبت‌شده. ابزار مشترک و خرابی ثبت‌نشده هنوز اعمال نمی‌شوند؛ مجوز آزادسازی نیست."});
         }).RequireAuthorization("IpPlanningWrite");
         return routes;
