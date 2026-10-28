@@ -7,7 +7,9 @@ const root=path.resolve(__dirname,"../src/IPPCS.Web/wwwroot");
 const read=name=>fs.readFileSync(path.join(root,name),"utf8");
 const context={window:{}};
 vm.runInNewContext(read("js/help-catalog.js"),context);
+vm.runInNewContext(read("js/help-fields.js"),context);
 const guide=context.window.IPPCSHelpCatalog;
+const fieldMap=context.window.IPPCSHelpFields;
 test("all existing application forms have purpose and instructions, not only generic page descriptions",()=>{
  assert.equal(guide.pages.length,15);
  let count=0;
@@ -46,7 +48,21 @@ test("manual navigation, contextual form links and deep links are present withou
  assert.match(js,/aria-pressed/);
  assert.match(js,/textContent/);
  assert.doesNotMatch(js,/\.innerHTML\s*=|insertAdjacentHTML/);
+ assert.match(html,/help-fields\\.js/);
+ assert.match(js,/IPPCSHelpFields/);
  assert.match(security,/data-ip-form-help/);
  assert.match(security,/\/help\.html/);
  assert.match(read("login.html"),/\/help\.html/);
+});
+
+test("field-level help labels cover every real form",()=>{
+ let count=0;
+ for(const page of guide.pages){
+  for(const [id] of page.forms){
+   assert.ok(Array.isArray(fieldMap[page.page]?.[id]),"Missing "+page.page+" "+id);
+   assert.ok(fieldMap[page.page][id].length>0,id);
+   count++;
+  }
+ }
+ assert.equal(count,64);
 });
