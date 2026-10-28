@@ -48,6 +48,14 @@ items = request("/api/v1/items")
 product = next(row for row in items if row["code"] == "SHOCK-CI-001")
 raw = request("/api/v1/items", "POST",
               {"code": "CI-PRODUCTION-RAW", "name": "Sample raw part", "unit": "PCS", "type": 0}, 201)
+# Malformed first-run master inputs must return a controlled response, not a
+# SQL truncation or null-reference server exception.
+request("/api/v1/work-centers", "POST",
+        {"code": "INVALID-CENTER", "name": None, "nominalUnitsPerHour": 60}, 400)
+request("/api/v1/work-centers", "POST",
+        {"code": "TOO-LONG", "name": "a" * 257, "nominalUnitsPerHour": 60}, 400)
+request("/api/v1/work-centers", "POST",
+        {"code": "OVER-CAPACITY", "name": "Over", "nominalUnitsPerHour": 1000001}, 400)
 center = request("/api/v1/work-centers", "POST",
                  {"code": "CI-WELD-ASSEMBLY", "name": "CI Production Bench",
                   "nominalUnitsPerHour": 60}, 201)
