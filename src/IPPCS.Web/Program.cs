@@ -181,6 +181,7 @@ app.MapFactoryCapacityReservations();
 app.MapDemandAps();
 app.MapOperationsAnalytics();
 app.MapFactoryProductionIntelligence();
+app.MapFactoryManagementReports();
 app.Run();
 
 public sealed class ProductionDb(DbContextOptions<ProductionDb> options) : IdentityDbContext<IdentityUser>(options)
