@@ -1,0 +1,9 @@
+# Generated database installers are published as audited CI artifacts.
+# Regenerate locally from the committed EF migration history; never edit by hand.
+**/bin/
+**/obj/
+.vs/
+*.user
+*.suo
+database/*_Complete_Install.sql
+!database/README.md
