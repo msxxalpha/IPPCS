@@ -218,7 +218,21 @@ public static class FactoryRevisionGovernance
                 var ids=links.Select(x=>x.MpsLineId).ToArray();
                 var lines=await db.MpsDemandLines.AsNoTracking()
                     .Where(x=>ids.Contains(x.Id)).ToListAsync(ct);
-                var issues=ReleaseIssues(order,route,bom,links,lines);
+                var issues=ReleaseIssues(order,route,bom,links,lines).ToList();
+                var controlPlans=await db.ManufacturingControlPlans.AsNoTracking()
+                    .Include(x=>x.Characteristics)
+                    .Where(x=>x.RoutingRevisionId==order.RoutingRevisionId&&x.State==ControlPlanState.Approved
+                        &&x.ValidFrom<=order.PlannedStart
+                        &&(x.ValidUntil==null||order.PlannedStart<=x.ValidUntil)).ToListAsync(ct);
+                if(!ManufacturingInspectionRules.ExactlyOneApplicableControlPlan(controlPlans.Count))
+                    issues.Add(new(controlPlans.Count==0?"ControlPlanUnavailable":"ControlPlanAmbiguous",
+                        controlPlans.Count==0
+                            ?"برای تاریخ شروع دستور، دقیقاً یک کنترل پلن مصوب و معتبر لازم است."
+                            :"بیش از یک کنترل پلن مصوب برای تاریخ شروع دستور معتبر است."));
+                else if(route is not null&&
+                    !ManufacturingInspectionRules.HasMandatoryFinalCharacteristic(controlPlans[0].Characteristics,route))
+                    issues.Add(new("FinalQualityCheckMissing",
+                        "کنترل پلن باید حداقل یک مشخصه اجباری برای آخرین عملیات مسیر داشته باشد."));
                 return Results.Ok(new FactoryOrderReleaseCheck(id,order.Number,issues.Count==0,
                     order.RoutingRevisionId,order.BomRevisionId,route?.Operations.Count??0,
                     links.Count,links.Sum(x=>x.LinkedQuantity),issues));
