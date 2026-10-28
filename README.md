@@ -1,5 +1,9 @@
 # IPPCS — سامانه مستقل برنامه‌ریزی و کنترل تولید کمک‌فنر
 
+> **مرحله ۴۳ — آماده‌سازی اولین اجرای Visual Studio و SQL Server:** برای اولین نصب دیتابیس، دیگر نیازی به ساخت دستی جدول‌ها نیست؛ در آخرین GitHub Actions موفق، Artifact `IPPCS_Dev_Complete_Install_SQL` یک فایل کامل `IPPCS_Dev_Complete_Install.sql` قابل اجرا در SSMS ارائه می‌دهد که از تمام EF Migrationهای نسخه‌دار تولید و روی SQL موقت آزموده می‌شود. [راهنمای SQL](database/README.md) · [شروع در Visual Studio](docs/FIRST_RUN_VISUAL_STUDIO.md) · [اولویت نواقص ۱۸ ماژول](docs/STAGE43_MODULE_AUDIT_AND_ONE_FILE_SQL.md). راهنمای داخلی نیز در `/help.html` کاربرد همهٔ ۶۴ فرم و ترتیب ۱۴گانه استقرار را توضیح می‌دهد. **هیچ ماژول یا اتصال کالیبراسیون، انبار، خرید، فروش یا منابع انسانی ایجاد نمی‌شود.**
+
+
+
 > **به‌روزرسانی مرحلهٔ ۳۶:** هشت ماژول تحلیلی ۰۲، ۰۳، ۰۵، ۰۶، ۰۷، ۱۴، ۱۶ و ۱۷ اکنون [کارگاه آزمون هدایت‌شده](src/IPPCS.Web/wwwroot/factory-analytical-verification.html) با کنترل زندهٔ داده‌های SQL، اجرای خروجی واقعی و [سناریوهای پذیرش](docs/STAGE36_ANALYTICAL_TEST_PACK.md) دارند. این امکان، آزمون نرم‌افزاری را ساده می‌کند اما مجوز استقرار کارخانه نیست.\n\n> **آخرین وضعیت مرحلهٔ ۳۵:** همهٔ ۱۸ ماژول دارای قابلیت‌های آزمایشی کدنویسی‌شده هستند، اما هیچ‌کدام هنوز توسط کاربران واقعی کارخانه تأیید و برای بهره‌برداری نهایی مجاز نشده‌اند. جدول وضعیت به‌روز: [وضعیت ۱۸ ماژول](docs/STAGE35_MODULE_STATUS.md). برای اولین بارگیری در Visual Studio: [راهنمای شروع امن](docs/FIRST_RUN_VISUAL_STUDIO.md). داخل سامانه، صفحهٔ `/factory-release-readiness.html` وضعیت پیش‌نیازها را بدون تغییر داده نشان می‌دهد. گزارش‌های مراحل تاریخیِ پایین این فایل را نباید جایگزین وضعیت جدید دانست. **`main` نباید با Draft PR ادغام شود.**
 
 An independent manufacturing-specific planning and execution system built with .NET 10, SQL Server and Persian RTL user interfaces.
