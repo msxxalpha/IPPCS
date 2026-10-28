@@ -9,6 +9,13 @@ def stage16_acceptance(request, jalali, center_id, semi_item):
     request(f"/api/v1/manufacturing-orders/{source['id']}/operations/{source_ops[0]['id']}/confirm",
       "POST",{"goodQuantity":4,"scrapQuantity":0,"reworkQuantity":0,
               "lotCode":"CI-ST16-SEMI-OUT"})
+    source_requirements=request(
+      f"/api/v1/manufacturing-orders/{source['id']}/inspection-requirements")["requirements"]
+    if source_requirements:
+        source_qc=request(
+          f"/api/v1/manufacturing-orders/{source['id']}/inspections/{source_requirements[0]['id']}",
+          "POST",{"value":50,"nonconformingQuantity":0,"note":"CI semi-finished quality acceptance"})
+        assert source_qc["orderStatus"]==4,source_qc
     source_lot=next(x for x in request(
       f"/api/v1/manufacturing-orders/{source['id']}/confirmations")
       if x["lotCode"]=="CI-ST16-SEMI-OUT")
