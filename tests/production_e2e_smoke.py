@@ -77,6 +77,24 @@ request(f"/api/v1/bom-revisions/{bom['id']}/lines", "POST", {
     "componentItemId": raw["id"], "quantityPer": 2, "scrapPercent": 0, "sequence": 10
 }, 201)
 request(f"/api/v1/bom-revisions/{bom['id']}/approve", "POST", status=200)
+# Release must fail closed until exactly one applicable approved Control Plan exists.
+uncontrolled = request("/api/v1/manufacturing-orders", "POST", {
+    "number": "CI-MISSING-CONTROL-PLAN", "itemId": product["id"],
+    "plannedQuantity": 2, "plannedStartJalali": JALALI_NOW, "dueOnJalali": JALALI_NOW
+}, 201)
+request(f"/api/v1/manufacturing-orders/{uncontrolled['id']}/release", "POST", status=409)
+control = request("/api/v1/control-plans", "POST", {
+    "routingRevisionId": route_id, "code": "CI-CONTROLPLAN-001",
+    "validFromJalali": JALALI_NOW, "validUntilJalali": None
+}, 201)
+for sequence, code, minimum, maximum in [
+    (10, "WELD-DIM", 10, 20), (20, "DAMPING-FORCE", 65, 85)
+]:
+    request(f"/api/v1/control-plans/{control['id']}/characteristics", "POST", {
+        "operationSequence": sequence, "code": code, "description": code,
+        "unit": "N", "minimum": minimum, "maximum": maximum, "mandatory": True
+    }, 201)
+request(f"/api/v1/control-plans/{control['id']}/approve", "POST")
 order = request("/api/v1/manufacturing-orders", "POST", {
     "number": "CI-WORKORDER-STAGE5", "itemId": product["id"],
     "plannedQuantity": 10, "plannedStartJalali": JALALI_NOW, "dueOnJalali": JALALI_NOW
@@ -109,10 +127,21 @@ request(f"/api/v1/manufacturing-orders/{order_id}/operations/{second['id']}/conf
 }, 409)
 request(f"/api/v1/manufacturing-orders/{order_id}/quality-holds/{hold_id}/disposition?decision=1",
         "POST", {"note": "QC accepted after reinspection"})
+first_requirements = request(f"/api/v1/manufacturing-orders/{order_id}/inspection-requirements")["requirements"]
+first_requirement = next(r for r in first_requirements if r["operationSequence"] == 10)
+final_requirement = next(r for r in first_requirements if r["operationSequence"] == 20)
+first_inspection = request(f"/api/v1/manufacturing-orders/{order_id}/inspections/{first_requirement['id']}", "POST", {
+    "value": 15, "nonconformingQuantity": 0, "note": "Weld dimension accepted"
+})
+assert first_inspection["passed"]
 confirmed = request(f"/api/v1/manufacturing-orders/{order_id}/operations/{second['id']}/confirm", "POST", {
     "goodQuantity": 9, "scrapQuantity": 0, "reworkQuantity": 0, "lotCode": "CI-LOT-001"
 })
-assert confirmed["status"] == 4
+assert confirmed["status"] == 2
+final_inspection = request(f"/api/v1/manufacturing-orders/{order_id}/inspections/{final_requirement['id']}", "POST", {
+    "value": 70, "nonconformingQuantity": 0, "note": "Final force test accepted"
+})
+assert final_inspection["orderStatus"] == 4
 holds = request(f"/api/v1/manufacturing-orders/{order_id}/quality-holds")
 assert len(holds) == 1 and holds[0]["status"] == 1
 wip = request(f"/api/v1/manufacturing-orders/{order_id}/wip")["rows"]
@@ -130,19 +159,7 @@ assert all(row["orderNumber"] == "CI-WORKORDER-STAGE5" for row in lots["records"
 history = request(f"/api/v1/manufacturing-orders/{order_id}/history")["events"]
 assert any(e["action"] == "QualityHold" for e in history)
 assert any(e["action"] == "QualityRelease" for e in history)
-# Stage six: approved Control Plan is snapshot-bound to this routing revision at release.
-control = request("/api/v1/control-plans", "POST", {
-    "routingRevisionId": route_id, "code": "CI-CONTROLPLAN-001",
-    "validFromJalali": JALALI_NOW, "validUntilJalali": None
-}, 201)
-for sequence, code, minimum, maximum in [
-    (10, "WELD-DIM", 10, 20), (20, "DAMPING-FORCE", 65, 85)
-]:
-    request(f"/api/v1/control-plans/{control['id']}/characteristics", "POST", {
-        "operationSequence": sequence, "code": code, "description": code,
-        "unit": "N", "minimum": minimum, "maximum": maximum, "mandatory": True
-    }, 201)
-request(f"/api/v1/control-plans/{control['id']}/approve", "POST")
+# Stage six: the same approved Control Plan is snapshot-bound to every eligible order.
 fresh = request("/api/v1/manufacturing-orders", "POST", {
     "number": "CI-CONTROLLED-STAGE6", "itemId": product["id"], "plannedQuantity": 10,
     "plannedStartJalali": JALALI_NOW, "dueOnJalali": JALALI_NOW
