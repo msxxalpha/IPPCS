@@ -47,6 +47,19 @@ jobs:
         run: |
           dotnet tool install --global dotnet-ef --version 10.0.0
           dotnet ef migrations has-pending-model-changes --project src/IPPCS.Web/IPPCS.Web.csproj --startup-project src/IPPCS.Web/IPPCS.Web.csproj
+      - name: Generate reviewed one-file IPPCS_Dev SQL installer
+        run: |
+          python3 -m unittest discover -s tests -p 'test_ippcs_sql_installer.py'
+          dotnet ef migrations script 0 --idempotent --no-build --configuration Release --project src/IPPCS.Web/IPPCS.Web.csproj --startup-project src/IPPCS.Web/IPPCS.Web.csproj --output /tmp/ippcs-complete-ef.sql
+          python3 scripts/build_ippcs_install_sql.py --source /tmp/ippcs-complete-ef.sql --database IPPCS_Dev --output database/IPPCS_Dev_Complete_Install.sql
+          test -s database/IPPCS_Dev_Complete_Install.sql
+      - name: Publish complete, self-contained SQL installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: IPPCS_Dev_Complete_Install_SQL
+          path: database/IPPCS_Dev_Complete_Install.sql
+          if-no-files-found: error
+          retention-days: 30
   # Independently isolated SQL acceptance; one workflow run includes both gates.
   sqlserver-schema:
     runs-on: ubuntu-latest
@@ -95,6 +108,17 @@ jobs:
             exit 1
           fi
           echo "PASS: versioned EF schema applied to disposable SQL Server."
+      - name: Apply exactly the delivered installer to a second fresh SQL database
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet ef migrations script 0 --idempotent --no-build --configuration Release --project src/IPPCS.Web/IPPCS.Web.csproj --startup-project src/IPPCS.Web/IPPCS.Web.csproj --output /tmp/ippcs-install-ef.sql
+          python3 scripts/build_ippcs_install_sql.py --source /tmp/ippcs-install-ef.sql --database IPPCS_InstallerSmoke --output /tmp/ippcs-install-smoke.sql
+          export IPPCS_INSTALLER_CONNECTION="Server=127.0.0.1,1433;Database=master;User Id=sa;Password=${CI_DB_PASSWORD};Encrypt=True;TrustServerCertificate=True;"
+          dotnet run --project tools/IPPCS.SqlInstaller/IPPCS.SqlInstaller.csproj --configuration Release -- /tmp/ippcs-install-smoke.sql
+          # Repeat to prove EF history guards and seed inserts are idempotent.
+          dotnet run --project tools/IPPCS.SqlInstaller/IPPCS.SqlInstaller.csproj --configuration Release --no-build -- /tmp/ippcs-install-smoke.sql
+          echo "PASS: full one-file SSMS installer creates a second fresh SQL Server database and runs twice safely."
       - name: Authenticate and verify protected SQL writes
         shell: bash
         run: |
