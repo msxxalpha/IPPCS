@@ -447,7 +447,7 @@ function boot(){
     ["مرحله عملیات","operationSequence"],
     ["عنوان عملیات","operationName"],
     ["آماده‌سازی (دقیقه)",r=>fmt(r.setupMinutes)],
-    ["ظرفیت اختصاصی محصول (واحد/ساعت)",r=>r.productCapacityUnitsPerHour===null?"Routing":fmt(r.productCapacityUnitsPerHour)],
+    ["ظرفیت اختصاصی محصول (واحد/ساعت)",r=>r.productCapacityUnitsPerHour===null?"بدون نرخ اختصاصی":fmt(r.productCapacityUnitsPerHour)],
     ["منبع نرخ",r=>r.hasProductCapacityOverride?"ظرفیت محصول‌محور مرکز کاری":"زمان استاندارد Routing"],
     ["زمان هر واحد (دقیقه)",r=>fmt(r.runMinutesPerUnit)],
     ["بازده عملیات (%)",r=>fmt(r.yieldPercent)],
