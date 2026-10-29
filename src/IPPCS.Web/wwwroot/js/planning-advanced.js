@@ -194,7 +194,7 @@ function register(){
   if(btn.dataset.view==="dashboard")updateOverview().catch(e=>flash(e.message,true));
  });
  const initialTab=decodeURIComponent(location.hash.slice(1));
- const tabButton=$("nav [data-view]").find(x=>x.dataset.view===initialTab);
+ const tabButton=$$("nav [data-view]").find(x=>x.dataset.view===initialTab);
  if(tabButton)tabButton.click();
  addForm("#forecast-form",async f=>{
   const id=formval(f,"itemId");
