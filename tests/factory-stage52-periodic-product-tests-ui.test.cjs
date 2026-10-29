@@ -30,7 +30,7 @@ test("UI is wired to internal planning-only APIs and shared Jalali/unit controls
   assert.ok(js.includes(endpoint),"missing client endpoint "+endpoint);
  assert.match(js,/IPPCSJalali\.parse/);
  assert.match(js,/kind=UnitOfMeasure/);
- assert.match(js,/data-jalali-trigger/);
+ assert.match(html,/data-jalali-trigger/);
 });
 
 test("Jalali recurrence, annual cadence and idempotent schedule rules are implemented server-side",()=>{
