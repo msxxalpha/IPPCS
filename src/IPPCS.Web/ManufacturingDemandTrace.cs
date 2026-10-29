@@ -26,7 +26,7 @@ public static class ManufacturingDemandTrace
                 if(matching.Length>1)throw new InvalidOperationException("برای یک تاریخ چند BOM مصوب معتبر است.");
                 if(matching.Length==1)
                 {
-                    foreach(var component in matching[0].Lines.OrderBy(x=>x.Sequence))
+                    foreach(var component in PlanningCalculators.EffectiveDemandLines(matching[0]).OrderBy(x=>x.Sequence))
                     {
                         if(component.QuantityPer<=0||component.ScrapPercent<0||component.ScrapPercent>=100)
                             throw new InvalidOperationException("نسبت مصرف یا ضایعات BOM نامعتبر است.");
