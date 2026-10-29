@@ -204,9 +204,16 @@ public static class PlanningCalculators
                     throw new InvalidOperationException("زمان استاندارد، بازده یا مرکز عملیات محصول نامعتبر است.");
                 // An optional work-center/product/operation rate overrides routing throughput.
                 // The rate is processed units/hour; setup time and cumulative yield remain in Routing.
-                var hasRate=productCapacityRates is not null &&
-                    productCapacityRates.TryGetValue(op.Id,out var unitsPerHour);
-                var effectiveRunMinutes=hasRate?60m/unitsPerHour:op.RunMinutesPerUnit;
+                decimal? configuredUnitsPerHour=null;
+                if(productCapacityRates is not null &&
+                    productCapacityRates.TryGetValue(op.Id,out var configuredRate))
+                {
+                    if(configuredRate<=0)
+                        throw new InvalidOperationException("ظرفیت محصول‌محور ذخیره‌شده باید مثبت باشد.");
+                    configuredUnitsPerHour=configuredRate;
+                }
+                var hasRate=configuredUnitsPerHour.HasValue;
+                var effectiveRunMinutes=hasRate?60m/configuredUnitsPerHour!.Value:op.RunMinutesPerUnit;
                 decimal cumulativeYield=1m;
                 for(var j=i;j<operations.Length;j++)
                 {
@@ -221,7 +228,7 @@ public static class PlanningCalculators
                     decimal.Floor((available-op.SetupMinutes)/runPerFinishedUnit);
                 rows.Add(new CrpProductCapacityRow(line.Id,line.ItemId,line.NeededOn,line.Quantity,
                     op.WorkCenterId,op.Sequence,op.Name,op.SetupMinutes,effectiveRunMinutes,
-                    op.YieldPercent,hasRate?unitsPerHour:null,hasRate,required,available,standalone,
+                    op.YieldPercent,configuredUnitsPerHour,hasRate,required,available,standalone,
                     available==0?null:Math.Round(required/available*100m,2),
                     Math.Max(0m,required-available)));
             }
@@ -256,8 +263,14 @@ public static class PlanningCalculators
                     cumulativeYield*=operations[j].YieldPercent/100m;
                 }
                 var key=(op.WorkCenterId,line.NeededOn);
-                var effectiveRunMinutes=productCapacityRates is not null && productCapacityRates.TryGetValue(op.Id,out var unitsPerHour)
-                    ? 60m/unitsPerHour : op.RunMinutesPerUnit;\n                loads[key]=loads.GetValueOrDefault(key)+op.SetupMinutes+line.Quantity*effectiveRunMinutes/cumulativeYield;
+                var effectiveRunMinutes=op.RunMinutesPerUnit;
+                if(productCapacityRates is not null && productCapacityRates.TryGetValue(op.Id,out var unitsPerHour))
+                {
+                    if(unitsPerHour<=0)
+                        throw new InvalidOperationException("ظرفیت محصول‌محور ذخیره‌شده باید مثبت باشد.");
+                    effectiveRunMinutes=60m/unitsPerHour;
+                }
+                loads[key]=loads.GetValueOrDefault(key)+op.SetupMinutes+line.Quantity*effectiveRunMinutes/cumulativeYield;
             }
         }
         return loads.OrderBy(x=>x.Key.NeededOn).ThenBy(x=>x.Key.WorkCenterId).Select(x=>{
