@@ -381,7 +381,7 @@ function boot(){
    kind:"eol",id,back:"/control-plan.html"
   }),"_blank","noopener");
  });
- $("nav [data-section]").forEach(button=>button.addEventListener("click",()=>{
+ $$("nav [data-section]").forEach(button=>button.addEventListener("click",()=>{
  $$("section.page").forEach(section=>section.hidden=section.id!==button.dataset.section);
  $$("nav [data-section]").forEach(b=>b.classList.toggle("nav-active",b===button));
  $("#page-title").textContent=button.textContent;$("#feedback").hidden=true;
