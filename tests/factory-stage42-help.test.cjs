@@ -26,7 +26,7 @@ test("all existing application forms have purpose and instructions, not only gen
   }
   assert.ok(page.workflows.length>0,page.page);
  }
- assert.equal(count,66);
+ assert.equal(count,67);
 });
 test("deployment sequence names concrete prerequisites and validation gates",()=>{
  assert.equal(guide.deployment.length,14);
@@ -64,5 +64,5 @@ test("field-level help labels cover every real form",()=>{
    count++;
   }
  }
- assert.equal(count,66);
+ assert.equal(count,67);
 });
