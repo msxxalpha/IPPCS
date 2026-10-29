@@ -246,17 +246,20 @@
     if(new Set(headers).size!==headers.length) throw new Error("عنوان ستون تکراری است.");
     return rows.map((values,i)=>({__line:i+2,...Object.fromEntries(headers.map((h,j)=>[h,values[j]??""]))}));
   }
-  async function secureApi(url, payload) {
-    const response=await window.IPPCSSecurity.secureFetch(url,{method:arguments.length>2?arguments[2]:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+  async function secureApi(url, payload, method="POST") {
+    const response=await window.IPPCSSecurity.secureFetch(url,{method,headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
     if(response.ok) return;
     let message="خطای سرور";
-    try {const data=await response.json();message=data.message||data.title||data.detail||message;} catch {}
+    try {const raw=await response.text();if(raw){try{const data=JSON.parse(raw);message=data.message||data.title||data.detail||raw;}catch{message=raw;}}} catch {}
     throw new Error("HTTP "+response.status+" — "+message);
   }
   async function context(spec, rows) {
     const needsRouting=spec.form==="#routing-form"||spec.form==="#operation-form";
     const needsBom=spec.form==="#bom-form";
-    const needsMps=spec.form==="#mps-line-form";\n    const needsBomRevision=spec.form==="#bom-line-form";\n    const needsBalance=spec.form==="#balance-form";\n    const [items,centers,bom,routings,bomRevisions,mps,balances]=await Promise.all([
+    const needsMps=spec.form==="#mps-line-form";
+    const needsBomRevision=spec.form==="#bom-line-form";
+    const needsBalance=spec.form==="#balance-form";
+    const [items,centers,bom,routings,bomRevisions,mps,balances]=await Promise.all([
       window.IPPCSSecurity.secureFetch(apiRoot+"/items").then(r=>{if(!r.ok)throw Error("دریافت اقلام ناموفق بود");return r.json();}),
       window.IPPCSSecurity.secureFetch(apiRoot+"/work-centers").then(r=>{if(!r.ok)throw Error("دریافت مراکز کاری ناموفق بود");return r.json();}),
       needsBom ? window.IPPCSSecurity.secureFetch(apiRoot+"/items").then(r=>{if(!r.ok)throw Error("دریافت اقلام ناموفق بود");return r.json();}).then(async catalog=>{
@@ -266,9 +269,12 @@
         for(const item of parents){const response=await window.IPPCSSecurity.secureFetch(apiRoot+"/bom/"+item.id);if(!response.ok)throw Error("دریافت BOM کالای "+item.code+" ناموفق بود");all.push(...await response.json());}
         return all;
       }) : Promise.resolve([]),
-      needsRouting ? window.IPPCSSecurity.secureFetch(apiRoot+"/routings").then(r=>{if(!r.ok)throw Error("دریافت مسیرهای ساخت ناموفق بود");return r.json();}) : Promise.resolve([])
+      needsRouting ? window.IPPCSSecurity.secureFetch(apiRoot+"/routings").then(r=>{if(!r.ok)throw Error("دریافت مسیرهای ساخت ناموفق بود");return r.json();}) : Promise.resolve([]),
+      needsBomRevision ? window.IPPCSSecurity.secureFetch(apiRoot+"/bom-revisions").then(r=>{if(!r.ok)throw Error("دریافت نسخه‌های BOM ناموفق بود");return r.json();}) : Promise.resolve([]),
+      needsMps ? window.IPPCSSecurity.secureFetch(apiRoot+"/mps").then(r=>{if(!r.ok)throw Error("دریافت نسخه‌های MPS ناموفق بود");return r.json();}) : Promise.resolve([]),
+      needsBalance ? window.IPPCSSecurity.secureFetch(apiRoot+"/planning-balances").then(r=>{if(!r.ok)throw Error("دریافت فرضیات موجودی ناموفق بود");return r.json();}) : Promise.resolve([])
     ]);
-    return {items,centers,bom,routings,seenBom:new Set()};
+    return {items,centers,bom,routings,bomRevisions,mps,balances,seenBom:new Set(),seenBalance:new Set()};
   }
   function validDate(v) {
     const parts=normalizeDate(v).split("/");
