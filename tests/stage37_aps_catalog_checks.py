@@ -49,7 +49,16 @@ def stage37_acceptance(request, mps_id, center_id, jalali):
     # calibration or inventory assets. Invalid choices fail closed.
     fixture=request(catalog,"POST",{"kind":"SharedToolGroup",
         "code":"CI_SHARED_FIXTURE","label":"CI shared damper fixture","sortOrder":1},201)
-    tool={"workCenterId":center_id,"toolGroupCode":"CI_SHARED_FIXTURE"}
+    # Use a fresh center for the catalog/assignment check. Earlier E2E stages
+    # deliberately leave real operation clocks and reservations on center_id;
+    # binding that busy center to a new shared tool would correctly make the
+    # scheduler reject overlapping historical occupancy and would conflate
+    # catalog validation with the independent overlap-safety test.
+    tool_center=request("/api/v1/work-centers","POST",{
+        "code":"CI-APS-TOOL-CENTER","name":"CI APS shared-tool validation bench",
+        "nominalUnitsPerHour":60
+    },201)
+    tool={"workCenterId":tool_center["id"],"toolGroupCode":"CI_SHARED_FIXTURE"}
     post({**partial,"sharedTools":[{**tool,"toolGroupCode":"NOT_IN_CATALOG"}]},409)
     post({**partial,"sharedTools":[tool,tool]},400)
     result=post({**partial,"sharedTools":[tool]},200)
