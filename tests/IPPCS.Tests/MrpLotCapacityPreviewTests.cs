@@ -195,6 +195,44 @@ public sealed class MrpLotCapacityPreviewTests
     }
 
     [Fact]
+    public void Product_capacity_uses_product_routing_rate_setup_and_yield_not_a_universal_center_output()
+    {
+        var itemA=Guid.NewGuid();var itemB=Guid.NewGuid();var center=Guid.NewGuid();
+        var lines=new[]{
+            new MpsDemandLine{Id=Guid.NewGuid(),ItemId=itemA,NeededOn=Monday,Quantity=10},
+            new MpsDemandLine{Id=Guid.NewGuid(),ItemId=itemB,NeededOn=Monday,Quantity=10}
+        };
+        var routeA=Route(itemA,center,10,1m);
+        routeA.Operations[0].SetupMinutes=10m;
+        var routeB=Route(itemB,center,10,4m);
+        routeB.Operations[0].SetupMinutes=10m;
+        routeB.Operations[0].YieldPercent=80m;
+        var result=PlanningCalculators.RunProductCapacityCrp(lines,[routeA,routeB],
+            [Shift(center,Monday)]);
+        var a=Assert.Single(result,x=>x.ItemId==itemA);
+        var b=Assert.Single(result,x=>x.ItemId==itemB);
+        Assert.Equal(20m,a.RequiredMinutes); // 10 setup + 10 x 1 minute
+        Assert.Equal(60m,b.RequiredMinutes); // 10 setup + 10 x (4 / 0.8)
+        Assert.Equal(470m,a.StandaloneCapacityUnits); // floor((480-10)/1)
+        Assert.Equal(94m,b.StandaloneCapacityUnits); // floor((480-10)/(4/0.8))
+        Assert.NotEqual(a.StandaloneCapacityUnits,b.StandaloneCapacityUnits);
+    }
+
+    [Fact]
+    public void Product_capacity_flags_zero_shift_and_setup_that_consumes_all_capacity()
+    {
+        var item=Guid.NewGuid();var center=Guid.NewGuid();
+        var line=new MpsDemandLine{Id=Guid.NewGuid(),ItemId=item,NeededOn=Monday,Quantity=2};
+        var route=Route(item,center,10,2m);
+        route.Operations[0].SetupMinutes=500m;
+        var result=PlanningCalculators.RunProductCapacityCrp([line],[route],[Shift(center,Monday)]);
+        var row=Assert.Single(result);
+        Assert.Equal(0m,row.StandaloneCapacityUnits);
+        Assert.Equal(24m,row.OverloadMinutes); // 500 setup + 2 x 2 run = 504 required
+        Assert.Equal(504m,row.RequiredMinutes);
+    }
+
+    [Fact]
     public void Capacity_multiplier_changes_feasibility_without_mutating_inputs()
     {
         var item=Guid.NewGuid();var center=Guid.NewGuid();
