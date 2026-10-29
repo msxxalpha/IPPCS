@@ -112,7 +112,9 @@
   if(!IPPCSJalali.parse(from)||!IPPCSJalali.parse(through))
    throw new Error("تاریخ شروع و پایان شمسی معتبر لازم است.");
   const first=IPPCSJalali.parse(from),last=IPPCSJalali.parse(through);
-  if(!first||!last||last.getTime()<first.getTime())
+  const firstKey=first?first.y*10000+first.m*100+first.d:0;
+  const lastKey=last?last.y*10000+last.m*100+last.d:0;
+  if(!first||!last||lastKey<firstKey)
    throw new Error("تاریخ پایان باید برابر یا بعد از تاریخ شروع باشد.");
   return {fromJalali:from,throughJalali:through};
  }
