@@ -215,7 +215,7 @@ public static class FactoryPeriodicProductTests
                 return Results.BadRequest(new { message = "تاریخ شروع/پایان شمسی معتبر و بازه حداکثر ده‌ساله لازم است." });
             var rows = await db.FactoryPeriodicTestRuns.AsNoTracking()
                 .Where(x => x.DueOn >= from && x.DueOn <= through)
-                .OrderBy(x => x.DueOn).ThenBy(x => x.Plan.Code).Take(501).ToListAsync(ct);
+                .OrderBy(x => x.DueOn).ThenBy(x => x.PlanId).Take(501).ToListAsync(ct);
             if (rows.Count > 500)
                 return Results.Conflict(new { message = "تعداد رخدادهای آزمون بیش از سقف ۵۰۰ ردیف است؛ بازه را کوتاه کنید." });
             var today = FactoryPeriodicTestRules.TodayTehran();
