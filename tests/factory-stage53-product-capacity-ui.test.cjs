@@ -29,7 +29,7 @@ test("the center page creates and edits capacity overrides using the secured int
  assert.ok(production.includes("state.productCapacities"));
  assert.ok(production.includes("updateProductCapacityOperations"));
  assert.ok(production.includes("capacityUnitsPerHour"));
- assert.ok(production.includes('existing.id),"PUT",payload'));
+ assert.ok(production.includes('existing.id,"PUT",payload'));
  assert.ok(production.includes('"/api/v1/work-center-product-capacities","POST",payload'));
  assert.ok(production.includes("isActive:!x.isActive"));
  assert.match(capacity,/RequireAuthorization\("IpProductionUser"\)/);
