@@ -44,6 +44,10 @@
     <label>ضریب مصرف<input name="quantityPer" type="number" step="any" min="0.000001" required></label>
     <label>درصد ضایعات استاندارد<input name="scrapPercent" type="number" step="any" min="0" max="99.99" value="0" required></label>
     <label>ترتیب عملیات<input name="sequence" type="number" min="1" value="10" required></label>
+    <label>کد گروه آلترناتیو (اختیاری)<input name="alternativeGroupCode" maxlength="32" placeholder="مثلاً MAT-A"></label>
+    <label>اولویت آلترناتیو<input name="alternativePriority" type="number" min="1" step="1" value="1" required></label>
+    <label class="checkbox-label"><input name="isDefaultAlternative" type="checkbox"> قطعه پیش‌فرض این گروه</label>
+    <p class="wide hint">قطعاتی که کد گروه یکسان دارند، گزینه‌های جایگزین یک نیاز مشترک‌اند. برای هر گروه حداقل دو قطعه و دقیقاً یک پیش‌فرض تعیین کنید؛ اعضا باید ترتیب یکسان داشته باشند. در MRP پایه فقط پیش‌فرض محاسبه می‌شود.</p>
     <div class="form-actions"><button class="btn-main" type="submit">افزودن جزء</button></div>
   </form>
   <div class="panel form-grid">
