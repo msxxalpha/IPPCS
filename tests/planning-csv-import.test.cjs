@@ -23,7 +23,10 @@ test("versioned BOM and MPS line imports remain draft-only and validate duplicat
   assert.match(importer,/if\(rev\.state!==0\)return "فقط به نسخه BOM پیش‌نویس می‌توان جزء افزود\."/);
   assert.match(importer,/form: "#mps-line-form"/);
   assert.match(importer,/if\(version\.state!==0\)return "فقط به نسخه MPS پیش‌نویس می‌توان ردیف افزود\."/);
-  assert.match(importer,/ctx\.seenBom\.has\(componentKey\)\|\|ctx\.seenBom\.has\(sequenceKey\)/);
+  assert.match(importer,/ctx\.seenBom\.has\(componentKey\)\|\|existingSequenceKeys\.some\(k=>k!==sequenceKey\)/);
+  assert.match(importer,/alternativeGroupCode/);
+  assert.match(importer,/isDefaultAlternative/);
+  assert.match(importer,/alternativePriority/);
   assert.match(importer,/ctx\.seenMps\.has\(key\)/);
 });
 
