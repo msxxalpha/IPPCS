@@ -191,16 +191,29 @@ public static class PlanningCalculators
                 throw new InvalidOperationException("برای هر محصول و تاریخ برنامه باید دقیقاً یک مسیر ساخت مصوب معتبر وجود داشته باشد.");
             var route=matches[0];
             if(route.Operations.Count==0)throw new InvalidOperationException("مسیر ساخت محصول فاقد عملیات است.");
-            foreach(var op in route.Operations.OrderBy(x=>x.Sequence))
+            var operations=route.Operations.OrderBy(x=>x.Sequence).ToArray();
+            if(operations.Select(x=>x.Sequence).Distinct().Count()!=operations.Length)
+                throw new InvalidOperationException("شماره عملیات در مسیر ساخت محصول باید یکتا باشد.");
+            for(var i=0;i<operations.Length;i++)
             {
+                var op=operations[i];
                 if(op.WorkCenterId==Guid.Empty||op.Sequence<=0||op.SetupMinutes<0||
                     op.RunMinutesPerUnit<=0||op.YieldPercent is <=0 or >100)
                     throw new InvalidOperationException("زمان استاندارد، بازده یا مرکز عملیات محصول نامعتبر است.");
-                var runPerGoodUnit=op.RunMinutesPerUnit*100m/op.YieldPercent;
-                var required=op.SetupMinutes+line.Quantity*runPerGoodUnit;
+                // A good finished unit must survive this operation AND every downstream operation.
+                // Capacity at an upstream operation therefore reflects cumulative downstream yield loss.
+                decimal cumulativeYield=1m;
+                for(var j=i;j<operations.Length;j++)
+                {
+                    if(operations[j].YieldPercent is <=0 or >100)
+                        throw new InvalidOperationException("بازده عملیات ساخت نامعتبر است.");
+                    cumulativeYield*=operations[j].YieldPercent/100m;
+                }
+                var runPerFinishedUnit=op.RunMinutesPerUnit/cumulativeYield;
+                var required=op.SetupMinutes+line.Quantity*runPerFinishedUnit;
                 var available=FactoryShiftCalendar.AvailableMinutes(op.WorkCenterId,line.NeededOn,shifts);
                 var standalone=available<=op.SetupMinutes?0m:
-                    decimal.Floor((available-op.SetupMinutes)/runPerGoodUnit);
+                    decimal.Floor((available-op.SetupMinutes)/runPerFinishedUnit);
                 rows.Add(new CrpProductCapacityRow(line.Id,line.ItemId,line.NeededOn,line.Quantity,
                     op.WorkCenterId,op.Sequence,op.Name,op.SetupMinutes,op.RunMinutesPerUnit,
                     op.YieldPercent,required,available,standalone,
@@ -220,11 +233,24 @@ public static class PlanningCalculators
             var route=routings.Where(r=>r.ItemId==line.ItemId && r.State==RoutingState.Approved
                 && r.EffectiveFrom<=line.NeededOn && (r.EffectiveTo is null||line.NeededOn<=r.EffectiveTo.Value)).ToArray();
             if(route.Length!=1)throw new InvalidOperationException("برای هر محصول و تاریخ برنامه باید دقیقاً یک مسیر ساخت مصوب معتبر وجود داشته باشد.");
-            foreach(var op in route[0].Operations)
+            var operations=route[0].Operations.OrderBy(x=>x.Sequence).ToArray();
+            if(operations.Length==0||operations.Select(x=>x.Sequence).Distinct().Count()!=operations.Length)
+                throw new InvalidOperationException("مسیر ساخت محصول باید عملیات دارای شماره یکتا داشته باشد.");
+            for(var i=0;i<operations.Length;i++)
             {
+                var op=operations[i];
+                if(op.WorkCenterId==Guid.Empty||op.Sequence<=0||op.SetupMinutes<0||
+                    op.RunMinutesPerUnit<=0||op.YieldPercent is <=0 or >100)
+                    throw new InvalidOperationException("زمان استاندارد، بازده یا مرکز عملیات محصول نامعتبر است.");
+                decimal cumulativeYield=1m;
+                for(var j=i;j<operations.Length;j++)
+                {
+                    if(operations[j].YieldPercent is <=0 or >100)
+                        throw new InvalidOperationException("بازده عملیات ساخت نامعتبر است.");
+                    cumulativeYield*=operations[j].YieldPercent/100m;
+                }
                 var key=(op.WorkCenterId,line.NeededOn);
-                if(op.YieldPercent<=0)throw new InvalidOperationException("بازده عملیات ساخت نامعتبر است.");
-                loads[key]=loads.GetValueOrDefault(key)+op.SetupMinutes+line.Quantity*op.RunMinutesPerUnit/(op.YieldPercent/100m);
+                loads[key]=loads.GetValueOrDefault(key)+op.SetupMinutes+line.Quantity*op.RunMinutesPerUnit/cumulativeYield;
             }
         }
         return loads.OrderBy(x=>x.Key.NeededOn).ThenBy(x=>x.Key.WorkCenterId).Select(x=>{
