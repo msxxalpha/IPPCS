@@ -23,6 +23,11 @@ public sealed class ManufacturingBomLine
     public decimal QuantityPer { get; set; }
     public decimal ScrapPercent { get; set; }
     public int Sequence { get; set; }
+    // Null means a mandatory BOM component. Lines with the same non-empty group
+    // code are mutually substitutable options for one requirement, not additive demand.
+    public string? AlternativeGroupCode { get; set; }
+    public bool IsDefaultAlternative { get; set; }
+    public int AlternativePriority { get; set; } = 1;
 }
 public sealed class MpsVersion
 {
@@ -73,7 +78,8 @@ public sealed class PlanningCalculation
 }
 
 public record BomRevisionInput(Guid ParentItemId, string Revision, string ValidFromJalali, string? ValidUntilJalali);
-public record BomLineInput(Guid ComponentItemId, decimal QuantityPer, decimal ScrapPercent, int Sequence);
+public record BomLineInput(Guid ComponentItemId, decimal QuantityPer, decimal ScrapPercent, int Sequence,
+    string? AlternativeGroupCode = null, bool IsDefaultAlternative = false, int AlternativePriority = 1);
 public record MpsVersionInput(string Code);
 public record MpsLineInput(Guid ItemId, string NeededOnJalali, decimal Quantity, string? Reference);
 public record PlanningBalanceInput(Guid ItemId, decimal PhysicalQuantity, decimal ReservedQuantity, decimal QuarantinedQuantity,
@@ -299,6 +305,7 @@ public static class PlanningStageThreeEndpoints
         model.Entity<ManufacturingBomLine>().HasOne(x=>x.Revision).WithMany(x=>x.Lines).HasForeignKey(x=>x.RevisionId).OnDelete(DeleteBehavior.Cascade);
         model.Entity<ManufacturingBomLine>().HasOne<PlanningItem>().WithMany().HasForeignKey(x=>x.ComponentItemId).OnDelete(DeleteBehavior.Restrict);
         model.Entity<ManufacturingBomLine>().HasIndex(x=>new{x.RevisionId,x.ComponentItemId}).IsUnique();
+        model.Entity<ManufacturingBomLine>().Property(x=>x.AlternativeGroupCode).HasMaxLength(32);
         model.Entity<ManufacturingBomLine>().Property(x=>x.QuantityPer).HasPrecision(18,6);
         model.Entity<ManufacturingBomLine>().Property(x=>x.ScrapPercent).HasPrecision(8,4);
         model.Entity<MpsVersion>().HasIndex(x=>x.Code).IsUnique();
@@ -329,7 +336,9 @@ public static class PlanningStageThreeEndpoints
             return Results.Ok(list.Select(x=>new{x.Id,x.ParentItemId,x.Revision,x.State,
                 validFromJalali=PersianPlanningDates.Format(x.ValidFrom),
                 validUntilJalali=x.ValidUntil.HasValue?PersianPlanningDates.Format(x.ValidUntil.Value):null,
-                lines=x.Lines.OrderBy(l=>l.Sequence).Select(l=>new{l.Id,l.ComponentItemId,l.QuantityPer,l.ScrapPercent,l.Sequence})}));
+                lines=x.Lines.OrderBy(l=>l.Sequence).ThenBy(l=>l.AlternativePriority).Select(l=>new{
+                    l.Id,l.ComponentItemId,l.QuantityPer,l.ScrapPercent,l.Sequence,
+                    l.AlternativeGroupCode,l.IsDefaultAlternative,l.AlternativePriority})}));
         });
         planningApi.MapPost("/bom-revisions",async(BomRevisionInput input,ProductionDb db,CancellationToken ct)=>{
             if(string.IsNullOrWhiteSpace(input.Revision)||input.Revision.Trim().Length>32
@@ -360,16 +369,32 @@ public static class PlanningStageThreeEndpoints
             var rev=await db.ManufacturingBomRevisions.SingleOrDefaultAsync(x=>x.Id==id,ct);
             if(rev is null)return Results.NotFound();
             if(rev.State!=ManufacturingRevisionState.Draft)return Results.Conflict(new{message="نسخه قفل است."});
+            var groupCode=string.IsNullOrWhiteSpace(input.AlternativeGroupCode)
+                ?null:input.AlternativeGroupCode.Trim().ToUpperInvariant();
             if(input.ComponentItemId==rev.ParentItemId||input.Sequence<=0||input.QuantityPer<=0
-                ||input.ScrapPercent is <0 or >=100)
-                return Results.BadRequest(new{message="مقادیر جزء معتبر نیست."});
+                ||input.ScrapPercent is <0 or >=100||input.AlternativePriority<=0
+                ||(groupCode is not null&&groupCode.Length>32)
+                ||(groupCode is null&&input.IsDefaultAlternative))
+                return Results.BadRequest(new{message="مقادیر جزء یا گروه آلترناتیو معتبر نیست."});
             if(!await db.Items.AnyAsync(x=>x.Id==input.ComponentItemId,ct))
                 return Results.BadRequest(new{message="جزء انتخاب‌شده وجود ندارد."});
-            if(await db.ManufacturingBomLines.AnyAsync(x=>x.RevisionId==id
-                && (x.ComponentItemId==input.ComponentItemId || x.Sequence==input.Sequence),ct))
-                return Results.Conflict(new{message="جزء یا شماره ترتیب تکراری است."});
+            var existingLines=await db.ManufacturingBomLines.AsNoTracking()
+                .Where(x=>x.RevisionId==id).ToListAsync(ct);
+            if(existingLines.Any(x=>x.ComponentItemId==input.ComponentItemId))
+                return Results.Conflict(new{message="یک قطعه نمی‌تواند دوبار در یک نسخه BOM تعریف شود."});
+            if(groupCode is null&&existingLines.Any(x=>x.Sequence==input.Sequence))
+                return Results.Conflict(new{message="شماره ترتیب جزء اجباری تکراری است."});
+            if(groupCode is not null&&existingLines.Any(x=>
+                (x.AlternativeGroupCode==groupCode&&x.Sequence!=input.Sequence)||
+                (x.AlternativeGroupCode is null&&x.Sequence==input.Sequence)))
+                return Results.Conflict(new{message="اعضای یک گروه آلترناتیو باید ترتیب یکسان داشته باشند و با جزء اجباری هم‌ردیف نشوند."});
+            if(groupCode is not null&&input.IsDefaultAlternative&&existingLines.Any(x=>
+                x.AlternativeGroupCode==groupCode&&x.IsDefaultAlternative))
+                return Results.Conflict(new{message="برای این گروه قبلاً آلترناتیو پیش‌فرض تعیین شده است."});
             var part=new ManufacturingBomLine{RevisionId=id,ComponentItemId=input.ComponentItemId,
-                Sequence=input.Sequence,QuantityPer=input.QuantityPer,ScrapPercent=input.ScrapPercent};
+                Sequence=input.Sequence,QuantityPer=input.QuantityPer,ScrapPercent=input.ScrapPercent,
+                AlternativeGroupCode=groupCode,IsDefaultAlternative=input.IsDefaultAlternative,
+                AlternativePriority=input.AlternativePriority};
             db.ManufacturingBomLines.Add(part);await db.SaveChangesAsync(ct);
             await tx.CommitAsync(ct);
             return Results.Created($"/api/v1/bom-revisions/{id}",new{part.Id});
