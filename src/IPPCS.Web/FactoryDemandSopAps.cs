@@ -657,15 +657,18 @@ public static class FactoryDemandApsEndpoints
             {
                 var active=routes.Where(x=>x.ItemId==line.ItemId&&x.EffectiveFrom<=line.NeededOn
                     && (x.EffectiveTo==null||line.NeededOn<=x.EffectiveTo)).ToList();
-                if(active.Count!=1 || active[0].Operations.Count==0)
+                if(active.Count!=1)
                 {errors.Add($"مسیر ساخت محصول {line.ItemId} معتبر یا یکتا نیست.");continue;}
-                foreach(var op in active[0].Operations.OrderBy(x=>x.Sequence))
+                try
                 {
-                    if(op.YieldPercent<=0) {errors.Add($"بازده عملیات {op.Name} نامعتبر است.");continue;}
-                    tasks.Add(new(line.Id,line.ItemId,line.NeededOn,line.Quantity,active[0].Id,op.Sequence,
-                        op.WorkCenterId,op.SetupMinutes+op.RunMinutesPerUnit*line.Quantity*100m/op.YieldPercent,
-                        op.Name));
+                    // Match CRP: operation quantity and minutes account for the
+                    // yield of this operation plus every downstream operation.
+                    tasks.AddRange(FactoryApsTaskExpansion.Expand(line,active[0]));
                 }
+                catch(InvalidOperationException ex)
+                {errors.Add(ex.Message);}
+                catch(OverflowException)
+                {errors.Add($"محاسبه مقدار عبوری یا زمان عملیات محصول {line.ItemId} از محدوده عددی خارج شد.");}
             }
             if(errors.Count>0)return Results.UnprocessableEntity(new{message=string.Join("؛ ",errors)});
             var actualEvents=await db.ManufacturingOrderAudits.AsNoTracking()
