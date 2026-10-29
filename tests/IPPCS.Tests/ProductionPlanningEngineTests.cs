@@ -59,7 +59,7 @@ public sealed class ProductionPlanningEngineTests
         var routes=new []{new RoutingRevision{
             ItemId=item,State=RoutingState.Approved,RevisionCode="A",
             EffectiveFrom=Due.AddDays(-1),
-            Operations=[new RoutingOperation{WorkCenterId=center,SetupMinutes=60,RunMinutesPerUnit=5,YieldPercent=100}]
+            Operations=[new RoutingOperation{Sequence=1,Name="Forming",WorkCenterId=center,SetupMinutes=60,RunMinutesPerUnit=5,YieldPercent=100}]
         }};
         var shifts=new []{new WorkShift{WorkCenterId=center,DayOfWeek=(int)Due.DayOfWeek,
             StartTime=new TimeOnly(8,0),EndTime=new TimeOnly(16,0),EffectiveCapacityPercent=80m}};
