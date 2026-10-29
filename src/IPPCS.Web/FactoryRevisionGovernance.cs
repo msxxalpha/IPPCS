@@ -47,6 +47,35 @@ public static class FactoryRevisionGovernance
         return issues;
     }
 
+    // A cycle is invalid only when every edge in that cycle can be effective on
+    // at least one common date. A union graph across disjoint revision intervals
+    // creates false positives, e.g. A->B in January and B->A in July.
+    public static bool HasEffectiveBomCycle(IEnumerable<ManufacturingBomRevision> revisions)
+    {
+        var all=revisions.ToArray();
+        foreach(var date in all.Select(x=>x.ValidFrom).Distinct().OrderBy(x=>x))
+        {
+            var edges=all.Where(x=>x.ValidFrom<=date&&(x.ValidUntil is null||date<=x.ValidUntil.Value))
+                .SelectMany(x=>x.Lines.Select(line=>(Parent:x.ParentItemId,Child:line.ComponentItemId)))
+                .ToLookup(x=>x.Parent,x=>x.Child);
+            var visiting=new HashSet<Guid>();
+            var visited=new HashSet<Guid>();
+            bool Visit(Guid item)
+            {
+                if(visiting.Contains(item))return true;
+                if(visited.Contains(item))return false;
+                visiting.Add(item);
+                foreach(var child in edges[item])
+                    if(Visit(child))return true;
+                visiting.Remove(item);
+                visited.Add(item);
+                return false;
+            }
+            if(edges.Select(x=>x.Key).Any(Visit))return true;
+        }
+        return false;
+    }
+
     public static IReadOnlyList<FactoryRevisionIssue> BomIssues(
         ManufacturingBomRevision revision,IReadOnlyList<ManufacturingBomRevision> approved)
     {
@@ -67,21 +96,8 @@ public static class FactoryRevisionGovernance
             x.State==ManufacturingRevisionState.Approved&&Overlaps(
                 revision.ValidFrom,revision.ValidUntil,x.ValidFrom,x.ValidUntil)))
             issues.Add(new("ApprovedOverlap","نسخه BOM با نسخه مصوب دیگری همپوشانی دارد."));
-        var adjacency=approved.Where(x=>x.State==ManufacturingRevisionState.Approved
-                &&x.Id!=revision.Id).Append(revision).SelectMany(x=>x.Lines
-                .Select(y=>(Parent:x.ParentItemId,Child:y.ComponentItemId))).ToArray();
-        var visiting=new HashSet<Guid>();var visited=new HashSet<Guid>();
-        bool IsCyclic(Guid item)
-        {
-            if(visiting.Contains(item))return true;
-            if(!visited.Add(item))return false;
-            visiting.Add(item);
-            foreach(var edge in adjacency.Where(x=>x.Parent==item))
-                if(IsCyclic(edge.Child))return true;
-            visiting.Remove(item);return false;
-        }
-        if(adjacency.Select(x=>x.Parent).Distinct().Any(IsCyclic))
-            issues.Add(new("BomCycle","چرخه وابستگی بین نسخه‌های BOM شناسایی شد."));
+        if(HasEffectiveBomCycle(approved.Where(x=>x.Id!=revision.Id).Append(revision)))
+            issues.Add(new("BomCycle","چرخه وابستگی بین نسخه‌های BOM در یک بازه تاریخی مشترک شناسایی شد."));
         return issues;
     }
 
