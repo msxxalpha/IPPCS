@@ -857,42 +857,6 @@ namespace IPPCS.Web.Migrations.CI
                     b.ToTable("ManufacturingOrders");
                 });
 
-            modelBuilder.Entity("ManufacturingOrderMaterialAllocation", b =>
-                {
-                    b.HasOne("ManufacturingBomLine", null)
-                        .WithMany()
-                        .HasForeignKey("BomLineId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("ManufacturingOrder", null)
-                        .WithMany()
-                        .HasForeignKey("OrderId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("ManufacturingOrderMaterialUsage", b =>
-                {
-                    b.HasOne("ManufacturingBomLine", null)
-                        .WithMany()
-                        .HasForeignKey("BomLineId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("PlanningItem", null)
-                        .WithMany()
-                        .HasForeignKey("ComponentItemId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("ManufacturingOrder", null)
-                        .WithMany()
-                        .HasForeignKey("OrderId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
-
             modelBuilder.Entity("ManufacturingOrderAudit", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2227,6 +2191,42 @@ namespace IPPCS.Web.Migrations.CI
                     b.HasOne("RoutingRevision", null)
                         .WithMany()
                         .HasForeignKey("RoutingRevisionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("ManufacturingOrderMaterialAllocation", b =>
+                {
+                    b.HasOne("ManufacturingBomLine", null)
+                        .WithMany()
+                        .HasForeignKey("BomLineId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ManufacturingOrder", null)
+                        .WithMany()
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("ManufacturingOrderMaterialUsage", b =>
+                {
+                    b.HasOne("ManufacturingBomLine", null)
+                        .WithMany()
+                        .HasForeignKey("BomLineId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("PlanningItem", null)
+                        .WithMany()
+                        .HasForeignKey("ComponentItemId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ManufacturingOrder", null)
+                        .WithMany()
+                        .HasForeignKey("OrderId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
