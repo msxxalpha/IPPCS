@@ -77,6 +77,7 @@ test("the application and SQL migration carry the same per-operation capacity ta
  assert.match(migration,/name: "WorkCenterProductCapacities"/);
  assert.match(migration,/principalTable: "RoutingOperations"/);
  assert.match(migration,/unique: true/);
- assert.match(snapshot,/ToTable\("WorkCenterProductCapacities"/);\n assert.match(snapshot,/CK_WorkCenterProductCapacities_CapacityUnitsPerHour_Positive/);
+ assert.match(snapshot,/ToTable\("WorkCenterProductCapacities"/);
+ assert.match(snapshot,/CK_WorkCenterProductCapacities_CapacityUnitsPerHour_Positive/);
  assert.match(snapshot,/HasIndex\("RoutingOperationId"\)\s*\.IsUnique\(\)/);
 });
