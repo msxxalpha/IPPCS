@@ -176,7 +176,11 @@ async function boot(){
  async function loadMaterialOptions(){
   const id=$("#material-order").value;
   if(!id)throw Error("ابتدا دستور تولید را انتخاب کنید.");
-  materialSnapshot=await request("/manufacturing-orders/"+id+"/material-options");
+  const [snapshot,usageHistory]=await Promise.all([
+   request("/manufacturing-orders/"+id+"/material-options"),
+   request("/manufacturing-orders/"+id+"/material-usage")
+  ]);
+  materialSnapshot=snapshot;
   const root=$("#material-options-container");root.replaceChildren();
   if(!materialSnapshot.groups.length){
    const p=document.createElement("p");p.textContent="برای BOM این دستور گروه آلترناتیو تعریف نشده است؛ فقط اجزای اجباری وجود دارند.";root.append(p);
@@ -213,6 +217,12 @@ async function boot(){
    ...materialSnapshot.mandatoryComponents.map(x=>({...x,groupCode:""})),
    ...materialSnapshot.groups.flatMap(g=>g.options.map(x=>({...x,groupCode:g.groupCode})))
   ]);
+  table("#material-usage-history",[
+   ["زمان ثبت",x=>new Date(x.occurredUtc).toLocaleString("fa-IR-u-ca-persian",{timeZone:"Asia/Tehran"})],
+   ["قطعه",x=>itemName(x.componentItemId)],["مقدار",x=>num(x.quantity)],
+   ["بچ",x=>x.lotCode||"—"],["ثبت‌کننده",x=>x.recordedBy],
+   ["شرح / علت انحراف",x=>x.note||"—"]
+  ],usageHistory.rows);
  }
  $("#material-options-load").onclick=()=>loadMaterialOptions().catch(e=>flash(e.message,true));
  $("#material-order").addEventListener("change",()=>{materialSnapshot=null;$("#material-options-container").replaceChildren();$("#material-options-summary").replaceChildren();});
