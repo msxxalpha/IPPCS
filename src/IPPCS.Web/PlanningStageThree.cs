@@ -121,6 +121,7 @@ public static class PlanningCalculators
 
         var demands = lines.GroupBy(x=> (x.ItemId,x.NeededOn))
             .ToDictionary(g=>g.Key,g=>g.Sum(x=>x.Quantity));
+        var demandedItems = demands.Keys.Select(x=>x.ItemId).ToHashSet();
         var byBalance = balances.ToDictionary(x=>x.ItemId);
         var byReceipt = receipts.GroupBy(x=>x.ItemId)
             .ToDictionary(g=>g.Key,g=>g.OrderBy(x=>x.AvailableOn).ToList());
@@ -130,7 +131,7 @@ public static class PlanningCalculators
         {
             // Approved historical revisions can reference components that are not needed by any selected release date.
             // Do not require planning balances for graph-only items with no dated demand.
-            if (!demands.Keys.Any(x => x.ItemId == itemId)) continue;
+            if (!demandedItems.Contains(itemId)) continue;
             var balance = byBalance.GetValueOrDefault(itemId)
                 ?? throw new InvalidOperationException("موجودی مبنا یا قواعد زمان تأمین کالا ثبت نشده است.");
             decimal available = Math.Max(0m,
@@ -174,6 +175,7 @@ public static class PlanningCalculators
                     decimal partNeed=planned*part.QuantityPer/(1-part.ScrapPercent/100m);
                     var key=(part.ComponentItemId,release!.Value);
                     demands[key]=demands.GetValueOrDefault(key)+partNeed;
+                    demandedItems.Add(part.ComponentItemId);
                 }
             }
         }
