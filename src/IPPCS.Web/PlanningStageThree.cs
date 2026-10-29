@@ -84,6 +84,17 @@ public record MrpRow(Guid ItemId, DateOnly NeededOn, decimal GrossRequired, deci
 public record CrpRow(Guid WorkCenterId, DateOnly NeededOn, decimal RequiredMinutes,
     decimal CapacityMinutes, decimal OverloadMinutes, decimal? UtilizationPercent);
 
+// Product-dependent capacity is expressed as output units for a specific item/operation,
+// not as a universal "units per work center" number. This is a rough-cut view: each
+// row's standalone output assumes no competing product consumes that center's minutes.
+public record CrpProductCapacityRow(Guid MpsLineId, Guid ItemId, DateOnly NeededOn,
+    decimal DemandQuantity, Guid WorkCenterId, int OperationSequence, string OperationName,
+    decimal SetupMinutes, decimal RunMinutesPerUnit, decimal YieldPercent,
+    decimal RequiredMinutes, decimal AvailableMinutes, decimal StandaloneCapacityUnits,
+    decimal? UtilizationPercent, decimal OverloadMinutes);
+
+
+
 public static class PlanningCalculators
 {
     public static List<MrpRow> RunMrp(
@@ -163,6 +174,41 @@ public static class PlanningCalculators
             }
         }
         return rows.OrderBy(x=>x.NeededOn).ThenBy(x=>x.ItemId).ToList();
+    }
+
+    public static List<CrpProductCapacityRow> RunProductCapacityCrp(
+        IReadOnlyList<MpsDemandLine> lines,
+        IReadOnlyList<RoutingRevision> routings,
+        IReadOnlyList<WorkShift> shifts)
+    {
+        var rows=new List<CrpProductCapacityRow>();
+        foreach(var line in lines.OrderBy(x=>x.NeededOn).ThenBy(x=>x.ItemId).ThenBy(x=>x.Id))
+        {
+            if(line.Quantity<=0)throw new InvalidOperationException("مقدار تقاضای MPS باید مثبت باشد.");
+            var matches=routings.Where(r=>r.ItemId==line.ItemId&&r.State==RoutingState.Approved
+                &&r.EffectiveFrom<=line.NeededOn&&(r.EffectiveTo is null||line.NeededOn<=r.EffectiveTo.Value)).ToArray();
+            if(matches.Length!=1)
+                throw new InvalidOperationException("برای هر محصول و تاریخ برنامه باید دقیقاً یک مسیر ساخت مصوب معتبر وجود داشته باشد.");
+            var route=matches[0];
+            if(route.Operations.Count==0)throw new InvalidOperationException("مسیر ساخت محصول فاقد عملیات است.");
+            foreach(var op in route.Operations.OrderBy(x=>x.Sequence))
+            {
+                if(op.WorkCenterId==Guid.Empty||op.Sequence<=0||op.SetupMinutes<0||
+                    op.RunMinutesPerUnit<=0||op.YieldPercent is <=0 or >100)
+                    throw new InvalidOperationException("زمان استاندارد، بازده یا مرکز عملیات محصول نامعتبر است.");
+                var runPerGoodUnit=op.RunMinutesPerUnit*100m/op.YieldPercent;
+                var required=op.SetupMinutes+line.Quantity*runPerGoodUnit;
+                var available=FactoryShiftCalendar.AvailableMinutes(op.WorkCenterId,line.NeededOn,shifts);
+                var standalone=available<=op.SetupMinutes?0m:
+                    decimal.Floor((available-op.SetupMinutes)/runPerGoodUnit);
+                rows.Add(new CrpProductCapacityRow(line.Id,line.ItemId,line.NeededOn,line.Quantity,
+                    op.WorkCenterId,op.Sequence,op.Name,op.SetupMinutes,op.RunMinutesPerUnit,
+                    op.YieldPercent,required,available,standalone,
+                    available==0?null:Math.Round(required/available*100m,2),
+                    Math.Max(0m,required-available)));
+            }
+        }
+        return rows;
     }
 
     public static List<CrpRow> RunRoughCutCrp(IReadOnlyList<MpsDemandLine> lines,
@@ -523,6 +569,28 @@ public static class PlanningStageThreeEndpoints
             var run=await db.PlanningCalculations.AsNoTracking().SingleOrDefaultAsync(x=>x.Id==runId,ct);
             return run is null?Results.NotFound():Results.Ok(new{run.Id,run.MpsVersionId,run.CalculatedUtc,
                 run.AlgorithmVersion,results=JsonSerializer.Deserialize<JsonElement>(run.ResultSnapshotJson)});
+        });
+        api.MapGet("/crp/{id:guid}/product-capacity-preview",async(Guid id,ProductionDb db,CancellationToken ct)=>{
+            var version=await db.MpsVersions.AsNoTracking().Include(x=>x.Lines)
+                .SingleOrDefaultAsync(x=>x.Id==id,ct);
+            if(version is null)return Results.NotFound();
+            if(version.State!=PlanningApproval.Approved)
+                return Results.Conflict(new{message="نسخه MPS باید مصوب باشد."});
+            var routes=await db.RoutingRevisions.AsNoTracking().Include(x=>x.Operations).ToListAsync(ct);
+            var shifts=await db.WorkShifts.AsNoTracking().ToListAsync(ct);
+            try{
+                var rows=PlanningCalculators.RunProductCapacityCrp(version.Lines,routes,shifts);
+                return Results.Ok(new{
+                    mode="ProductDependentRoughCutCapacity",
+                    disclaimer="ظرفیت خروجی به محصول، مسیر، زمان آماده‌سازی، زمان واحد و بازده عملیات وابسته است. ظرفیت مستقل هر ردیف فرض می‌کند محصول دیگری از دقایق همان مرکز استفاده نمی‌کند؛ این عدد ظرفیت ترکیبی قابل‌تعهد نیست. تداخل زمانی و توالی واقعی را در APS بررسی کنید.",
+                    rows=rows.Select(x=>new{x.MpsLineId,x.ItemId,demandOnJalali=PersianPlanningDates.Format(x.NeededOn),
+                        x.DemandQuantity,x.WorkCenterId,x.OperationSequence,x.OperationName,
+                        x.SetupMinutes,x.RunMinutesPerUnit,x.YieldPercent,x.RequiredMinutes,
+                        x.AvailableMinutes,x.StandaloneCapacityUnits,x.UtilizationPercent,x.OverloadMinutes})
+                });
+            }catch(InvalidOperationException ex){
+                return Results.UnprocessableEntity(new{message=ex.Message});
+            }
         });
         api.MapGet("/crp/{id:guid}/preview",async(Guid id,ProductionDb db,CancellationToken ct)=>{
             var version=await db.MpsVersions.AsNoTracking().Include(x=>x.Lines).SingleOrDefaultAsync(x=>x.Id==id,ct);
