@@ -497,11 +497,22 @@ public static class FactoryDemandApsEndpoints
                 var selected=routes.Where(x=>x.ItemId==demand.ItemId&&x.EffectiveFrom<=demand.DueOn
                     && (x.EffectiveTo==null||demand.DueOn<=x.EffectiveTo)).ToList();
                 if(selected.Count!=1){warnings.Add($"مسیر ساخت مصوب برای نیاز {demand.Reference} یکتا نیست.");continue;}
-                if(selected[0].Operations.Any(op=>op.YieldPercent<=0)){warnings.Add($"بازده مسیر {demand.Reference} نامعتبر است.");continue;}
-                foreach(var operation in selected[0].Operations)
+                var operations=selected[0].Operations.OrderBy(x=>x.Sequence).ToArray();
+                if(operations.Length==0||operations.Any(op=>op.WorkCenterId==Guid.Empty||
+                    op.SetupMinutes<0||op.RunMinutesPerUnit<=0||op.YieldPercent is <=0 or >100))
+                {warnings.Add($"زمان، مرکز یا بازده مسیر {demand.Reference} نامعتبر است.");continue;}
+                if(operations.Select(x=>x.Sequence).Distinct().Count()!=operations.Length)
+                {warnings.Add($"شماره عملیات مسیر {demand.Reference} یکتا نیست.");continue;}
+                for(var i=0;i<operations.Length;i++)
                 {
-                    var required=operation.SetupMinutes+operation.RunMinutesPerUnit*
-                        demand.Quantity*100m/operation.YieldPercent;
+                    decimal cumulativeYield=1m;
+                    for(var j=i;j<operations.Length;j++)
+                        cumulativeYield*=operations[j].YieldPercent/100m;
+                    if(cumulativeYield<=0m)
+                    {warnings.Add($"بازده تجمعی مسیر {demand.Reference} نامعتبر است.");break;}
+                    var operation=operations[i];
+                    var required=operation.SetupMinutes+demand.Quantity*
+                        operation.RunMinutesPerUnit/cumulativeYield;
                     workCenterLoad[operation.WorkCenterId]=
                         workCenterLoad.GetValueOrDefault(operation.WorkCenterId)+required;
                 }
