@@ -54,7 +54,7 @@ public static class NetMrpDemandPegging
                 throw new InvalidOperationException("اطلاعات پایه قطعه در محاسبات موجود نیست.");
             depth[item] = Math.Max(depth.GetValueOrDefault(item), level);
             if (approved.TryGetValue(item, out var revisions))
-                foreach (var line in revisions.SelectMany(x => x.Lines))
+                foreach (var line in revisions.SelectMany(PlanningCalculators.EffectiveDemandLines))
                     Visit(line.ComponentItemId, level + 1, stack);
             stack.Remove(item);
         }
@@ -154,7 +154,7 @@ public static class NetMrpDemandPegging
                     // Only net planned manufacturing orders explode into lower-level BOM demand.
                     // The entire manufactured batch, including lot-size uplift, consumes components.
                     if (revision is not null)
-                        foreach (var part in revision.Lines.OrderBy(x => x.Sequence).ThenBy(x => x.Id))
+                        foreach (var part in PlanningCalculators.EffectiveDemandLines(revision).OrderBy(x => x.Sequence).ThenBy(x => x.Id))
                         {
                             if (part.QuantityPer <= 0 || part.ScrapPercent is < 0 or >= 100)
                                 throw new InvalidOperationException("ضریب مصرف یا درصد ضایعات BOM نامعتبر است.");
