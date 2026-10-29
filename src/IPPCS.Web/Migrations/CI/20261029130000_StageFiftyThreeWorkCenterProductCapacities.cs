@@ -28,6 +28,9 @@ namespace IPPCS.Web.Migrations.CI
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_WorkCenterProductCapacities", x => x.Id);
+                    table.CheckConstraint(
+                        "CK_WorkCenterProductCapacities_CapacityUnitsPerHour_Positive",
+                        "[CapacityUnitsPerHour] >= 0.0001");
                     table.ForeignKey(
                         name: "FK_WorkCenterProductCapacities_RoutingOperations_RoutingOperationId",
                         column: x => x.RoutingOperationId,
