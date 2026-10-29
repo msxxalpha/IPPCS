@@ -607,7 +607,21 @@ function register(){
    ["روزهای بدون شیفت","daysWithoutCapacity"],
    ["اولین اضافه‌بار",x=>x.firstOverload?new Date(x.firstOverload+"T12:00:00Z").toLocaleDateString("fa-IR-u-ca-persian",{timeZone:"Asia/Tehran"}):"—"]
   ],r.centers);
-  flash(r.disclaimer);
+  const product=await api("/crp/"+formval(f,"mpsId")+"/product-capacity-preview");
+  table("#crp-product-capacity-table",[
+   ["محصول",x=>item(x.itemId)],["موعد","demandOnJalali"],
+   ["مقدار تقاضا",x=>format(x.demandQuantity)],["مرحله","operationSequence"],
+   ["عملیات","operationName"],["مرکز کاری",x=>center(x.workCenterId)],
+   ["آماده‌سازی (دقیقه)",x=>format(x.setupMinutes)],
+   ["زمان واحد (دقیقه)",x=>format(x.runMinutesPerUnit)],
+   ["بازده","yieldPercent"],
+   ["بار محصول (دقیقه)",x=>format(x.requiredMinutes)],
+   ["ظرفیت شیفت (دقیقه)",x=>format(x.availableMinutes)],
+   ["ظرفیت مستقل محصول (واحد)",x=>format(x.standaloneCapacityUnits)],
+   ["اشباع",x=>x.utilizationPercent===null?"بدون شیفت":format(x.utilizationPercent)+"٪"],
+   ["اضافه‌بار (دقیقه)",x=>format(x.overloadMinutes)]
+  ],product.rows);
+  flash(r.disclaimer+" "+product.disclaimer);
  });
  addForm("#mps-peg-adherence-form",async f=>{
   const result=await api("/factory-kpis/peg-adherence/"+formval(f,"mpsId"));
