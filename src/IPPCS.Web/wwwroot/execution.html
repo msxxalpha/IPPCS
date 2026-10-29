@@ -18,6 +18,7 @@
   <a class="planning-link" href="/planning.html">برنامه‌ریزی MRP / CRP</a>
   <a class="planning-link" href="/control-plan.html">کنترل پلن، بازرسی و شجره بچ</a>
   <button class="nav-active" data-page="orders">دستورات ساخت</button>
+  <button data-page="materials">آلترناتیوها و شارژ مواد</button>
   <button data-page="confirmations">ثبت عملکرد عملیات</button>
   <button data-page="clock">ساعت واقعی کارکرد مرکز</button>
   <button data-page="slots">رزرو برنامه‌ای ظرفیت مراکز</button>
@@ -207,6 +208,25 @@
    <div class="form-actions"><button type="submit" class="btn-main">جست‌وجوی سابقه بچ</button></div>
   </form>
   <div class="panel"><h3>عملیات و گزارش‌های مرتبط</h3><div id="lot-trace-table"></div></div>
+ </section>
+ <section class="page" id="materials" hidden>
+  <div class="section-title"><h3>انتخاب آلترناتیوها و ثبت مصرف مواد دستور</h3><small>ترکیب قطعات پیش از آزادسازی دستور تعیین می‌شود؛ مصرف واقعی پس از آزادسازی ثبت می‌شود.</small></div>
+  <div class="callout">این بخش سوابق مصرف و ردیابی داخلی تولید را ثبت می‌کند و هیچ حواله، رسید یا تغییر موجودی در نرم‌افزار انبار ایجاد نمی‌کند. ترکیب هر گروه باید دقیقاً ۱۰۰٪ باشد. پس از ثبت مصرف واقعی، تغییر ترکیب همان گروه قفل می‌شود.</div>
+  <div class="panel form-grid">
+   <label>دستور تولید<select id="material-order" required></select></label>
+   <div class="form-actions"><button type="button" class="btn-outline" id="material-options-load">بارگذاری آلترناتیوها و مقادیر برنامه</button></div>
+   <div class="wide" id="material-options-container"></div>
+   <div class="form-actions"><button type="button" class="btn-main" id="material-options-save">ذخیره ترکیب آلترناتیوها</button></div>
+  </div>
+  <form id="material-usage-form" class="panel form-grid">
+   <h3 class="wide">ثبت شارژ/مصرف واقعی قطعه برای دستور</h3>
+   <label>قطعه مجاز برای مصرف<select name="bomLineId" id="material-usage-line" required></select></label>
+   <label>مقدار مصرف<input name="quantity" type="number" min="0.0001" step="any" required></label>
+   <label>شناسه بچ قطعه (اختیاری)<input name="lotCode" maxlength="100"></label>
+   <label>شرح / علت انحراف از مقدار برنامه<input name="note" maxlength="500" placeholder="در صورت تجاوز از مقدار برنامه الزامی است"></label>
+   <div class="form-actions"><button type="submit" class="btn-main">ثبت مصرف واقعی</button></div>
+  </form>
+  <div class="panel"><h3>مقادیر برنامه‌ریزی‌شده و مصرف تجمعی</h3><div id="material-options-summary"></div></div>
  </section>
  </main>
  <footer class="footer">IPPCS • اجرای تولید نیمه‌ساخته و مونتاژ<span>Build 0.4.0 • Draft</span></footer>
