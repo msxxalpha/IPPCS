@@ -3,6 +3,42 @@
   const apiRoot = "/api/v1";
   const specs = [
     {
+      form: "#bom-version-form", title: "ورود گروهی نسخه‌های BOM از فایل Excel/CSV",
+      file: "ippcs-bom-revisions-template.csv",
+      headers: ["parentCode","revision","validFromJalali","validUntilJalali"],
+      optional: ["validUntilJalali"],
+      sample: [["FG-001","A","1405/01/01",""]],
+      help: "این فایل فقط نسخه‌های پیش‌نویس BOM را ایجاد می‌کند؛ اجزا باید جداگانه وارد و نسخه از مسیر کنترل مهندسی تصویب شود.",
+      map: (r,ctx) => ({parentItemId:ctx.items.find(x=>x.code.toLowerCase()===r.parentCode.toLowerCase())?.id,revision:r.revision.trim(),validFromJalali:normalizeDate(r.validFromJalali),validUntilJalali:r.validUntilJalali?normalizeDate(r.validUntilJalali):null}),
+      validate: (r,ctx) => {
+        const parent=ctx.items.find(x=>x.code.toLowerCase()===r.parentCode.toLowerCase());
+        if(!parent)return "کد کالای والد در اقلام پیدا نشد.";
+        if(!r.revision||r.revision.trim().length>32||!validDate(r.validFromJalali))return "کد نسخه و تاریخ شروع معتبر لازم است.";
+        if(r.validUntilJalali&&(!validDate(r.validUntilJalali)||normalizeDate(r.validUntilJalali)<normalizeDate(r.validFromJalali)))return "تاریخ پایان نامعتبر یا پیش از تاریخ شروع است.";
+        const key=parent.id+"|"+r.revision.trim().toLowerCase();
+        if(ctx.bomRevisions.some(x=>x.parentItemId===parent.id&&String(x.revision).toLowerCase()===r.revision.trim().toLowerCase())||ctx.seenBom.has("revision|"+key))return "کد نسخه برای این کالای والد تکراری است.";
+        ctx.seenBom.add("revision|"+key);return "";
+      },
+      url: () => apiRoot+"/bom-revisions",
+      refresh: true
+    },
+    {
+      form: "#mps-form", title: "ورود گروهی سرنسخه‌های MPS از فایل Excel/CSV",
+      file: "ippcs-mps-versions-template.csv",
+      headers: ["mpsCode"],
+      sample: [["MPS-1405-W32"]],
+      help: "این فایل فقط سرنسخه‌های پیش‌نویس برنامه را می‌سازد؛ ردیف‌های تقاضا، کنترل و تصویب برنامه جداگانه انجام می‌شود.",
+      map: r => ({code:r.mpsCode.trim()}),
+      validate: (r,ctx) => {
+        const code=String(r.mpsCode||"").trim();
+        if(!code||code.length>64)return "کد نسخه MPS معتبر لازم است.";
+        if(ctx.mps.some(x=>String(x.code).toLowerCase()===code.toLowerCase())||ctx.seenMps.has("version|"+code.toLowerCase()))return "کد نسخه MPS تکراری است.";
+        ctx.seenMps.add("version|"+code.toLowerCase());return "";
+      },
+      url: () => apiRoot+"/mps",
+      refresh: true
+    },
+    {
       form: "#item-form", title: "ورود گروهی اقلام از فایل Excel/CSV",
       file: "ippcs-items-template.csv",
       headers: ["code","name","unit","type"],
@@ -259,8 +295,8 @@
   async function context(spec, rows) {
     const needsRouting=spec.form==="#routing-form"||spec.form==="#operation-form";
     const needsBom=spec.form==="#bom-form";
-    const needsMps=spec.form==="#mps-line-form";
-    const needsBomRevision=spec.form==="#bom-line-form";
+    const needsMps=spec.form==="#mps-line-form"||spec.form==="#mps-form";
+    const needsBomRevision=spec.form==="#bom-line-form"||spec.form==="#bom-version-form";
     const needsBalance=spec.form==="#balance-form";
     const [items,centers,bom,routings,bomRevisions,mps,balances]=await Promise.all([
       window.IPPCSSecurity.secureFetch(apiRoot+"/items").then(r=>{if(!r.ok)throw Error("دریافت اقلام ناموفق بود");return r.json();}),
