@@ -80,8 +80,8 @@
       map: (r,ctx) => ({itemId:ctx.items.find(x=>x.code.toLowerCase()===r.itemCode.toLowerCase())?.id, revisionCode:r.revisionCode, effectiveFromJalali:normalizeDate(r.effectiveFromJalali), effectiveToJalali:r.effectiveToJalali?normalizeDate(r.effectiveToJalali):null}),
       validate: (r,ctx) => {
         if (!ctx.items.some(x=>x.code.toLowerCase()===r.itemCode.toLowerCase())) return "کد محصول در اقلام پیدا نشد.";
-        if (!r.revisionCode || r.revisionCode.length>32 || !/^\\d{4}\\/\\d{1,2}\\/\\d{1,2}$/.test(normalizeDate(r.effectiveFromJalali))) return "کد نسخه و تاریخ شروع شمسی معتبر لازم است.";
-        if (r.effectiveToJalali && !/^\\d{4}\\/\\d{1,2}\\/\\d{1,2}$/.test(normalizeDate(r.effectiveToJalali))) return "تاریخ پایان باید شمسی و به شکل YYYY/MM/DD باشد.";
+        if (!r.revisionCode || r.revisionCode.length>32 || !validDate(r.effectiveFromJalali)) return "کد نسخه و تاریخ شروع شمسی معتبر لازم است.";
+        if (r.effectiveToJalali && !validDate(r.effectiveToJalali)) return "تاریخ پایان باید شمسی و به شکل YYYY/MM/DD باشد.";
         return "";
       },
       url: () => apiRoot + "/routings",
