@@ -72,6 +72,7 @@ namespace IPPCS.Web.Migrations.CI
                     Quantity = table.Column<decimal>(type: "decimal(18,4)", precision: 18, scale: 4, nullable: false),
                     LotCode = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
                     Note = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true),
+                    RecordedBy = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: false, defaultValue: "unknown"),
                     OccurredUtc = table.Column<DateTime>(type: "datetime2", nullable: false)
                 },
                 constraints: table =>
