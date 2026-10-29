@@ -199,6 +199,7 @@
     });
   }
   function start(){
+    window.addEventListener("ippps:excel-import-complete",()=>reload().then(()=>notice("ورود گروهی انجام شد و فهرست‌های فرم به‌روزرسانی شدند.")).catch(e=>notice(e.message,true)));
     for(const [button,select,kind] of [
       ["#print-routing-button","#print-routing-select","routing"],
       ["#print-plan-button","#print-plan-select","plan"]
