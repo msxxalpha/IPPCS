@@ -4,11 +4,11 @@
   const specs = [
     {
       form: "#item-form", title: "ورود گروهی اقلام از فایل Excel/CSV",
-      file: "ippps-items-template.csv",
+      file: "ippcs-items-template.csv",
       headers: ["code","name","unit","type"],
       sample: [["ITEM-001","شرح کالا","PCS","0"]],
       help: "طبقه کالا: 0=مواد اولیه، 1=نیمه‌ساخته، 2=محصول نهایی، 3=مواد مصرفی. واحد باید از اطلاعات پایه فعال سامانه باشد.",
-      map: r => ({code:r.code, name:r.name, unit:r.unit, type:Number(r.type)}),
+      map: r => ({code:r.code, name:r.name, unit:r.unit, type:number(r.type)}),
       validate: (r, ctx) => {
         if (!r.code || r.code.length > 64 || !r.name || r.name.length > 256 || !r.unit || ![0,1,2,3].includes(number(r.type)))
           return "کد، شرح، واحد و طبقه معتبر لازم است.";
@@ -20,7 +20,7 @@
     },
     {
       form: "#center-form", title: "ورود گروهی مراکز کاری از فایل Excel/CSV",
-      file: "ippps-work-centers-template.csv",
+      file: "ippcs-work-centers-template.csv",
       headers: ["code","name","nominalUnitsPerHour"],
       sample: [["WC-001","نام مرکز کاری","100"]],
       help: "ظرفیت اسمی باید عددی مثبت و حداکثر یک میلیون واحد در ساعت باشد.",
@@ -36,7 +36,7 @@
     },
     {
       form: "#bom-form", title: "ورود گروهی اجزای BOM از فایل Excel/CSV",
-      file: "ippps-bom-template.csv",
+      file: "ippcs-bom-template.csv",
       headers: ["parentCode","componentCode","quantityPer","scrapPercent","sequence"],
       sample: [["FG-001","RM-001","2.5","1.5","10"]],
       help: "کد والد و جزء باید قبلاً در اقلام ثبت شده باشند. این فرم، BOM ساده موجود را تکمیل می‌کند؛ برای BOM نسخه‌دار از فرم نسخه‌بندی BOM استفاده کنید.",
@@ -56,7 +56,7 @@
     },
     {
       form: "#plan-form", title: "ورود گروهی برنامه‌های تولید از فایل Excel/CSV",
-      file: "ippps-production-plans-template.csv",
+      file: "ippcs-production-plans-template.csv",
       headers: ["itemCode","quantity","dueDateJalali"],
       sample: [["FG-001","250","1405/09/15"]],
       help: "کد محصول باید در اقلام موجود باشد؛ تاریخ شمسی را به شکل YYYY/MM/DD وارد کنید. این برنامه مقدماتی است و جایگزین MPS مصوب نیست.",
