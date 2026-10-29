@@ -23,6 +23,10 @@ public static class WorkCenterProductCapacityRules
     public static void ConfigureModel(ModelBuilder model)
     {
         model.Entity<WorkCenterProductCapacity>().HasKey(x => x.Id);
+        model.Entity<WorkCenterProductCapacity>().ToTable("WorkCenterProductCapacities",
+            table => table.HasCheckConstraint(
+                "CK_WorkCenterProductCapacities_CapacityUnitsPerHour_Positive",
+                "[CapacityUnitsPerHour] >= 0.0001"));
         model.Entity<WorkCenterProductCapacity>().HasIndex(x => x.RoutingOperationId).IsUnique();
         model.Entity<WorkCenterProductCapacity>().HasIndex(x => new { x.IsActive, x.RoutingOperationId });
         model.Entity<WorkCenterProductCapacity>().Property(x => x.CapacityUnitsPerHour)
@@ -97,7 +101,7 @@ public static class WorkCenterProductCapacityRules
             ProductionDb db, HttpContext http, CancellationToken ct) =>
         {
             if (input.RoutingOperationId == Guid.Empty ||
-                input.CapacityUnitsPerHour is <= 0 or > 1_000_000m)
+                input.CapacityUnitsPerHour is < 0.0001m or > 1_000_000m)
                 return Results.BadRequest(new
                 {
                     message = "عملیات محصول و ظرفیت عبوری مثبت تا یک میلیون واحد در ساعت لازم است."
