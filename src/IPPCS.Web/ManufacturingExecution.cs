@@ -242,7 +242,7 @@ public static class ManufacturingExecutionEndpoints
             var bomLineIds=bom!.Lines.Select(x=>x.Id).ToHashSet();
             if(materialAllocations.Any(x=>!bomLineIds.Contains(x.BomLineId)))
                 return Results.Conflict(new{message="تخصیص مواد دستور به نسخه منجمد BOM تعلق ندارد."});
-            foreach(var group in bom.Lines.Where(x=>!string.IsNullOrWhiteSpace(x.AlternativeGroupCode))
+            foreach(var group in bom!.Lines.Where(x=>!string.IsNullOrWhiteSpace(x.AlternativeGroupCode))
                 .GroupBy(x=>x.AlternativeGroupCode!,StringComparer.OrdinalIgnoreCase))
             {
                 var selected=materialAllocations.Where(a=>group.Any(line=>line.Id==a.BomLineId)).ToArray();
