@@ -172,28 +172,52 @@
     {
       form: "#bom-line-form", title: "ورود گروهی اجزای BOM نسخه‌دار",
       file: "ippcs-bom-revision-lines-template.csv",
-      headers: ["parentCode","revision","componentCode","sequence","quantityPer","scrapPercent"],
-      sample: [["FG-001","A","RM-001","10","2.5","1.5"]],
-      help: "نسخه BOM باید از قبل ایجاد شده و پیش‌نویس باشد. این ورود، BOM ساده را تغییر نمی‌دهد و به نسخه مصوب دست نمی‌زند.",
+      headers: ["parentCode","revision","componentCode","sequence","quantityPer","scrapPercent","alternativeGroupCode","isDefaultAlternative","alternativePriority"],
+      optional: ["alternativeGroupCode","isDefaultAlternative","alternativePriority"],
+      sample: [["FG-001","A","RM-001","10","2.5","1.5","","false","1"]],
+      help: "نسخه BOM باید پیش‌نویس باشد. برای آلترناتیوها کد گروه مشترک وارد کنید؛ هر گروه حداقل دو قطعه و دقیقاً یک پیش‌فرض می‌خواهد. اعضای یک گروه ترتیب یکسان داشته باشند.",
       map: (r,ctx) => {
         const parent=ctx.items.find(x=>x.code.toLowerCase()===r.parentCode.toLowerCase());
         const revision=ctx.bomRevisions.find(x=>x.parentItemId===parent?.id&&String(x.revision).toLowerCase()===r.revision.toLowerCase());
         const component=ctx.items.find(x=>x.code.toLowerCase()===r.componentCode.toLowerCase());
-        return {componentItemId:component?.id,sequence:number(r.sequence),quantityPer:number(r.quantityPer),scrapPercent:number(r.scrapPercent),revisionId:revision?.id};
+        return {componentItemId:component?.id,sequence:number(r.sequence),quantityPer:number(r.quantityPer),scrapPercent:number(r.scrapPercent),revisionId:revision?.id,
+          alternativeGroupCode:String(r.alternativeGroupCode||"").trim()||null,
+          isDefaultAlternative:["true","1","yes","بله"].includes(String(r.isDefaultAlternative||"").trim().toLowerCase()),
+          alternativePriority:String(r.alternativePriority||"").trim()?number(r.alternativePriority):1};
       },
       validate: (r,ctx) => {
         const parent=ctx.items.find(x=>x.code.toLowerCase()===r.parentCode.toLowerCase());
         const rev=ctx.bomRevisions.find(x=>x.parentItemId===parent?.id&&String(x.revision).toLowerCase()===r.revision.toLowerCase());
         const component=ctx.items.find(x=>x.code.toLowerCase()===r.componentCode.toLowerCase());
+        const group=String(r.alternativeGroupCode||"").trim().toUpperCase();
+        const isDefault=["true","1","yes","بله"].includes(String(r.isDefaultAlternative||"").trim().toLowerCase());
+        const priority=String(r.alternativePriority||"").trim()?number(r.alternativePriority):1;
         if(!rev)return "نسخه BOM برای کالای والد پیدا نشد.";
         if(rev.state!==0)return "فقط به نسخه BOM پیش‌نویس می‌توان جزء افزود.";
         if(!component)return "کد جزء در اقلام پیدا نشد.";
         if(component.id===parent?.id)return "والد و جزء نمی‌توانند یک کالا باشند.";
-        if(!Number.isInteger(number(r.sequence))||number(r.sequence)<=0||!Number.isFinite(number(r.quantityPer))||number(r.quantityPer)<=0||!Number.isFinite(number(r.scrapPercent))||number(r.scrapPercent)<0||number(r.scrapPercent)>=100)return "ترتیب، مصرف و درصد ضایعات معتبر لازم است.";
-        if(ctx.bomRevisions.find(x=>x.id===rev.id)?.lines?.some(x=>x.componentItemId===component.id||x.sequence===number(r.sequence)))return "جزء یا شماره ترتیب در نسخه از قبل وجود دارد.";
-        const componentKey=rev.id+"|component|"+component.id, sequenceKey=rev.id+"|sequence|"+number(r.sequence);
-        if(ctx.seenBom.has(componentKey)||ctx.seenBom.has(sequenceKey))return "جزء یا شماره ترتیب در همین فایل تکراری است.";
-        ctx.seenBom.add(componentKey);ctx.seenBom.add(sequenceKey);return "";
+        if(!Number.isInteger(number(r.sequence))||number(r.sequence)<=0||!Number.isFinite(number(r.quantityPer))||number(r.quantityPer)<=0||!Number.isFinite(number(r.scrapPercent))||number(r.scrapPercent)<0||number(r.scrapPercent)>=100||!Number.isInteger(priority)||priority<=0)return "ترتیب، مصرف، ضایعات یا اولویت معتبر لازم است.";
+        if(!group&&isDefault)return "قطعه پیش‌فرض باید عضو یک گروه آلترناتیو باشد.";
+        const priorLines=rev.lines||[];
+        if(priorLines.some(x=>x.componentItemId===component.id))return "این قطعه از قبل در نسخه وجود دارد.";
+        if(priorLines.some(x=>x.sequence===number(r.sequence)&&
+          String(x.alternativeGroupCode||"").trim().toUpperCase()!==group))return "ترتیب مشترک فقط برای اعضای همان گروه آلترناتیو مجاز است.";
+        if(group&&priorLines.some(x=>String(x.alternativeGroupCode||"").trim().toUpperCase()===group&&x.sequence!==number(r.sequence)))return "اعضای گروه آلترناتیو باید ترتیب یکسان داشته باشند.";
+        if(group&&isDefault&&priorLines.some(x=>String(x.alternativeGroupCode||"").trim().toUpperCase()===group&&x.isDefaultAlternative))return "گروه آلترناتیو از قبل قطعه پیش‌فرض دارد.";
+        if(group&&priorLines.some(x=>String(x.alternativeGroupCode||"").trim().toUpperCase()===group&&x.alternativePriority===priority))return "اولویت در گروه آلترناتیو تکراری است.";
+        const componentKey=rev.id+"|component|"+component.id;
+        const baseSequence=rev.id+"|sequence|"+number(r.sequence);
+        const sequenceKey=baseSequence+"|"+(group?"ALT:"+group:"MANDATORY");
+        const existingSequenceKeys=Array.from(ctx.seenBom).filter(k=>k.startsWith(baseSequence+"|"));
+        const priorityKey=rev.id+"|altpriority|"+group+"|"+priority;
+        const defaultKey=rev.id+"|altdefault|"+group;
+        if(ctx.seenBom.has(componentKey)||existingSequenceKeys.some(k=>k!==sequenceKey))return "قطعه تکراری یا ترتیب مشترک بین گروه‌های متفاوت در همین فایل وجود دارد.";
+        if(group&&ctx.seenBom.has(priorityKey))return "اولویت در گروه آلترناتیو در همین فایل تکراری است.";
+        if(group&&isDefault&&ctx.seenBom.has(defaultKey))return "برای هر گروه فقط یک قطعه پیش‌فرض مجاز است.";
+        ctx.seenBom.add(componentKey);ctx.seenBom.add(sequenceKey);
+        if(group)ctx.seenBom.add(priorityKey);
+        if(group&&isDefault)ctx.seenBom.add(defaultKey);
+        return "";
       },
       url: (r,ctx) => apiRoot+"/bom-revisions/"+ctx.bomRevisions.find(x=>x.parentItemId===ctx.items.find(i=>i.code.toLowerCase()===r.parentCode.toLowerCase())?.id&&String(x.revision).toLowerCase()===r.revision.toLowerCase())?.id+"/lines",
       refresh: true
