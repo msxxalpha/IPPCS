@@ -166,15 +166,17 @@
     try {const data=await response.json();message=data.message||data.title||data.detail||message;} catch {}
     throw new Error("HTTP "+response.status+" — "+message);
   }
-  async function context(spec) {
+  async function context(spec, rows) {
     const needsRouting=spec.form==="#routing-form"||spec.form==="#operation-form";
     const needsBom=spec.form==="#bom-form";
     const [items,centers,bom,routings]=await Promise.all([
       window.IPPCSSecurity.secureFetch(apiRoot+"/items").then(r=>{if(!r.ok)throw Error("دریافت اقلام ناموفق بود");return r.json();}),
       window.IPPCSSecurity.secureFetch(apiRoot+"/work-centers").then(r=>{if(!r.ok)throw Error("دریافت مراکز کاری ناموفق بود");return r.json();}),
-      needsBom ? window.IPPCSSecurity.secureFetch(apiRoot+"/items").then(r=>r.ok?r.json():[]).then(async rows=>{
+      needsBom ? window.IPPCSSecurity.secureFetch(apiRoot+"/items").then(r=>{if(!r.ok)throw Error("دریافت اقلام ناموفق بود");return r.json();}).then(async catalog=>{
+        const codes=new Set(rows.map(x=>String(x.parentCode||"").toLowerCase()));
+        const parents=catalog.filter(item=>codes.has(String(item.code).toLowerCase()));
         const all=[];
-        for(const item of rows){const response=await window.IPPCSSecurity.secureFetch(apiRoot+"/bom/"+item.id);if(response.ok)all.push(...await response.json());}
+        for(const item of parents){const response=await window.IPPCSSecurity.secureFetch(apiRoot+"/bom/"+item.id);if(!response.ok)throw Error("دریافت BOM کالای "+item.code+" ناموفق بود");all.push(...await response.json());}
         return all;
       }) : Promise.resolve([]),
       needsRouting ? window.IPPCSSecurity.secureFetch(apiRoot+"/routings").then(r=>{if(!r.ok)throw Error("دریافت مسیرهای ساخت ناموفق بود");return r.json();}) : Promise.resolve([])
@@ -215,7 +217,7 @@
         const actual=Object.keys(rows[0]).filter(k=>k!=="__line");
         const missing=spec.headers.filter(h=>!actual.includes(h));
         if(missing.length)throw new Error("ستون‌های الزامی پیدا نشد: "+missing.join(", "));
-        const ctx=await context(spec),seenCodes=new Set();
+        const ctx=await context(spec,rows),seenCodes=new Set();
         let ok=0,failed=0;
         const table=document.createElement("div");table.className="table-wrap";
         const out=document.createElement("table");
