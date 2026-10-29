@@ -26,6 +26,7 @@ test("primary navigation follows master data, engineering, planning, execution, 
   'href="/engineering-rebind.html"','href="/planning-advanced.html"',
   'data-page="plans"','href="/planning.html"','href="/mps-pegging.html"',
   'href="/execution.html"','href="/production-deviations.html"',
+  'href="/periodic-tests.html"',
   'href="/control-plan.html#inspection"','href="/control-plan.html#eol"',
   'href="/control-plan.html#spc"','href="/control-plan.html#readiness"',
   'href="/factory-release-readiness.html"','href="/factory-analytical-verification.html"',
@@ -46,7 +47,8 @@ test("quality and periodic/annual test forms are in one navigation group",()=>{
  const end=nav.indexOf('aria-label="ردیابی و گزارش‌ها"',begin);
  assert.ok(begin>=0&&end>begin,"test group is absent or out of order");
  const group=nav.slice(begin,end);
- for(const href of ["/control-plan.html#inspection","/control-plan.html#eol",
+ for(const href of ["/periodic-tests.html",
+  "/control-plan.html#inspection","/control-plan.html#eol",
   "/control-plan.html#spc","/control-plan.html#readiness",
   "/factory-release-readiness.html","/factory-analytical-verification.html"])
   assert.ok(group.includes('href="'+href+'"'),"test-related page is outside its group: "+href);
