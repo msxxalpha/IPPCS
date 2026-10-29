@@ -87,7 +87,8 @@ public static class FactoryRevisionGovernance
         if(revision.Lines.Count==0)issues.Add(new("EmptyBom","BOM باید حداقل یک جزء داشته باشد."));
         if(revision.Lines.Any(x=>x.ComponentItemId==revision.ParentItemId||
             x.ComponentItemId==Guid.Empty||x.Sequence<=0||x.QuantityPer<=0||
-            x.ScrapPercent<0||x.ScrapPercent>=100))
+            x.ScrapPercent<0||x.ScrapPercent>=100||x.AlternativePriority<=0||
+            (string.IsNullOrWhiteSpace(x.AlternativeGroupCode)&&x.IsDefaultAlternative)))
             issues.Add(new("InvalidComponent","جزء، ضریب مصرف یا ضایعات BOM نامعتبر است."));
         if(revision.Lines.GroupBy(x=>x.ComponentItemId).Any(x=>x.Count()>1)||
             revision.Lines.GroupBy(x=>x.Sequence).Any(group=>group.Count()>1&&
