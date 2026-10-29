@@ -12,6 +12,17 @@ namespace IPPCS.Web.Migrations.CI
     {
         protected override void Up(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.AlterColumn<string>(
+                name: "Details",
+                table: "ManufacturingOrderAudits",
+                type: "nvarchar(2000)",
+                maxLength: 2000,
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "nvarchar(500)",
+                oldMaxLength: 500,
+                oldNullable: true);
+
             migrationBuilder.AddColumn<string>(
                 name: "AlternativeGroupCode",
                 table: "ManufacturingBomLines",
@@ -132,6 +143,16 @@ namespace IPPCS.Web.Migrations.CI
             migrationBuilder.DropColumn(name: "AlternativeGroupCode", table: "ManufacturingBomLines");
             migrationBuilder.DropColumn(name: "AlternativePriority", table: "ManufacturingBomLines");
             migrationBuilder.DropColumn(name: "IsDefaultAlternative", table: "ManufacturingBomLines");
+            migrationBuilder.AlterColumn<string>(
+                name: "Details",
+                table: "ManufacturingOrderAudits",
+                type: "nvarchar(500)",
+                maxLength: 500,
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "nvarchar(2000)",
+                oldMaxLength: 2000,
+                oldNullable: true);
         }
     }
 }
