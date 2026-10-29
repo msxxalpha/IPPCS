@@ -70,6 +70,67 @@
       url: () => apiRoot + "/production-plans/jalali",
       refresh: true
     }
+    ,
+    {
+      form: "#routing-form", title: "ورود گروهی نسخه‌های مسیر ساخت از فایل Excel/CSV",
+      file: "ippcs-routing-revisions-template.csv",
+      headers: ["itemCode","revisionCode","effectiveFromJalali","effectiveToJalali"],
+      sample: [["FG-001","A","1405/01/01",""]],
+      help: "کالا باید از قبل تعریف شده باشد. تاریخ پایان اختیاری است. نسخه‌ها ابتدا به صورت پیش‌نویس ثبت می‌شوند و برای تصویب باید کنترل‌های مهندسی را بگذرانند.",
+      map: (r,ctx) => ({itemId:ctx.items.find(x=>x.code.toLowerCase()===r.itemCode.toLowerCase())?.id, revisionCode:r.revisionCode, effectiveFromJalali:normalizeDate(r.effectiveFromJalali), effectiveToJalali:r.effectiveToJalali?normalizeDate(r.effectiveToJalali):null}),
+      validate: (r,ctx) => {
+        if (!ctx.items.some(x=>x.code.toLowerCase()===r.itemCode.toLowerCase())) return "کد محصول در اقلام پیدا نشد.";
+        if (!r.revisionCode || r.revisionCode.length>32 || !/^\\d{4}\\/\\d{1,2}\\/\\d{1,2}$/.test(normalizeDate(r.effectiveFromJalali))) return "کد نسخه و تاریخ شروع شمسی معتبر لازم است.";
+        if (r.effectiveToJalali && !/^\\d{4}\\/\\d{1,2}\\/\\d{1,2}$/.test(normalizeDate(r.effectiveToJalali))) return "تاریخ پایان باید شمسی و به شکل YYYY/MM/DD باشد.";
+        return "";
+      },
+      url: () => apiRoot + "/routings",
+      refresh: true
+    },
+    {
+      form: "#operation-form", title: "ورود گروهی عملیات مسیر ساخت از فایل Excel/CSV",
+      file: "ippcs-routing-operations-template.csv",
+      headers: ["itemCode","revisionCode","centerCode","sequence","name","setupMinutes","runMinutesPerUnit","yieldPercent"],
+      sample: [["FG-001","A","WC-001","10","عملیات نمونه","5","0.75","98"]],
+      help: "محصول و نسخه مسیر باید به نسخه پیش‌نویس موجود اشاره کنند؛ مرکز کاری باید از قبل ثبت شده باشد. عملیات به نسخه مصوب اضافه نمی‌شود.",
+      map: (r,ctx) => {
+        const route=ctx.routings.find(x=>ctx.items.find(i=>i.id===x.itemId)?.code.toLowerCase()===r.itemCode.toLowerCase()&&String(x.revisionCode).toLowerCase()===r.revisionCode.toLowerCase());
+        const center=ctx.centers.find(x=>x.code.toLowerCase()===r.centerCode.toLowerCase());
+        return {routeId:route?.id, payload:{sequence:number(r.sequence),name:r.name,workCenterId:center?.id,setupMinutes:number(r.setupMinutes),runMinutesPerUnit:number(r.runMinutesPerUnit),yieldPercent:number(r.yieldPercent)}};
+      },
+      validate: (r,ctx) => {
+        const route=ctx.routings.find(x=>ctx.items.find(i=>i.id===x.itemId)?.code.toLowerCase()===r.itemCode.toLowerCase()&&String(x.revisionCode).toLowerCase()===r.revisionCode.toLowerCase());
+        if (!route) return "نسخه مسیر برای این محصول پیدا نشد.";
+        if (route.state!==0) return "فقط به نسخه مسیر پیش‌نویس می‌توان عملیات افزود.";
+        if (!ctx.centers.some(x=>x.code.toLowerCase()===r.centerCode.toLowerCase())) return "کد مرکز کاری پیدا نشد.";
+        if (!Number.isInteger(number(r.sequence))||number(r.sequence)<1||!r.name||r.name.length>180||!Number.isFinite(number(r.setupMinutes))||number(r.setupMinutes)<0||!Number.isFinite(number(r.runMinutesPerUnit))||number(r.runMinutesPerUnit)<=0||!Number.isFinite(number(r.yieldPercent))||number(r.yieldPercent)<=0||number(r.yieldPercent)>100) return "ترتیب، نام، زمان آماده‌سازی، زمان واحد و بازده معتبر لازم است.";
+        return "";
+      },
+      url: (r,ctx) => apiRoot + "/routings/" + ctx.routings.find(x=>ctx.items.find(i=>i.id===x.itemId)?.code.toLowerCase()===r.itemCode.toLowerCase()&&String(x.revisionCode).toLowerCase()===r.revisionCode.toLowerCase())?.id + "/operations",
+      map: (r,ctx) => {
+        const route=ctx.routings.find(x=>ctx.items.find(i=>i.id===x.itemId)?.code.toLowerCase()===r.itemCode.toLowerCase()&&String(x.revisionCode).toLowerCase()===r.revisionCode.toLowerCase());
+        const center=ctx.centers.find(x=>x.code.toLowerCase()===r.centerCode.toLowerCase());
+        return {sequence:number(r.sequence),name:r.name,workCenterId:center?.id,setupMinutes:number(r.setupMinutes),runMinutesPerUnit:number(r.runMinutesPerUnit),yieldPercent:number(r.yieldPercent)};
+      },
+      refresh: true
+    },
+    {
+      form: "#shift-form", title: "ورود گروهی تقویم شیفت مراکز کاری از فایل Excel/CSV",
+      file: "ippcs-work-shifts-template.csv",
+      headers: ["centerCode","dayOfWeek","startTime","endTime","effectiveCapacityPercent"],
+      sample: [["WC-001","6","07:00","15:00","85"]],
+      help: "روز هفته: 0=یکشنبه تا 6=شنبه. شیفت شب با پایان زودتر از شروع پشتیبانی می‌شود؛ همپوشانی‌ها توسط سرور رد می‌شوند.",
+      map: (r,ctx) => ({workCenterId:ctx.centers.find(x=>x.code.toLowerCase()===r.centerCode.toLowerCase())?.id,dayOfWeek:number(r.dayOfWeek),startTime:r.startTime,endTime:r.endTime,effectiveCapacityPercent:number(r.effectiveCapacityPercent)}),
+      validate: (r,ctx) => {
+        if (!ctx.centers.some(x=>x.code.toLowerCase()===r.centerCode.toLowerCase())) return "کد مرکز کاری پیدا نشد.";
+        if (!Number.isInteger(number(r.dayOfWeek))||number(r.dayOfWeek)<0||number(r.dayOfWeek)>6) return "روز هفته باید عدد صحیح ۰ تا ۶ باشد.";
+        if (!/^([01]\\d|2[0-3]):[0-5]\\d$/.test(r.startTime)||!/^([01]\\d|2[0-3]):[0-5]\\d$/.test(r.endTime)||r.startTime===r.endTime) return "ساعت شروع و پایان باید معتبر و متفاوت باشند.";
+        if (!Number.isFinite(number(r.effectiveCapacityPercent))||number(r.effectiveCapacityPercent)<=0||number(r.effectiveCapacityPercent)>100) return "ضریب ظرفیت باید بیشتر از صفر و حداکثر ۱۰۰ باشد.";
+        return "";
+      },
+      url: () => apiRoot + "/work-shifts",
+      refresh: true
+    }
   ];
 
   function number(v) {
@@ -105,7 +166,7 @@
     throw new Error("HTTP "+response.status+" — "+message);
   }
   async function context() {
-    const [items,centers,bom]=await Promise.all([
+    const [items,centers,bom,routings]=await Promise.all([
       window.IPPCSSecurity.secureFetch(apiRoot+"/items").then(r=>{if(!r.ok)throw Error("دریافت اقلام ناموفق بود");return r.json();}),
       window.IPPCSSecurity.secureFetch(apiRoot+"/work-centers").then(r=>{if(!r.ok)throw Error("دریافت مراکز کاری ناموفق بود");return r.json();}),
       window.IPPCSSecurity.secureFetch(apiRoot+"/bom/"+(document.querySelector("#bom-parent")?.value||"00000000-0000-0000-0000-000000000000")).then(r=>r.ok?r.json():[]).catch(()=>[])
