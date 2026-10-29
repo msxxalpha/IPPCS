@@ -274,7 +274,7 @@
       needsMps ? window.IPPCSSecurity.secureFetch(apiRoot+"/mps").then(r=>{if(!r.ok)throw Error("دریافت نسخه‌های MPS ناموفق بود");return r.json();}) : Promise.resolve([]),
       needsBalance ? window.IPPCSSecurity.secureFetch(apiRoot+"/planning-balances").then(r=>{if(!r.ok)throw Error("دریافت فرضیات موجودی ناموفق بود");return r.json();}) : Promise.resolve([])
     ]);
-    return {items,centers,bom,routings,bomRevisions,mps,balances,seenBom:new Set(),seenBalance:new Set()};
+    return {items,centers,bom,routings,bomRevisions,mps,balances,seenBom:new Set(),seenBalance:new Set(),seenMps:new Set()};
   }
   function validDate(v) {
     const parts=normalizeDate(v).split("/");
