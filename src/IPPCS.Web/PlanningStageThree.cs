@@ -128,7 +128,7 @@ public static class PlanningCalculators
 
         foreach (var itemId in depth.OrderBy(x=>x.Value).ThenBy(x=>x.Key).Select(x=>x.Key))
         {
-            var balance = byBalance.GetValueOrDefault(itemId)
+            // Approved historical revisions can reference components that are not needed by any selected release date.\n            // Do not require planning balances for graph-only items with no dated demand.\n            if (!demands.Keys.Any(x => x.ItemId == itemId)) continue;\n            var balance = byBalance.GetValueOrDefault(itemId)
                 ?? throw new InvalidOperationException("موجودی مبنا یا قواعد زمان تأمین کالا ثبت نشده است.");
             decimal available = Math.Max(0m,
                 balance.PhysicalQuantity-balance.ReservedQuantity-balance.QuarantinedQuantity-balance.SafetyQuantity);
