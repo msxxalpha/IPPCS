@@ -31,6 +31,9 @@ test("UI is wired to internal planning-only APIs and shared Jalali/unit controls
  assert.match(js,/IPPCSJalali\.parse/);
  assert.match(js,/kind=UnitOfMeasure/);
  assert.match(html,/data-jalali-trigger/);
+ assert.match(js,/interval\.readOnly=annual/);
+ assert.match(js,/interval\.max=annual\?"12":"11"/);
+ assert.match(js,/interval\.disabled=false/,"annual cadence must remain included in FormData");
 });
 
 test("Jalali recurrence, annual cadence and idempotent schedule rules are implemented server-side",()=>{
