@@ -164,6 +164,7 @@ api.MapGet("/planning/gross-requirements/{planId:guid}", async (Guid planId, Pro
 });
 
 app.MapManufacturingFoundation();
+app.MapWorkCenterProductCapacities();
 app.MapPlanningStageThree();
 app.MapManufacturingExecution();
 app.MapQualityAndOee();
@@ -213,6 +214,7 @@ public sealed class ProductionDb(DbContextOptions<ProductionDb> options) : Ident
 {
     public DbSet<PlanningItem> Items => Set<PlanningItem>();
     public DbSet<WorkCenter> WorkCenters => Set<WorkCenter>();
+    public DbSet<WorkCenterProductCapacity> WorkCenterProductCapacities => Set<WorkCenterProductCapacity>();
     public DbSet<BomComponent> BomComponents => Set<BomComponent>();
     public DbSet<ProductionPlan> ProductionPlans => Set<ProductionPlan>();
     public DbSet<RoutingRevision> RoutingRevisions => Set<RoutingRevision>();
@@ -269,6 +271,7 @@ public sealed class ProductionDb(DbContextOptions<ProductionDb> options) : Ident
         model.Entity<ProductionPlan>().Property(x => x.Quantity).HasPrecision(18, 4);
         model.Entity<ProductionPlan>().HasOne<PlanningItem>().WithMany().HasForeignKey(x => x.ItemId).OnDelete(DeleteBehavior.Restrict);
         ManufacturingFoundationEndpoints.ConfigureManufacturingModel(model);
+        WorkCenterProductCapacityRules.ConfigureModel(model);
         PlanningStageThreeEndpoints.ConfigureModel(model);
         ManufacturingExecutionEndpoints.ConfigureModel(model);
         ManufacturingQualityAndOeeEndpoints.ConfigureModel(model);
