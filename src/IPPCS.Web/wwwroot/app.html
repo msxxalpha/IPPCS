@@ -96,6 +96,30 @@
           <div class="form-actions"><button class="btn-main" type="submit">ثبت مرکز کاری</button></div>
         </form>
         <div class="panel table-panel"><h3>فهرست مراکز کاری</h3><div id="center-list"></div></div>
+        <section class="panel">
+          <div class="section-title"><h3>ظرفیت محصول‌محور هر مرکز کاری</h3>
+            <small>نرخ مستقل برای ترکیب محصول × نسخه مسیر ساخت × عملیات × مرکز کاری؛ نه یک ظرفیت عمومی مشترک برای همه محصولات.</small>
+          </div>
+          <div class="callout">برای هر عملیات مشخص، ظرفیت عبوری همان محصول را بر حسب واحد در ساعت ثبت کنید. سیستم آن را به زمان هر واحد تبدیل می‌کند و در CRP و APS استفاده می‌کند. زمان آماده‌سازی و بازده همچنان از عملیات مسیر ساخت خوانده می‌شوند؛ ظرفیت مستقل غیرفعال باشد، مقدار استاندارد Routing مبنا خواهد بود.</div>
+          <form id="center-product-capacity-form" class="form-grid">
+            <label>محصول یا نیمه‌ساخته
+              <select id="center-cap-item" name="itemId" required></select>
+            </label>
+            <label>مرکز کاری
+              <select id="center-cap-center" name="workCenterId" data-centers required></select>
+            </label>
+            <label>نسخه مسیر و عملیات همین محصول
+              <select id="center-cap-operation" name="routingOperationId" required></select>
+            </label>
+            <label>ظرفیت عبوری این محصول در عملیات (واحد/ساعت)
+              <input id="center-cap-rate" name="capacityUnitsPerHour" type="number" min="0.0001" max="1000000" step="any" required>
+            </label>
+            <label class="choice-check"><input id="center-cap-active" name="isActive" type="checkbox" checked> اعمال این ظرفیت در برنامه‌ریزی CRP و APS</label>
+            <div class="form-actions"><button class="btn-main" id="center-cap-save" type="submit">ثبت ظرفیت محصول‌محور</button></div>
+          </form>
+          <p class="hint">هر عملیات یک نرخ اختصاصی دارد. اگر یک محصول روی یک مرکز چند عملیات متفاوت دارد، برای هر عملیات نرخ جداگانه تعیین کنید. این مقدار ظرفیت زمانی شیفت را زیاد نمی‌کند؛ سرعت انجام همان محصول در آن عملیات را مشخص می‌کند.</p>
+          <div id="center-product-capacity-list"></div>
+        </section>
       </section>
       <section id="bom" class="page" hidden>
         <div class="section-title"><h3>ساختار مواد (BOM)</h3><small>تعریف اجزای موردنیاز هر محصول با کنترل حلقه در ساختار چندسطحی.</small></div>
