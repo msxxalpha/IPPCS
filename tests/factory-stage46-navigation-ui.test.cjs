@@ -45,6 +45,7 @@ test("key workflow scripts only bind direct static IDs that exist on their page"
   ["planning-advanced.html","js/planning-advanced.js"],
   ["execution.html","js/execution.js"],
   ["control-plan.html","js/control-plan.js"],
+  ["periodic-tests.html","js/periodic-tests.js"],
   ["production-deviations.html","js/production-deviations.js"]
  ];
  for(const [page,script] of pairs){
