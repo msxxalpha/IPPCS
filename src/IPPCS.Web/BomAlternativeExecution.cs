@@ -127,8 +127,8 @@ public static class BomAlternativeExecution
             catch (SqlException) { return Results.Conflict(new { message = "قفل دستور برای تغییر تخصیص مواد در دسترس نیست." }); }
             var order = await db.ManufacturingOrders.SingleOrDefaultAsync(x => x.Id == id, ct);
             if (order is null) return Results.NotFound();
-            if (order.Status != ManufacturingOrderStatus.Draft)
-                return Results.Conflict(new { message = "ترکیب آلترناتیوها فقط پیش از آزادسازی دستور قابل تغییر است." });
+            if (order.Status is not (ManufacturingOrderStatus.Draft or ManufacturingOrderStatus.Released or ManufacturingOrderStatus.InProgress))
+                return Results.Conflict(new { message = "ترکیب آلترناتیوها در وضعیت فعلی دستور قابل تغییر نیست." });
 
             var lines = await db.ManufacturingBomLines.AsNoTracking()
                 .Where(x => x.RevisionId == order.BomRevisionId &&
@@ -139,17 +139,16 @@ public static class BomAlternativeExecution
             var byId = lines.ToDictionary(x => x.Id);
             if (input.Shares.Any(x => !byId.ContainsKey(x.BomLineId)))
                 return Results.BadRequest(new { message = "تمام قطعات تخصیص‌یافته باید عضو همین گروه آلترناتیو مصوب باشند." });
+            var groupLineIds = lines.Select(x => x.Id).ToArray();
+            if (await db.Set<ManufacturingOrderMaterialUsage>().AnyAsync(x =>
+                x.OrderId == id && groupLineIds.Contains(x.BomLineId), ct))
+                return Results.Conflict(new { message = "پس از اولین مصرف واقعی از هر قطعه این گروه، ترکیب آلترناتیو قفل می‌شود؛ اصلاح باید از مسیر کنترل‌شده مغایرت انجام شود." });
 
             var prior = await db.Set<ManufacturingOrderMaterialAllocation>()
                 .Where(x => x.OrderId == id && lines.Select(l => l.Id).Contains(x.BomLineId)).ToListAsync(ct);
-            if (prior.Count > 0)
-            {
-                var priorLineIds = prior.Select(x => x.BomLineId).ToArray();
-                if (await db.Set<ManufacturingOrderMaterialUsage>().AnyAsync(x =>
-                    x.OrderId == id && priorLineIds.Contains(x.BomLineId), ct))
-                    return Results.Conflict(new { message = "پس از ثبت مصرف واقعی، ترکیب آلترناتیوها قفل می‌شود؛ برای اصلاح باید فرایند کنترل‌شده مغایرت اجرا شود." });
-                db.RemoveRange(prior);
-            }
+            var priorShares = prior.OrderBy(x => x.BomLineId)
+                .Select(x => $"{x.BomLineId}:{x.SharePercent}%").ToArray();
+            if (prior.Count > 0) db.RemoveRange(prior);
             foreach (var share in input.Shares)
             {
                 var line = byId[share.BomLineId];
@@ -163,8 +162,8 @@ public static class BomAlternativeExecution
             }
             db.ManufacturingOrderAudits.Add(new ManufacturingOrderAudit
             {
-                OrderId = id, Action = "MaterialAlternativeAllocated",
-                Details = $"Group={groupCode.Trim().ToUpperInvariant()};" +
+                OrderId = id, Action = prior.Count > 0 ? "MaterialAlternativeRevised" : "MaterialAlternativeAllocated",
+                Details = $"Group={groupCode.Trim().ToUpperInvariant()};Previous={string.Join(",", priorShares)};Current=" +
                     string.Join(",", input.Shares.Select(x => $"{x.BomLineId}:{x.SharePercent}%"))
             });
             await db.SaveChangesAsync(ct);
