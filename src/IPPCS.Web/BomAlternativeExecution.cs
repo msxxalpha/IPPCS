@@ -144,9 +144,9 @@ public static class BomAlternativeExecution
                 .Where(x => x.OrderId == id && lines.Select(l => l.Id).Contains(x.BomLineId)).ToListAsync(ct);
             if (prior.Count > 0)
             {
-                var priorIds = prior.Select(x => x.Id).ToHashSet();
+                var priorLineIds = prior.Select(x => x.BomLineId).ToArray();
                 if (await db.Set<ManufacturingOrderMaterialUsage>().AnyAsync(x =>
-                    x.OrderId == id && prior.Any(a => a.BomLineId == x.BomLineId), ct))
+                    x.OrderId == id && priorLineIds.Contains(x.BomLineId), ct))
                     return Results.Conflict(new { message = "پس از ثبت مصرف واقعی، ترکیب آلترناتیوها قفل می‌شود؛ برای اصلاح باید فرایند کنترل‌شده مغایرت اجرا شود." });
                 db.RemoveRange(prior);
             }
