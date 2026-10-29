@@ -1807,6 +1807,40 @@ namespace IPPCS.Web.Migrations.CI
                     b.ToTable("WorkCenters");
                 });
 
+            modelBuilder.Entity("WorkCenterProductCapacity", b =>
+                {
+                    b.Property<decimal>("CapacityUnitsPerHour")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<Guid>("RoutingOperationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("UpdatedUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UpdatedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("IsActive", "RoutingOperationId");
+
+                    b.HasIndex("RoutingOperationId")
+                        .IsUnique();
+
+                    b.ToTable("WorkCenterProductCapacities");
+                });
+
             modelBuilder.Entity("WorkShift", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2259,6 +2293,15 @@ namespace IPPCS.Web.Migrations.CI
                         .IsRequired();
 
                     b.Navigation("RoutingRevision");
+                });
+
+            modelBuilder.Entity("WorkCenterProductCapacity", b =>
+                {
+                    b.HasOne("RoutingOperation", null)
+                        .WithMany()
+                        .HasForeignKey("RoutingOperationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("RoutingRevision", b =>
