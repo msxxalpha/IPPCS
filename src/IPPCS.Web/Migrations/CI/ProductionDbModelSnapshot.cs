@@ -1838,7 +1838,11 @@ namespace IPPCS.Web.Migrations.CI
                     b.HasIndex("RoutingOperationId")
                         .IsUnique();
 
-                    b.ToTable("WorkCenterProductCapacities");
+                    b.ToTable("WorkCenterProductCapacities", t =>
+                        {
+                            t.HasCheckConstraint("CK_WorkCenterProductCapacities_CapacityUnitsPerHour_Positive",
+                                "[CapacityUnitsPerHour] >= 0.0001");
+                        });
                 });
 
             modelBuilder.Entity("WorkShift", b =>
