@@ -363,6 +363,20 @@ public static class FactoryPeriodicProductTests
             if (performed > FactoryPeriodicTestRules.TodayTehran())
                 return Results.BadRequest(new { message = "تاریخ اجرای آزمون نمی‌تواند در آینده باشد." });
 
+            await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
+            try
+            {
+                await db.Database.ExecuteSqlRawAsync(
+                    "DECLARE @rc int; EXEC @rc=sys.sp_getapplock @Resource=@resource, " +
+                    "@LockMode=N'Exclusive', @LockOwner=N'Transaction', @LockTimeout=10000; " +
+                    "IF @rc < 0 THROW 51000, 'Periodic test result lock unavailable', 1;",
+                    new Microsoft.Data.SqlClient.SqlParameter("@resource", "IPPCS:PeriodicProductTestRun:" + id.ToString("N")), ct);
+            }
+            catch (Microsoft.Data.SqlClient.SqlException)
+            {
+                return Results.Conflict(new { message = "قفل ثبت نتیجه آزمون در دسترس نیست؛ رخداد را بازخوانی و دوباره تلاش کنید." });
+            }
+
             var run = await db.FactoryPeriodicTestRuns.SingleOrDefaultAsync(x => x.Id == id, ct);
             if (run is null) return Results.NotFound();
             if (run.State != FactoryPeriodicTestRunState.Scheduled)
@@ -384,6 +398,7 @@ public static class FactoryPeriodicProductTests
             run.RecordedUtc = DateTime.UtcNow;
             run.State = FactoryPeriodicTestRunState.Completed;
             await db.SaveChangesAsync(ct);
+            await tx.CommitAsync(ct);
             return Results.Ok(new { run.Id, state = run.State.ToString(), outcome = run.Outcome.ToString(),
                 run.RecordedBy, run.RecordedUtc, dueJalali = PersianPlanningDates.Format(run.DueOn),
                 performedOnJalali = PersianPlanningDates.Format(performed) });
