@@ -169,9 +169,15 @@
     const [items,centers,bom,routings]=await Promise.all([
       window.IPPCSSecurity.secureFetch(apiRoot+"/items").then(r=>{if(!r.ok)throw Error("دریافت اقلام ناموفق بود");return r.json();}),
       window.IPPCSSecurity.secureFetch(apiRoot+"/work-centers").then(r=>{if(!r.ok)throw Error("دریافت مراکز کاری ناموفق بود");return r.json();}),
-      window.IPPCSSecurity.secureFetch(apiRoot+"/bom/"+(document.querySelector("#bom-parent")?.value||"00000000-0000-0000-0000-000000000000")).then(r=>r.ok?r.json():[]).catch(()=>[])
+      window.IPPCSSecurity.secureFetch(apiRoot+"/bom/"+(document.querySelector("#bom-parent")?.value||"00000000-0000-0000-0000-000000000000")).then(r=>r.ok?r.json():[]).catch(()=>[]),
+      window.IPPCSSecurity.secureFetch(apiRoot+"/routings").then(r=>{if(!r.ok)throw Error("دریافت مسیرهای ساخت ناموفق بود");return r.json();})
     ]);
-    return {items,centers,bom,seenBom:new Set()};
+    return {items,centers,bom,routings,seenBom:new Set()};
+  }
+  function validDate(v) {
+    const parts=normalizeDate(v).split("/");
+    return parts.length===3 && parts[0].length===4 && parts.every(p=>p.length>0&&Array.from(p).every(ch=>ch>="0"&&ch<="9")) &&
+      Number(parts[1])>=1&&Number(parts[1])<=12&&Number(parts[2])>=1&&Number(parts[2])<=31;
   }
   function downloadTemplate(spec) {
     const csv=[spec.headers,...spec.sample].map(row=>row.map(v=>{const s=String(v);return /[",\r\n;]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;}).join(",")).join("\r\n");
