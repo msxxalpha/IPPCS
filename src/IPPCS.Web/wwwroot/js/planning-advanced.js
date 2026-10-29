@@ -122,7 +122,7 @@ function renderGantt(allocations){
 }
 function renderAps(data){
  renderGantt(data.allocations);
- table("#aps-table",[["کالا",x=>item(x.itemId)],["عملیات","sequence"],["شرح","operationName"],
+ table("#aps-table",[["کالا",x=>item(x.itemId)],["عملیات","sequence"],["شرح","operationName"],["مقدار ورودی مرحله",x=>format(x.quantity)],
   ["مرکز کاری",x=>center(x.workCenterId)],["شروع","startJalali"],["ساعت شروع","startTime"],
   ["پایان","finishJalali"],["ساعت پایان","finishTime"],["دقیقه",x=>format(x.durationMinutes)],
   ["دیرکرد",x=>x.late?"دارد":"ندارد"]],data.allocations);
