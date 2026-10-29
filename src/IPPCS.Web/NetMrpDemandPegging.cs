@@ -100,6 +100,9 @@ public static class NetMrpDemandPegging
                     throw new InvalidOperationException("نیاز BOM با محاسبه MRP تطابق ندارد.");
                 visited.Add(key);
                 var gross = group.Sum(x => x.Quantity);
+                // Capture supply before creating this date's own proposal. A proposal
+                // generated to cover this row must not inflate the opening balance
+                // used to validate its own net shortage.
                 var before = supplies.Where(x => x.AvailableOn <= date).Sum(x => x.Remaining);
                 if (row.GrossRequired != gross || row.OpeningAvailable != before ||
                     row.NetShortage != Math.Max(0, gross - before) ||
