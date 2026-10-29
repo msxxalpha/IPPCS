@@ -556,6 +556,45 @@ function register(){
   ],r.rows);
   flash(r.disclaimer);
  });
+ addForm("#mrp-capacity-preview-form",async f=>{
+  const mpsId=formval(f,"mpsId"),horizon=number(f,"horizon"),capacity=number(f,"capacity");
+  if(!mpsId||!Number.isInteger(horizon)||horizon<1||horizon>90||
+     !Number.isFinite(capacity)||capacity<0.1||capacity>2)
+   throw Error("نسخه MPS، افق ۱ تا ۹۰ روز و ضریب ظرفیت ۰٫۱ تا ۲ معتبر لازم است.");
+  const r=await api("/mrp/"+mpsId+"/lot-capacity-preview?horizonDays="+horizon+
+   "&capacityMultiplier="+encodeURIComponent(String(capacity)));
+  table("#mrp-capacity-summary",[["شاخص","مقدار"]],[
+   {name:"تاریخ مبنای برنامه",value:r.baselineJalali},
+   {name:"افق (روز)",value:r.horizonDays},
+   {name:"بچ قابل تکمیل به‌موقع",value:r.onTimeLots},
+   {name:"بچ دارای دیرکرد",value:r.lateLots},
+   {name:"بچ مسدود یا زمان‌بندی‌نشده",value:r.blockedLots},
+   {name:"رزرو فعال داخلی",value:r.activeCapacityReservations},
+   {name:"جلسه ثبت‌شده ساعت عملیات",value:r.recordedOperationClockSessions},
+   {name:"ساعت‌های عملیات باز",value:r.runningOperationClockSessions},
+   {name:"دستورات فعال دارای عملیات باز",value:r.conservativelyBlockedActiveOrders}
+  ]);
+  const statuses={OnTime:"به‌موقع",Late:"دیرکرد",Blocked:"مسدود",Unscheduled:"زمان‌بندی‌نشده",Pending:"در انتظار"};
+  table("#mrp-capacity-lots",[
+   ["بچ پیشنهادی","lotKey"],["کالا",x=>item(x.itemId)],
+   ["مقدار","quantity"],["آزادسازی پیشنهادی","proposedReleaseJalali"],
+   ["موعد نیاز","receiptDueJalali"],["عملیات موردنیاز","operationsRequired"],
+   ["عملیات زمان‌بندی‌شده","operationsScheduled"],
+   ["وضعیت",x=>statuses[x.status]||x.status],["علت","reason"]
+  ],r.lots);
+  table("#mrp-capacity-allocations",[
+   ["بچ","lotKey"],["کالا",x=>item(x.itemId)],["مرکز کاری",x=>center(x.workCenterId)],
+   ["ترتیب","sequence"],["عملیات","operationName"],["دقیقه تخصیص","durationMinutes"],
+   ["شروع",x=>x.startJalali+" "+x.startTime],
+   ["پایان",x=>x.finishJalali+" "+x.finishTime],
+   ["دیرکرد",x=>x.late?"بله":"خیر"]
+  ],r.allocations);
+  table("#mrp-capacity-unscheduled",[
+   ["شناسه بچ/نیاز","demandLineId"],["عملیات","sequence"],
+   ["کالا",x=>x.itemId?item(x.itemId):"—"],["علت","reason"]
+  ],r.unscheduled);
+  flash(r.disclaimer);
+ });
  addForm("#crp-stress-form",async f=>{
   const r=await api("/crp/"+formval(f,"mpsId")+"/center-stress");
   table("#crp-stress-table",[
