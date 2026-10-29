@@ -134,8 +134,12 @@
  }
  function setCadence(){
   const annual=$("#test-cadence").value==="Annual",interval=$("#test-interval");
-  if(annual){interval.value="12";interval.disabled=true;}
-  else {interval.disabled=false;if(Number(interval.value)===12||!interval.value)interval.value="3";}
+  // Readonly keeps the annual 12-month value in FormData; disabled controls are omitted.
+  interval.disabled=false;
+  interval.max=annual?"12":"11";
+  interval.readOnly=annual;
+  if(annual)interval.value="12";
+  else if(Number(interval.value)===12||!interval.value)interval.value="3";
  }
  function toggleNotes(){
   const required=["Failed","Inconclusive"].includes($("#test-outcome").value);
