@@ -26,6 +26,16 @@ test("MRP capacity preview displays lot-level status, dates, allocations and uns
  assert.match(js,/زمان‌بندی‌نشده/);
 });
 
+test("CRP exposes product-dependent output capacity from route setup, unit time and yield",()=>{
+ assert.match(html,/id="crp-product-capacity-table"/);
+ assert.match(js,/\/crp\/".*product-capacity-preview/);
+ for(const field of ["x.setupMinutes","x.runMinutesPerUnit","x.yieldPercent",
+  "x.standaloneCapacityUnits","x.requiredMinutes","x.availableMinutes"])
+  assert.ok(js.includes(field),"missing product-capacity result field "+field);
+ assert.match(html,/ظرفیت خروجی وابسته به محصول و عملیات/);
+ assert.match(html,/ظرفیت ترکیبی قابل‌تعهد نیست/);
+});
+
 test("MRP capacity preview stays read-only and does not create firm production orders",()=>{
  const form=html.slice(html.indexOf('id="mrp-capacity-preview-form"'),
   html.indexOf('id="mrp-capacity-summary"'));
