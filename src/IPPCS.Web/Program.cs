@@ -168,6 +168,7 @@ app.MapPlanningStageThree();
 app.MapManufacturingExecution();
 app.MapQualityAndOee();
 app.MapControlPlanEndpoints();
+app.MapFactoryPeriodicProductTests();
 app.MapCrossOrderTrace();
 app.MapEndOfLineAcceptance();
 app.MapSerialGenealogy();
@@ -232,6 +233,8 @@ public sealed class ProductionDb(DbContextOptions<ProductionDb> options) : Ident
     public DbSet<ManufacturingQualityHold> ManufacturingQualityHolds => Set<ManufacturingQualityHold>();
     public DbSet<ManufacturingOeePlan> ManufacturingOeePlans => Set<ManufacturingOeePlan>();
     public DbSet<ManufacturingControlPlan> ManufacturingControlPlans => Set<ManufacturingControlPlan>();
+    public DbSet<FactoryPeriodicTestPlan> FactoryPeriodicTestPlans => Set<FactoryPeriodicTestPlan>();
+    public DbSet<FactoryPeriodicTestRun> FactoryPeriodicTestRuns => Set<FactoryPeriodicTestRun>();
     public DbSet<ControlPlanCharacteristic> ControlPlanCharacteristics => Set<ControlPlanCharacteristic>();
     public DbSet<ManufacturingInspectionRequirement> ManufacturingInspectionRequirements => Set<ManufacturingInspectionRequirement>();
     public DbSet<ManufacturingInspectionResult> ManufacturingInspectionResults => Set<ManufacturingInspectionResult>();
@@ -270,6 +273,7 @@ public sealed class ProductionDb(DbContextOptions<ProductionDb> options) : Ident
         ManufacturingExecutionEndpoints.ConfigureModel(model);
         ManufacturingQualityAndOeeEndpoints.ConfigureModel(model);
         ManufacturingControlPlanEndpoints.ConfigureModel(model);
+        FactoryPeriodicProductTests.ConfigureModel(model);
         ManufacturingOrderPegging.ConfigureModel(model);
         ProductionDeviationEndpoints.ConfigureModel(model);
         model.Entity<FactoryMasterOption>().HasKey(x=>x.Id);
