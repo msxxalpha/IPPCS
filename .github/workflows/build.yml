@@ -21,6 +21,20 @@ jobs:
         run: dotnet restore src/IPPCS.Web/IPPCS.Web.csproj
       - name: Build
         run: dotnet build src/IPPCS.Web/IPPCS.Web.csproj -c Release --no-restore
+      - name: Diagnose pending EF snapshot delta (temporary)
+        env:
+          IPPCS_EF_MODEL_ONLY: '1'
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet tool install --global dotnet-ef --version 10.0.0
+          dotnet ef migrations add Stage54ModelDiagnostic --project src/IPPCS.Web/IPPCS.Web.csproj --startup-project src/IPPCS.Web/IPPCS.Web.csproj --configuration Release --no-build --output-dir Migrations/CI
+          echo "===== DIAGNOSTIC MIGRATION OPERATIONS ====="
+          find src/IPPCS.Web/Migrations/CI -maxdepth 1 -name '*_Stage54ModelDiagnostic.cs' -print -exec cat {} ;
+          echo "===== SNAPSHOT DIFF ====="
+          git diff -- src/IPPCS.Web/Migrations/CI/ProductionDbModelSnapshot.cs
+          git checkout -- src/IPPCS.Web/Migrations/CI/ProductionDbModelSnapshot.cs
+          find src/IPPCS.Web/Migrations/CI -maxdepth 1 -name '*_Stage54ModelDiagnostic*' -delete
       - name: .NET calendar unit tests
         run: dotnet test tests/IPPCS.Tests/IPPCS.Tests.csproj --configuration Release
       - name: Browser script syntax
