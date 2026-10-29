@@ -96,24 +96,27 @@ function addForm(id,callback){
 function renderGantt(allocations){
  const host=$("#aps-gantt");host.replaceChildren();
  if(!allocations.length){host.textContent="عملیاتی در این افق قابل زمان‌بندی نیست.";return;}
+ const split=window.IPPCSApsGantt.buildSegments(allocations);
  const days=new Map();
- for(const row of allocations){
-  const key=row.startJalali+"|"+row.workCenterId;
+ for(const row of split){
+  const key=row.dayIso+"|"+row.workCenterId;
   if(!days.has(key))days.set(key,[]);
   days.get(key).push(row);
  }
  const wrap=document.createElement("div");wrap.style.cssText="display:grid;gap:12px;min-width:700px";
  [...days.entries()].sort((a,b)=>a[0].localeCompare(b[0])).forEach(([key,rows])=>{
   const container=document.createElement("div");container.style.cssText="display:grid;grid-template-columns:190px 1fr;gap:12px;align-items:center";
-  const title=document.createElement("div");title.textContent=rows[0].startJalali+" • "+center(rows[0].workCenterId);
+  const title=document.createElement("div");title.textContent=rows[0].dayJalali+" • "+center(rows[0].workCenterId);
   title.style.fontSize="12px";
   const track=document.createElement("div");track.style.cssText="position:relative;height:43px;border:1px solid #cbd5e1;border-radius:8px;background:repeating-linear-gradient(to left,#f1f5f9 0,#f1f5f9 calc(100% / 24 - 1px),#d5e1ea calc(100% / 24 - 1px),#d5e1ea calc(100% / 24))";
   rows.forEach(row=>{
-   const minutes=t=>{const [h,m]=t.split(":").map(Number);return h*60+m;};
-   const start=minutes(row.startTime),finish=minutes(row.finishTime);
-   const bar=document.createElement("div");bar.title=row.operationName+" — "+row.startTime+" تا "+row.finishTime;
-   bar.textContent=row.sequence+"";
-   bar.style.cssText="position:absolute;top:5px;height:31px;display:flex;align-items:center;justify-content:center;border-radius:5px;font-size:10px;overflow:hidden;white-space:nowrap;color:#fff;background:"+(row.late?"#b45309":"#1f567e")+";left:"+(start/1440*100)+"%;width:"+Math.max(0,(finish-start)/1440*100)+"%";
+   const start=row.segmentStartMinutes,finish=row.segmentFinishMinutes;
+   if(finish<=start)return;
+   const continuation=(row.continuesFromPrevious||row.continuesNext)?" — ادامه عملیات عبوری از روز":"";
+   const bar=document.createElement("div");
+   bar.title=row.operationName+" — "+row.startJalali+" "+row.startTime+" تا "+row.finishJalali+" "+row.finishTime+continuation;
+   bar.textContent=String(row.sequence);
+   bar.style.cssText="position:absolute;top:5px;height:31px;display:flex;align-items:center;justify-content:center;border-radius:5px;font-size:10px;overflow:hidden;white-space:nowrap;color:#fff;background:"+(row.late?"#b45309":"#1f567e")+";left:"+(start/1440*100)+"%;width:"+((finish-start)/1440*100)+"%";
    track.append(bar);
   });
   container.append(title,track);wrap.append(container);
