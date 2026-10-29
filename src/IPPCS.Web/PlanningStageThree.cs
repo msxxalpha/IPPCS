@@ -90,6 +90,7 @@ public record CrpRow(Guid WorkCenterId, DateOnly NeededOn, decimal RequiredMinut
 public record CrpProductCapacityRow(Guid MpsLineId, Guid ItemId, DateOnly NeededOn,
     decimal DemandQuantity, Guid WorkCenterId, int OperationSequence, string OperationName,
     decimal SetupMinutes, decimal RunMinutesPerUnit, decimal YieldPercent,
+    decimal? ProductCapacityUnitsPerHour, bool HasProductCapacityOverride,
     decimal RequiredMinutes, decimal AvailableMinutes, decimal StandaloneCapacityUnits,
     decimal? UtilizationPercent, decimal OverloadMinutes);
 
@@ -179,7 +180,8 @@ public static class PlanningCalculators
     public static List<CrpProductCapacityRow> RunProductCapacityCrp(
         IReadOnlyList<MpsDemandLine> lines,
         IReadOnlyList<RoutingRevision> routings,
-        IReadOnlyList<WorkShift> shifts)
+        IReadOnlyList<WorkShift> shifts,
+        IReadOnlyDictionary<Guid, decimal>? productCapacityRates = null)
     {
         var rows=new List<CrpProductCapacityRow>();
         foreach(var line in lines.OrderBy(x=>x.NeededOn).ThenBy(x=>x.ItemId).ThenBy(x=>x.Id))
@@ -200,8 +202,11 @@ public static class PlanningCalculators
                 if(op.WorkCenterId==Guid.Empty||op.Sequence<=0||op.SetupMinutes<0||
                     op.RunMinutesPerUnit<=0||op.YieldPercent is <=0 or >100)
                     throw new InvalidOperationException("زمان استاندارد، بازده یا مرکز عملیات محصول نامعتبر است.");
-                // A good finished unit must survive this operation AND every downstream operation.
-                // Capacity at an upstream operation therefore reflects cumulative downstream yield loss.
+                // An optional work-center/product/operation rate overrides routing throughput.
+                // The rate is processed units/hour; setup time and cumulative yield remain in Routing.
+                var hasRate=productCapacityRates is not null &&
+                    productCapacityRates.TryGetValue(op.Id,out var unitsPerHour);
+                var effectiveRunMinutes=hasRate?60m/unitsPerHour:op.RunMinutesPerUnit;
                 decimal cumulativeYield=1m;
                 for(var j=i;j<operations.Length;j++)
                 {
@@ -209,14 +214,14 @@ public static class PlanningCalculators
                         throw new InvalidOperationException("بازده عملیات ساخت نامعتبر است.");
                     cumulativeYield*=operations[j].YieldPercent/100m;
                 }
-                var runPerFinishedUnit=op.RunMinutesPerUnit/cumulativeYield;
+                var runPerFinishedUnit=effectiveRunMinutes/cumulativeYield;
                 var required=op.SetupMinutes+line.Quantity*runPerFinishedUnit;
                 var available=FactoryShiftCalendar.AvailableMinutes(op.WorkCenterId,line.NeededOn,shifts);
                 var standalone=available<=op.SetupMinutes?0m:
                     decimal.Floor((available-op.SetupMinutes)/runPerFinishedUnit);
                 rows.Add(new CrpProductCapacityRow(line.Id,line.ItemId,line.NeededOn,line.Quantity,
-                    op.WorkCenterId,op.Sequence,op.Name,op.SetupMinutes,op.RunMinutesPerUnit,
-                    op.YieldPercent,required,available,standalone,
+                    op.WorkCenterId,op.Sequence,op.Name,op.SetupMinutes,effectiveRunMinutes,
+                    op.YieldPercent,hasRate?unitsPerHour:null,hasRate,required,available,standalone,
                     available==0?null:Math.Round(required/available*100m,2),
                     Math.Max(0m,required-available)));
             }
@@ -225,7 +230,8 @@ public static class PlanningCalculators
     }
 
     public static List<CrpRow> RunRoughCutCrp(IReadOnlyList<MpsDemandLine> lines,
-        IReadOnlyList<RoutingRevision> routings,IReadOnlyList<WorkShift> shifts)
+        IReadOnlyList<RoutingRevision> routings,IReadOnlyList<WorkShift> shifts,
+        IReadOnlyDictionary<Guid, decimal>? productCapacityRates = null)
     {
         var loads=new Dictionary<(Guid WorkCenterId,DateOnly NeededOn),decimal>();
         foreach(var line in lines)
@@ -250,7 +256,8 @@ public static class PlanningCalculators
                     cumulativeYield*=operations[j].YieldPercent/100m;
                 }
                 var key=(op.WorkCenterId,line.NeededOn);
-                loads[key]=loads.GetValueOrDefault(key)+op.SetupMinutes+line.Quantity*op.RunMinutesPerUnit/cumulativeYield;
+                var effectiveRunMinutes=productCapacityRates is not null && productCapacityRates.TryGetValue(op.Id,out var unitsPerHour)
+                    ? 60m/unitsPerHour : op.RunMinutesPerUnit;\n                loads[key]=loads.GetValueOrDefault(key)+op.SetupMinutes+line.Quantity*effectiveRunMinutes/cumulativeYield;
             }
         }
         return loads.OrderBy(x=>x.Key.NeededOn).ThenBy(x=>x.Key.WorkCenterId).Select(x=>{
