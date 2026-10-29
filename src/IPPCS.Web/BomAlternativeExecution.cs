@@ -113,6 +113,20 @@ public static class BomAlternativeExecution
             });
         });
 
+        api.MapGet("/manufacturing-orders/{id:guid}/material-usage", async (Guid id, ProductionDb db, CancellationToken ct) =>
+        {
+            if (!await db.ManufacturingOrders.AsNoTracking().AnyAsync(x => x.Id == id, ct))
+                return Results.NotFound();
+            var rows = await db.Set<ManufacturingOrderMaterialUsage>().AsNoTracking()
+                .Where(x => x.OrderId == id).OrderBy(x => x.OccurredUtc).ThenBy(x => x.Id)
+                .Select(x => new
+                {
+                    x.Id, x.BomLineId, x.ComponentItemId, x.Quantity, x.LotCode,
+                    x.Note, x.RecordedBy, x.OccurredUtc
+                }).ToListAsync(ct);
+            return Results.Ok(new { orderId = id, rows });
+        });
+
         planningApi.MapPost("/manufacturing-orders/{id:guid}/material-options/{groupCode}", async (
             Guid id, string groupCode, ManufacturingOrderMaterialAllocationInput input,
             ProductionDb db, HttpContext context, CancellationToken ct) =>
