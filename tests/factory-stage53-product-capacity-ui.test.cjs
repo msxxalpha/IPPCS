@@ -39,7 +39,7 @@ test("the center page creates and edits capacity overrides using the secured int
 test("a product capacity is uniquely attached to a real routing operation and cannot be zero",()=>{
  assert.match(capacity,/HasIndex\(x => x\.RoutingOperationId\)\.IsUnique\(\)/);
  assert.match(capacity,/HasOne<RoutingOperation>\(\)\.WithMany\(\)/);
- assert.match(capacity,/input\.CapacityUnitsPerHour is <= 0 or > 1_000_000m/);
+ assert.match(capacity,/input\.CapacityUnitsPerHour is < 0\.0001m or > 1_000_000m/);
  assert.match(capacity,/effectiveRunMinutesPerUnit = 60m \/ row\.CapacityUnitsPerHour/);
  assert.match(capacity,/LoadActiveRates/);
  assert.match(capacity,/ApplyToRoutes/);
