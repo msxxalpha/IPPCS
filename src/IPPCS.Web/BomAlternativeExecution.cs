@@ -35,6 +35,8 @@ public static class BomAlternativeExecution
 {
     public static void ConfigureModel(ModelBuilder model)
     {
+        model.Entity<ManufacturingOrderMaterialAllocation>().ToTable("ManufacturingOrderMaterialAllocations");
+        model.Entity<ManufacturingOrderMaterialUsage>().ToTable("ManufacturingOrderMaterialUsages");
         model.Entity<ManufacturingOrderMaterialAllocation>().HasIndex(x => new { x.OrderId, x.BomLineId }).IsUnique();
         model.Entity<ManufacturingOrderMaterialAllocation>().Property(x => x.SharePercent).HasPrecision(8, 4);
         model.Entity<ManufacturingOrderMaterialAllocation>().Property(x => x.PlannedQuantity).HasPrecision(18, 4);
