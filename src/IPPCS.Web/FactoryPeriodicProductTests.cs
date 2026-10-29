@@ -370,7 +370,8 @@ public static class FactoryPeriodicProductTests
                     "DECLARE @rc int; EXEC @rc=sys.sp_getapplock @Resource=@resource, " +
                     "@LockMode=N'Exclusive', @LockOwner=N'Transaction', @LockTimeout=10000; " +
                     "IF @rc < 0 THROW 51000, 'Periodic test result lock unavailable', 1;",
-                    new Microsoft.Data.SqlClient.SqlParameter("@resource", "IPPCS:PeriodicProductTestRun:" + id.ToString("N")), ct);
+                    new object[] { new Microsoft.Data.SqlClient.SqlParameter(
+                        "@resource", "IPPCS:PeriodicProductTestRun:" + id.ToString("N")) }, ct);
             }
             catch (Microsoft.Data.SqlClient.SqlException)
             {
