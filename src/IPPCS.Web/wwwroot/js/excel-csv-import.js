@@ -132,6 +132,93 @@
       url: () => apiRoot + "/work-shifts",
       refresh: true
     }
+    ,
+    {
+      form: "#bom-line-form", title: "ورود گروهی اجزای BOM نسخه‌دار",
+      file: "ippcs-bom-revision-lines-template.csv",
+      headers: ["parentCode","revision","componentCode","sequence","quantityPer","scrapPercent"],
+      sample: [["FG-001","A","RM-001","10","2.5","1.5"]],
+      help: "نسخه BOM باید از قبل ایجاد شده و پیش‌نویس باشد. این ورود، BOM ساده را تغییر نمی‌دهد و به نسخه مصوب دست نمی‌زند.",
+      map: (r,ctx) => {
+        const parent=ctx.items.find(x=>x.code.toLowerCase()===r.parentCode.toLowerCase());
+        const revision=ctx.bomRevisions.find(x=>x.parentItemId===parent?.id&&String(x.revision).toLowerCase()===r.revision.toLowerCase());
+        const component=ctx.items.find(x=>x.code.toLowerCase()===r.componentCode.toLowerCase());
+        return {componentItemId:component?.id,sequence:number(r.sequence),quantityPer:number(r.quantityPer),scrapPercent:number(r.scrapPercent),revisionId:revision?.id};
+      },
+      validate: (r,ctx) => {
+        const parent=ctx.items.find(x=>x.code.toLowerCase()===r.parentCode.toLowerCase());
+        const rev=ctx.bomRevisions.find(x=>x.parentItemId===parent?.id&&String(x.revision).toLowerCase()===r.revision.toLowerCase());
+        const component=ctx.items.find(x=>x.code.toLowerCase()===r.componentCode.toLowerCase());
+        if(!rev)return "نسخه BOM برای کالای والد پیدا نشد.";
+        if(rev.state!==0)return "فقط به نسخه BOM پیش‌نویس می‌توان جزء افزود.";
+        if(!component)return "کد جزء در اقلام پیدا نشد.";
+        if(component.id===parent?.id)return "والد و جزء نمی‌توانند یک کالا باشند.";
+        if(!Number.isInteger(number(r.sequence))||number(r.sequence)<=0||!Number.isFinite(number(r.quantityPer))||number(r.quantityPer)<=0||!Number.isFinite(number(r.scrapPercent))||number(r.scrapPercent)<0||number(r.scrapPercent)>=100)return "ترتیب، مصرف و درصد ضایعات معتبر لازم است.";
+        if(ctx.bomRevisions.find(x=>x.id===rev.id)?.lines?.some(x=>x.componentItemId===component.id||x.sequence===number(r.sequence)))return "جزء یا شماره ترتیب در نسخه از قبل وجود دارد.";
+        const key=rev.id+"|"+component.id+"|"+r.sequence;
+        if(ctx.seenBom.has(key))return "جزء یا شماره ترتیب در همین فایل تکراری است.";
+        ctx.seenBom.add(key);return "";
+      },
+      url: (r,ctx) => apiRoot+"/bom-revisions/"+ctx.bomRevisions.find(x=>x.parentItemId===ctx.items.find(i=>i.code.toLowerCase()===r.parentCode.toLowerCase())?.id&&String(x.revision).toLowerCase()===r.revision.toLowerCase())?.id+"/lines",
+      refresh: true
+    },
+    {
+      form: "#mps-line-form", title: "ورود گروهی ردیف‌های برنامه اصلی تولید (MPS)",
+      file: "ippcs-mps-lines-template.csv",
+      headers: ["mpsCode","itemCode","quantity","neededOnJalali","reference"],
+      optional: ["reference"],
+      sample: [["MPS-2026-11","FG-001","250","1405/09/15","سفارش داخلی"]],
+      help: "نسخه MPS باید از قبل ساخته شده و در وضعیت پیش‌نویس باشد. فقط اقلام طبقه محصول نهایی قابل ثبت‌اند؛ پس از ورود، کنترل و تصویب MPS را جداگانه انجام دهید.",
+      map: (r,ctx) => ({itemId:ctx.items.find(x=>x.code.toLowerCase()===r.itemCode.toLowerCase())?.id,quantity:number(r.quantity),neededOnJalali:normalizeDate(r.neededOnJalali),reference:r.reference||""}),
+      validate: (r,ctx) => {
+        const version=ctx.mps.find(x=>String(x.code).toLowerCase()===r.mpsCode.toLowerCase());
+        if(!version)return "کد نسخه MPS پیدا نشد.";
+        if(version.state!==0)return "فقط به نسخه MPS پیش‌نویس می‌توان ردیف افزود.";
+        const item=ctx.items.find(x=>x.code.toLowerCase()===r.itemCode.toLowerCase());
+        if(!item)return "کد محصول در اقلام پیدا نشد.";
+        if(item.type!==2)return "فقط محصول نهایی قابل ثبت در MPS است.";
+        if(!Number.isFinite(number(r.quantity))||number(r.quantity)<=0||!validDate(r.neededOnJalali)||String(r.reference||"").length>120)return "مقدار، تاریخ یا مرجع نامعتبر است.";
+        return "";
+      },
+      url: (r,ctx) => apiRoot+"/mps/"+ctx.mps.find(x=>String(x.code).toLowerCase()===r.mpsCode.toLowerCase())?.id+"/lines",
+      refresh: true
+    },
+    {
+      form: "#balance-form", title: "ورود گروهی فرضیات موجودی و تأمین",
+      file: "ippcs-planning-balances-template.csv",
+      headers: ["itemCode","snapshotDateJalali","physicalQuantity","reservedQuantity","quarantinedQuantity","safetyQuantity","leadDays","minimumBatch","batchMultiple"],
+      sample: [["RM-001","1405/09/01","1000","100","0","50","7","1","1"]],
+      help: "این داده‌ها صرفاً فرضیات برنامه‌ریزی داخلی IPPCS هستند و موجودی واقعی انبار یا سند عملیاتی ایجاد نمی‌کنند. برای هر قلم فقط آخرین ردیف معتبر فایل را ثبت کنید.",
+      map: (r,ctx) => ({itemId:ctx.items.find(x=>x.code.toLowerCase()===r.itemCode.toLowerCase())?.id,snapshotDateJalali:normalizeDate(r.snapshotDateJalali),physicalQuantity:number(r.physicalQuantity),reservedQuantity:number(r.reservedQuantity),quarantinedQuantity:number(r.quarantinedQuantity),safetyQuantity:number(r.safetyQuantity),leadDays:number(r.leadDays),minimumBatch:number(r.minimumBatch),batchMultiple:number(r.batchMultiple)}),
+      validate: (r,ctx) => {
+        if(!ctx.items.some(x=>x.code.toLowerCase()===r.itemCode.toLowerCase()))return "کد قلم پیدا نشد.";
+        const nums=["physicalQuantity","reservedQuantity","quarantinedQuantity","safetyQuantity"].map(k=>number(r[k]));
+        if(!validDate(r.snapshotDateJalali)||nums.some(x=>!Number.isFinite(x)||x<0)||number(r.leadDays)<0||!Number.isInteger(number(r.leadDays))||number(r.leadDays)>3650||!Number.isFinite(number(r.minimumBatch))||number(r.minimumBatch)<=0||!Number.isFinite(number(r.batchMultiple))||number(r.batchMultiple)<=0)return "تاریخ، موجودی‌ها، زمان تأمین یا سیاست دسته‌بندی نامعتبر است.";
+        if(number(r.reservedQuantity)+number(r.quarantinedQuantity)>number(r.physicalQuantity))return "رزرو و قرنطینه نمی‌تواند از موجودی فیزیکی بیشتر باشد.";
+        const item=ctx.items.find(x=>x.code.toLowerCase()===r.itemCode.toLowerCase());
+        if(ctx.seenBalance.has(item.id))return "برای این قلم در همین فایل بیش از یک ردیف وجود دارد.";
+        ctx.seenBalance.add(item.id);return "";
+      },
+      url: (r,ctx) => apiRoot+"/planning-balances/"+ctx.items.find(x=>x.code.toLowerCase()===r.itemCode.toLowerCase())?.id,
+      method: "PUT",
+      refresh: true
+    },
+    {
+      form: "#receipt-form", title: "ورود گروهی دریافت‌های برنامه‌ای",
+      file: "ippcs-planning-receipts-template.csv",
+      headers: ["itemCode","availableOnJalali","quantity","reference"],
+      optional: ["reference"],
+      sample: [["RM-001","1405/09/10","500","تأمین برنامه‌ای"]],
+      help: "این دریافت‌ها فقط ورودی فرضی MRP هستند و سفارش خرید، رسید انبار یا تراکنش واقعی ایجاد نمی‌کنند.",
+      map: (r,ctx) => ({itemId:ctx.items.find(x=>x.code.toLowerCase()===r.itemCode.toLowerCase())?.id,availableOnJalali:normalizeDate(r.availableOnJalali),quantity:number(r.quantity),reference:r.reference||""}),
+      validate: (r,ctx) => {
+        if(!ctx.items.some(x=>x.code.toLowerCase()===r.itemCode.toLowerCase()))return "کد قلم پیدا نشد.";
+        if(!validDate(r.availableOnJalali)||!Number.isFinite(number(r.quantity))||number(r.quantity)<=0||String(r.reference||"").length>120)return "تاریخ، مقدار یا مرجع دریافت معتبر نیست.";
+        return "";
+      },
+      url: () => apiRoot+"/planning-receipts",
+      refresh: true
+    }
   ];
 
   function number(v) {
@@ -160,7 +247,7 @@
     return rows.map((values,i)=>({__line:i+2,...Object.fromEntries(headers.map((h,j)=>[h,values[j]??""]))}));
   }
   async function secureApi(url, payload) {
-    const response=await window.IPPCSSecurity.secureFetch(url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+    const response=await window.IPPCSSecurity.secureFetch(url,{method:arguments.length>2?arguments[2]:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
     if(response.ok) return;
     let message="خطای سرور";
     try {const data=await response.json();message=data.message||data.title||data.detail||message;} catch {}
@@ -169,7 +256,7 @@
   async function context(spec, rows) {
     const needsRouting=spec.form==="#routing-form"||spec.form==="#operation-form";
     const needsBom=spec.form==="#bom-form";
-    const [items,centers,bom,routings]=await Promise.all([
+    const needsMps=spec.form==="#mps-line-form";\n    const needsBomRevision=spec.form==="#bom-line-form";\n    const needsBalance=spec.form==="#balance-form";\n    const [items,centers,bom,routings,bomRevisions,mps,balances]=await Promise.all([
       window.IPPCSSecurity.secureFetch(apiRoot+"/items").then(r=>{if(!r.ok)throw Error("دریافت اقلام ناموفق بود");return r.json();}),
       window.IPPCSSecurity.secureFetch(apiRoot+"/work-centers").then(r=>{if(!r.ok)throw Error("دریافت مراکز کاری ناموفق بود");return r.json();}),
       needsBom ? window.IPPCSSecurity.secureFetch(apiRoot+"/items").then(r=>{if(!r.ok)throw Error("دریافت اقلام ناموفق بود");return r.json();}).then(async catalog=>{
@@ -239,7 +326,7 @@
           }
           if(!error)error=spec.validate(r,ctx);
           if(!error){
-            try{await secureApi(spec.url(r,ctx),spec.map(r,ctx));ok++;result.textContent="ثبت شد";}
+            try{await secureApi(spec.url(r,ctx),spec.map(r,ctx),spec.method);ok++;result.textContent="ثبت شد";}
             catch(e){failed++;result.textContent=e.message;}
           } else {failed++;result.textContent=error;}
           if(result.textContent!=="ثبت شد")tr.className="import-row-error";
