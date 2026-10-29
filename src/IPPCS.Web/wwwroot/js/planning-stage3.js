@@ -460,7 +460,7 @@ function boot(){
    alertText("گزارش CRP محصول‌محور به‌روزرسانی شد. ظرفیت هر ردیف مستقل است و ظرفیت ترکیبی قابل‌تعهد نیست.");
   }catch(e){alertText(e.message,true);}finally{btn.disabled=false;}
  };
- load().catch(e=>alertText("اتصال داده‌های محیط توسعه برقرار نیست: "+e.message,true));
+ window.addEventListener("ippps:excel-import-complete",()=>load().catch(e=>alertText("به‌روزرسانی فهرست‌ها پس از ورود گروهی ناموفق بود: "+e.message,true)));\n load().catch(e=>alertText("اتصال داده‌های محیط توسعه برقرار نیست: "+e.message,true));
 }
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",boot);else boot();
 })();
