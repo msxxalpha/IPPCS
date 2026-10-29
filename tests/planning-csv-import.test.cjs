@@ -27,6 +27,8 @@ test("versioned BOM and MPS line imports remain draft-only and validate duplicat
   assert.match(importer,/alternativeGroupCode/);
   assert.match(importer,/isDefaultAlternative/);
   assert.match(importer,/alternativePriority/);
+  assert.match(importer,/altgroupseq/);
+  assert.match(importer,/گروه آلترناتیو/);
   assert.match(importer,/ctx\.seenMps\.has\(key\)/);
 });
 
