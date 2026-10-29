@@ -9,7 +9,7 @@ This change is confined to IPPCS production planning and execution. It does not 
 - Approval rejects incomplete groups, zero/multiple defaults, duplicate priorities, duplicate components, and conflicting sequence assignments.
 - Baseline MRP, gross provenance, and net pegging use mandatory lines plus exactly one default option per group. They never add every alternative as separate gross demand.
 - A draft, released, or in-progress manufacturing order can have a group-specific mix saved while no actual material use has been recorded for that group. Percentages must total exactly 100%. Once the first actual use is recorded for any member of that group, the mix is locked.
-- Actual material use records the frozen BOM line, component identity, quantity, optional lot code, timestamp, and note. Consumption above planned quantity requires a note. Audit events record allocation and usage.
+- Actual material use records the frozen BOM line, component identity, quantity, optional lot code, timestamp, authenticated actor, and note. A read-only history endpoint and UI show cumulative quantities and individual usage events. Consumption above planned quantity requires a note. Audit events record allocation and usage.
 - These records are internal production evidence only. They are not a warehouse issue, receipt, stock adjustment, or purchasing transaction.
 
 ## Relevant endpoints
@@ -18,6 +18,7 @@ This change is confined to IPPCS production planning and execution. It does not 
 - `GET /api/v1/manufacturing-orders/{id}/material-options` — view order-level option shares, planned quantities, and actual usage.
 - `POST /api/v1/manufacturing-orders/{id}/material-options/{groupCode}` — allocate a group across authorized options, total 100%.
 - `POST /api/v1/manufacturing-orders/{id}/material-usage` — append actual component use and lot evidence.
+- `GET /api/v1/manufacturing-orders/{id}/material-usage` — read append-only usage history including actor and timestamp.
 - Order release validates persisted allocations before creating the released order evidence.
 
 ## SQL and tests
