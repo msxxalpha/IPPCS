@@ -176,7 +176,15 @@ public static class PlanningCalculators
                     continue;
                 }
                 var effective=selected[0];
-                foreach(var part in effective.Lines)
+                // Mandatory lines are additive. Each alternative group contributes exactly
+                // one default option to baseline MRP; order-specific mixes are handled separately.
+                var effectiveLines=effective.Lines.Where(x=>string.IsNullOrWhiteSpace(x.AlternativeGroupCode))
+                    .Concat(effective.Lines.Where(x=>!string.IsNullOrWhiteSpace(x.AlternativeGroupCode))
+                        .GroupBy(x=>x.AlternativeGroupCode!,StringComparer.OrdinalIgnoreCase)
+                        .Select(group=>group.SingleOrDefault(x=>x.IsDefaultAlternative)
+                            ??throw new InvalidOperationException("گروه آلترناتیو BOM باید دقیقاً یک قطعه پیش‌فرض داشته باشد.")))
+                    .ToArray();
+                foreach(var part in effectiveLines)
                 {
                     decimal partNeed=planned*part.QuantityPer/(1-part.ScrapPercent/100m);
                     var key=(part.ComponentItemId,release!.Value);
