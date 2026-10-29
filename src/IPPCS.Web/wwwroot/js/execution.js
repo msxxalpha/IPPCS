@@ -2,6 +2,7 @@
 "use strict";
 const $=s=>document.querySelector(s), $$=s=>Array.from(document.querySelectorAll(s));
 const S={items:[],orders:[],roles:[]};
+let materialSnapshot=null;
 const can=role=>S.roles.includes("Administrator")||S.roles.includes(role);
 const canHold=()=>can("Planner")||can("ProductionOperator");
 const fval=(f,k)=>new FormData(f).get(k);
@@ -54,6 +55,7 @@ function table(target,cols,rows,actions=[]){
 async function reload(){
  [S.items,S.orders]=await Promise.all([request("/items"),request("/manufacturing-orders")]);
  select($("#order-item"),S.items.filter(x=>x.type===1||x.type===2),x=>x.code+" • "+x.name);
+ select($("#material-order"),S.orders,x=>x.number+" • "+itemName(x.itemId)+" • "+status(x.status));
  $$("[data-order-active]").forEach(el=>select(el,S.orders.filter(x=>x.status===1||x.status===2),x=>x.number+" • "+status(x.status)));
  select($("#history-order"),S.orders,x=>x.number+" • "+status(x.status));
  select($("#draft-replan-order"),S.orders.filter(x=>x.status===0),x=>x.number+" • "+itemName(x.itemId));
@@ -130,6 +132,8 @@ async function boot(){
    const profile=await response.json();
    S.roles=Array.isArray(profile.roles)?profile.roles:[];
    // UI visibility is convenience only; server policies + CSRF enforce writes.
+   $("#material-options-save").hidden=!can("Planner");
+   $("#material-usage-form").hidden=!can("ProductionOperator");
    const forms={"#order-form":"Planner","#draft-replan-form":"Planner",
      "#slot-form":"Planner","#confirm-form":"ProductionOperator","#stop-form":"ProductionOperator"};
    for(const [selector,role] of Object.entries(forms)){
@@ -167,6 +171,78 @@ async function boot(){
   form.querySelector('[name="start"]').value=selected.plannedStartJalali;
   form.querySelector('[name="due"]').value=selected.dueOnJalali;
   $("#release-issues").replaceChildren();
+ });
+
+ async function loadMaterialOptions(){
+  const id=$("#material-order").value;
+  if(!id)throw Error("ابتدا دستور تولید را انتخاب کنید.");
+  materialSnapshot=await request("/manufacturing-orders/"+id+"/material-options");
+  const root=$("#material-options-container");root.replaceChildren();
+  if(!materialSnapshot.groups.length){
+   const p=document.createElement("p");p.textContent="برای BOM این دستور گروه آلترناتیو تعریف نشده است؛ فقط اجزای اجباری وجود دارند.";root.append(p);
+  }
+  for(const group of materialSnapshot.groups){
+   const panel=document.createElement("div");panel.className="panel";panel.dataset.materialGroup=group.groupCode;
+   const title=document.createElement("h4");title.textContent="گروه "+group.groupCode+" — سهم‌ها باید جمعاً ۱۰۰٪ باشند";panel.append(title);
+   const tbl=document.createElement("table"),thead=document.createElement("thead"),trh=document.createElement("tr");
+   for(const label of ["قطعه","پیش‌فرض","ضریب مصرف","اولویت","سهم انتخابی (%)","مقدار برنامه"]){const th=document.createElement("th");th.textContent=label;trh.append(th);}
+   thead.append(trh);tbl.append(thead);const tbody=document.createElement("tbody");
+   for(const option of group.options){
+    const tr=document.createElement("tr");
+    const values=[itemName(option.componentItemId),option.isDefaultAlternative?"بله":"خیر",num(option.quantityPer),String(option.alternativePriority)];
+    for(const value of values){const td=document.createElement("td");td.textContent=value;tr.append(td);}
+    const shareCell=document.createElement("td"),share=document.createElement("input");
+    share.type="number";share.min="0";share.max="100";share.step="0.01";share.value=option.sharePercent;
+    share.dataset.materialShare="1";share.dataset.lineId=option.id;share.setAttribute("aria-label","سهم "+itemName(option.componentItemId));
+    shareCell.append(share);tr.append(shareCell);
+    const plannedCell=document.createElement("td");plannedCell.textContent=num(option.plannedQuantity);tr.append(plannedCell);
+    tbody.append(tr);
+   }
+   tbl.append(tbody);panel.append(tbl);root.append(panel);
+  }
+  const choices=[];
+  for(const line of materialSnapshot.mandatoryComponents)choices.push({...line,label:itemName(line.componentItemId)+" • اجباری"});
+  for(const group of materialSnapshot.groups)for(const line of group.options)
+   if(line.plannedQuantity>0)choices.push({...line,label:itemName(line.componentItemId)+" • "+group.groupCode});
+  select($("#material-usage-line"),choices,x=>x.label);
+  table("#material-options-summary",[
+   ["گروه",x=>x.groupCode||"اجباری"],["قطعه",x=>itemName(x.componentItemId)],
+   ["برنامه",x=>num(x.plannedQuantity)],["مصرف واقعی",x=>num(x.actualQuantity)],
+   ["باقی‌مانده برنامه",x=>num(Math.max(0,x.plannedQuantity-x.actualQuantity))]
+  ],[
+   ...materialSnapshot.mandatoryComponents.map(x=>({...x,groupCode:""})),
+   ...materialSnapshot.groups.flatMap(g=>g.options.map(x=>({...x,groupCode:g.groupCode})))
+  ]);
+ }
+ $("#material-options-load").onclick=()=>loadMaterialOptions().catch(e=>flash(e.message,true));
+ $("#material-order").addEventListener("change",()=>{materialSnapshot=null;$("#material-options-container").replaceChildren();$("#material-options-summary").replaceChildren();});
+ $("#material-options-save").onclick=async()=>{
+  try{
+   if(!materialSnapshot)await loadMaterialOptions();
+   const id=$("#material-order").value;
+   for(const panel of $("#material-options-container [data-material-group]")){
+    const groupCode=panel.dataset.materialGroup;
+    const shares=Array.from(panel.querySelectorAll("[data-material-share]"))
+      .map(el=>({bomLineId:el.dataset.lineId,sharePercent:Number(el.value)}));
+    if(shares.some(x=>!Number.isFinite(x.sharePercent)||x.sharePercent<0||x.sharePercent>100))
+     throw Error("سهم هر قطعه باید بین صفر و ۱۰۰ باشد.");
+    const active=shares.filter(x=>x.sharePercent>0);
+    if(active.length===0)throw Error("برای گروه "+groupCode+" حداقل یک قطعه انتخاب کنید.");
+    if(active.reduce((sum,x)=>sum+x.sharePercent,0)!==100)
+     throw Error("مجموع سهم گروه "+groupCode+" باید دقیقاً ۱۰۰٪ باشد.");
+    await request("/manufacturing-orders/"+id+"/material-options/"+encodeURIComponent(groupCode),"POST",{shares:active});
+   }
+   flash("ترکیب آلترناتیوها برای دستور ذخیره شد.");await loadMaterialOptions();
+  }catch(e){flash(e.message,true);}
+ };
+ register("#material-usage-form",async f=>{
+  const id=$("#material-order").value;
+  if(!id)throw Error("ابتدا دستور تولید را انتخاب کنید.");
+  await request("/manufacturing-orders/"+id+"/material-usage","POST",{
+   bomLineId:fval(f,"bomLineId"),quantity:numeric(f,"quantity"),
+   lotCode:fval(f,"lotCode")||null,note:fval(f,"note")||null
+  });
+  f.reset();await loadMaterialOptions();flash("مصرف واقعی قطعه برای دستور ثبت شد.");
  });
  async function releaseCheck(){
   const id=$("#draft-replan-order").value;
