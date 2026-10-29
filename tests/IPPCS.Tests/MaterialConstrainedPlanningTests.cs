@@ -80,4 +80,23 @@ public sealed class MaterialConstrainedPlanningTests
         Assert.False(Assert.Single(MaterialConstrainedPlanning.Check([x.line],[],[],[],x.types,Start)).Feasible);
         Assert.False(Assert.Single(MaterialConstrainedPlanning.Check([x.line],[x.bom],[],[],x.types,Start)).Feasible);
     }
+
+    [Fact]
+    public void Duplicate_demand_identity_is_rejected_before_material_feasibility_is_reported()
+    {
+        var x=Setup();
+        var balance=new PlanningBalance{ItemId=x.raw,PhysicalQuantity=25,SnapshotDate=Start};
+        Assert.Throws<InvalidOperationException>(()=>
+            MaterialConstrainedPlanning.Check([x.line,x.line],[x.bom],[balance],[],x.types,Start));
+    }
+
+    [Fact]
+    public void Duplicate_expected_receipt_identity_is_rejected_as_ambiguous_supply()
+    {
+        var x=Setup();
+        var balance=new PlanningBalance{ItemId=x.raw,PhysicalQuantity=5,SnapshotDate=Start};
+        var receipt=new PlanningExpectedReceipt{ItemId=x.raw,Quantity=20,AvailableOn=Start};
+        Assert.Throws<InvalidOperationException>(()=>
+            MaterialConstrainedPlanning.Check([x.line],[x.bom],[balance],[receipt,receipt],x.types,Start));
+    }
 }
