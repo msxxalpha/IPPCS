@@ -611,14 +611,16 @@ public static class PlanningStageThreeEndpoints
                 return Results.Conflict(new{message="نسخه MPS باید مصوب باشد."});
             var routes=await db.RoutingRevisions.AsNoTracking().Include(x=>x.Operations).ToListAsync(ct);
             var shifts=await db.WorkShifts.AsNoTracking().ToListAsync(ct);
+            var productCapacityRates=await WorkCenterProductCapacityRules.LoadActiveRates(db,ct);
             try{
-                var rows=PlanningCalculators.RunProductCapacityCrp(version.Lines,routes,shifts);
+                var rows=PlanningCalculators.RunProductCapacityCrp(version.Lines,routes,shifts,productCapacityRates);
                 return Results.Ok(new{
                     mode="ProductDependentRoughCutCapacity",
                     disclaimer="ظرفیت خروجی به محصول، مسیر، زمان آماده‌سازی، زمان واحد و بازده عملیات وابسته است. ظرفیت مستقل هر ردیف فرض می‌کند محصول دیگری از دقایق همان مرکز استفاده نمی‌کند؛ این عدد ظرفیت ترکیبی قابل‌تعهد نیست. تداخل زمانی و توالی واقعی را در APS بررسی کنید.",
                     rows=rows.Select(x=>new{x.MpsLineId,x.ItemId,demandOnJalali=PersianPlanningDates.Format(x.NeededOn),
                         x.DemandQuantity,x.WorkCenterId,x.OperationSequence,x.OperationName,
-                        x.SetupMinutes,x.RunMinutesPerUnit,x.YieldPercent,x.RequiredMinutes,
+                        x.SetupMinutes,x.RunMinutesPerUnit,x.YieldPercent,
+                        x.ProductCapacityUnitsPerHour,x.HasProductCapacityOverride,x.RequiredMinutes,
                         x.AvailableMinutes,x.StandaloneCapacityUnits,x.UtilizationPercent,x.OverloadMinutes})
                 });
             }catch(InvalidOperationException ex){
@@ -630,8 +632,9 @@ public static class PlanningStageThreeEndpoints
             if(version is null)return Results.NotFound();
             var routes=await db.RoutingRevisions.AsNoTracking().Include(x=>x.Operations).ToListAsync(ct);
             var shifts=await db.WorkShifts.AsNoTracking().ToListAsync(ct);
+            var productCapacityRates=await WorkCenterProductCapacityRules.LoadActiveRates(db,ct);
             try{
-                var rows=PlanningCalculators.RunRoughCutCrp(version.Lines,routes,shifts);
+                var rows=PlanningCalculators.RunRoughCutCrp(version.Lines,routes,shifts,productCapacityRates);
                 return Results.Ok(new{mode="RoughCutSingleDay",rows=rows.Select(x=>new{
                     x.WorkCenterId,neededOnJalali=PersianPlanningDates.Format(x.NeededOn),
                     x.RequiredMinutes,x.CapacityMinutes,x.OverloadMinutes,x.UtilizationPercent})});
