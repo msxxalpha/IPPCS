@@ -53,6 +53,7 @@ test("product-dependent CRP is directly reachable from the MPS/MRP/CRP form",()=
  assert.match(stageThreeJs,/\$\("#product-capacity-run"\)\.onclick/);
  assert.match(stageThreeJs,/\/crp\/"\+id\+"\/product-capacity-preview/);
  for(const field of ["r.setupMinutes","r.runMinutesPerUnit","r.yieldPercent",
+  "r.productCapacityUnitsPerHour","r.hasProductCapacityOverride",
   "r.requiredMinutes","r.availableMinutes","r.standaloneCapacityUnits"])
   assert.ok(stageThreeJs.includes(field),"missing product-capacity display field "+field);
 });
