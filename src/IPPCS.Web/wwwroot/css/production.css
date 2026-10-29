@@ -241,3 +241,14 @@ table th{position:sticky;top:0;z-index:1}
 
 /* Audit visibility for failed periodic/annual test evidence. */
 #test-run-table tr.test-result-failed td{border-top:2px solid #b45309;border-bottom:1px solid #fed7aa}
+
+
+/* Excel-compatible bulk import panels: explicit file selection and row-level failure visibility. */
+.excel-import .form-actions{align-items:center;gap:10px}
+.excel-import input[type=file]{max-width:420px;min-height:40px}
+.excel-import table{white-space:normal;table-layout:fixed}
+.excel-import th:first-child,.excel-import td:first-child{width:80px}
+.excel-import th:nth-child(2),.excel-import td:nth-child(2){width:22%}
+.excel-import td{overflow-wrap:anywhere}
+.excel-import tr.import-row-error td{background:#fff4f4;color:#8e2f2f}
+@media(max-width:560px){.excel-import input[type=file]{max-width:100%}.excel-import th,.excel-import td{font-size:10px;padding:8px 5px}}
