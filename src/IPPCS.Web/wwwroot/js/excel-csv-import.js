@@ -14,7 +14,7 @@
         const parent=ctx.items.find(x=>x.code.toLowerCase()===r.parentCode.toLowerCase());
         if(!parent)return "کد کالای والد در اقلام پیدا نشد.";
         if(!r.revision||r.revision.trim().length>32||!validDate(r.validFromJalali))return "کد نسخه و تاریخ شروع معتبر لازم است.";
-        if(r.validUntilJalali&&(!validDate(r.validUntilJalali)||normalizeDate(r.validUntilJalali)<normalizeDate(r.validFromJalali)))return "تاریخ پایان نامعتبر یا پیش از تاریخ شروع است.";
+        if(r.validUntilJalali&&(!validDate(r.validUntilJalali)||compareJalaliDates(r.validUntilJalali,r.validFromJalali)<0))return "تاریخ پایان نامعتبر یا پیش از تاریخ شروع است.";
         const key=parent.id+"|"+r.revision.trim().toLowerCase();
         if(ctx.bomRevisions.some(x=>x.parentItemId===parent.id&&String(x.revision).toLowerCase()===r.revision.trim().toLowerCase())||ctx.seenBom.has("revision|"+key))return "کد نسخه برای این کالای والد تکراری است.";
         ctx.seenBom.add("revision|"+key);return "";
@@ -315,7 +315,7 @@
     ]);
     return {items,centers,bom,routings,bomRevisions,mps,balances,seenBom:new Set(),seenBalance:new Set(),seenMps:new Set()};
   }
-  function validDate(v) {
+  function compareJalaliDates(a,b) {\n    const parts=v=>normalizeDate(v).split("/").map(Number);\n    const x=parts(a),y=parts(b);\n    for(let i=0;i<3;i++){if(x[i]!==y[i])return x[i]-y[i];}\n    return 0;\n  }\n  function validDate(v) {
     const parts=normalizeDate(v).split("/");
     return parts.length===3 && parts[0].length===4 && parts.every(p=>p.length>0&&Array.from(p).every(ch=>ch>="0"&&ch<="9")) &&
       Number(parts[1])>=1&&Number(parts[1])<=12&&Number(parts[2])>=1&&Number(parts[2])<=31;
@@ -360,7 +360,7 @@
         for(const r of rows){
           const tr=document.createElement("tr"),line=document.createElement("td"),identity=document.createElement("td"),result=document.createElement("td");
           line.textContent=String(r.__line);
-          identity.textContent=r.code||(r.parentCode&&r.componentCode?r.parentCode+" → "+r.componentCode:null)||r.itemCode||(r.itemCode&&r.revisionCode?r.itemCode+" / "+r.revisionCode:null)||r.centerCode||"—";
+          identity.textContent=r.code||r.mpsCode||r.revision||(r.parentCode&&r.componentCode?r.parentCode+" → "+r.componentCode:null)||(r.itemCode&&r.revisionCode?r.itemCode+" / "+r.revisionCode:null)||r.itemCode||r.centerCode||"—";
           let error="";
           for(const key of spec.headers) if(!spec.optional?.includes(key)&&!String(r[key]??"").trim()){error="ستون "+key+" خالی است.";break;}
           if(!error&&spec.form==="#item-form"){
