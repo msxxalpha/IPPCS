@@ -431,6 +431,33 @@ function boot(){
    alertText("پیش‌نمایش CRP محاسبه شد. جابه‌جایی زمان‌بندی خودکار هنوز انجام نمی‌شود.");
   }catch(e){alertText(e.message,true);}finally{btn.disabled=false;}
  };
+ $("#product-capacity-run").onclick=async()=>{
+  const id=$("#calculate-mps").value;
+  if(!id){alertText("نسخه مصوب MPS را انتخاب کنید.",true);return;}
+  const btn=$("#product-capacity-run");btn.disabled=true;
+  try{
+   const result=await call("/crp/"+id+"/product-capacity-preview");
+   const summary=$("#product-capacity-summary");
+   summary.hidden=false;summary.textContent=result.disclaimer||"ظرفیت مستقل به تفکیک محصول محاسبه شد.";
+   table("#product-capacity-table",[
+    ["محصول",r=>name(r.itemId)],
+    ["تاریخ نیاز","demandOnJalali"],
+    ["تقاضا",r=>fmt(r.demandQuantity)],
+    ["مرکز کاری",r=>state.centers.find(c=>c.id===r.workCenterId)?.name||String(r.workCenterId).slice(0,8)],
+    ["مرحله عملیات","operationSequence"],
+    ["عنوان عملیات","operationName"],
+    ["آماده‌سازی (دقیقه)",r=>fmt(r.setupMinutes)],
+    ["زمان هر واحد (دقیقه)",r=>fmt(r.runMinutesPerUnit)],
+    ["بازده عملیات (%)",r=>fmt(r.yieldPercent)],
+    ["بار لازم (دقیقه)",r=>fmt(r.requiredMinutes)],
+    ["ظرفیت در دسترس (دقیقه)",r=>fmt(r.availableMinutes)],
+    ["ظرفیت مستقل محصول (واحد)",r=>fmt(r.standaloneCapacityUnits)],
+    ["درصد بار",r=>r.utilizationPercent===null?"فاقد ظرفیت":fmt(r.utilizationPercent)+"٪"],
+    ["اضافه‌بار (دقیقه)",r=>fmt(r.overloadMinutes)]
+   ],result.rows||[]);
+   alertText("گزارش CRP محصول‌محور به‌روزرسانی شد. ظرفیت هر ردیف مستقل است و ظرفیت ترکیبی قابل‌تعهد نیست.");
+  }catch(e){alertText(e.message,true);}finally{btn.disabled=false;}
+ };
  load().catch(e=>alertText("اتصال داده‌های محیط توسعه برقرار نیست: "+e.message,true));
 }
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",boot);else boot();
