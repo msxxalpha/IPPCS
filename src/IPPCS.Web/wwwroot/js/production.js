@@ -21,7 +21,7 @@
     ["هزینه تبدیل","نرخ داخلی و مغایرت هزینه واقعی/استاندارد","قابل آزمایش؛ UAT باز","/planning-advanced.html"],
     ["داشبورد و شاخص‌ها","گزارش‌های تحلیلی تولید، کیفیت و CAPA","قابل آزمایش؛ UAT باز","/factory-reports.html"]
   ];
-  const state={items:[],centers:[],routings:[],shifts:[],plans:[]};
+  const state={items:[],centers:[],routings:[],shifts:[],plans:[],productCapacities:[]};
   const $=sel=>document.querySelector(sel);
   const $$=sel=>Array.from(document.querySelectorAll(sel));
   const nameBy = (rows,id) => rows.find(x=>x.id===id)?.name || rows.find(x=>x.id===id)?.code || String(id).slice(0,8);
@@ -82,11 +82,70 @@
   }
   function displayItems(){
     table($("#item-list"),[["کد", "code"],["عنوان", "name"],["واحد", "unit"],["نوع",x=>["مواد اولیه","نیمه‌ساخته","محصول نهایی","مصرفی"][x.type]||x.type]],state.items);
-    $$("[data-items]").forEach(x=>fillSelect(x,state.items));
+    $("[data-items]").forEach(x=>fillSelect(x,state.items));
+    const products=state.items.filter(x=>x.type===1||x.type===2);
+    IPPCSChoices.fill($("#center-cap-item"),products,{
+      value:"id",label:x=>x.code+" — "+x.name,
+      placeholder:"محصول نهایی یا نیمه‌ساخته را انتخاب کنید"
+    });
   }
   function displayCenters(){
-    table($("#center-list"),[["کد","code"],["شرح مرکز","name"],["ظرفیت اسمی / ساعت",x=>num(x.nominalUnitsPerHour)]],state.centers);
-    $$("[data-centers]").forEach(x=>fillSelect(x,state.centers));
+    table($("#center-list"),[["کد","code"],["شرح مرکز","name"],["ظرفیت مرجع عمومی / ساعت",x=>num(x.nominalUnitsPerHour)]],state.centers);
+    $("[data-centers]").forEach(x=>fillSelect(x,state.centers));
+  }
+  function updateProductCapacityOperations(){
+    const itemId=$("#center-cap-item").value;
+    const centerId=$("#center-cap-center").value;
+    const options=[];
+    for(const route of state.routings.filter(x=>x.itemId===itemId)){
+      for(const operation of route.operations||[]){
+        if(operation.workCenterId!==centerId)continue;
+        options.push({
+          id:operation.id,itemId:route.itemId,workCenterId:operation.workCenterId,
+          routeId:route.id,revisionCode:route.revisionCode,routingState:route.state,
+          sequence:operation.sequence,operationName:operation.name,
+          name:operation.name
+        });
+      }
+    }
+    const select=$("#center-cap-operation");
+    IPPCSChoices.fill(select,options,{
+      value:"id",
+      label:x=>`نسخه ${x.revisionCode} · عملیات ${x.sequence}: ${x.operationName} · ${["پیش‌نویس","مصوب","جایگزین"][x.routingState]||x.routingState}`,
+      placeholder:options.length?"عملیات مسیر این محصول را انتخاب کنید":
+        "برای این محصول و مرکز، عملیاتی در مسیر ساخت پیدا نشد"
+    });
+    syncProductCapacityEditor();
+  }
+  function syncProductCapacityEditor(){
+    const operationId=$("#center-cap-operation").value;
+    const row=state.productCapacities.find(x=>x.routingOperationId===operationId);
+    $("#center-cap-rate").value=row?String(row.capacityUnitsPerHour):"";
+    $("#center-cap-active").checked=row?row.isActive:true;
+    $("#center-cap-save").textContent=row?"به‌روزرسانی ظرفیت محصول‌محور":"ثبت ظرفیت محصول‌محور";
+  }
+  function displayProductCapacities(){
+    table($("#center-product-capacity-list"),[
+      ["محصول",x=>x.itemCode+" — "+x.itemName],
+      ["مرکز کاری",x=>x.workCenterCode+" — "+x.workCenterName],
+      ["نسخه مسیر","revisionCode"],
+      ["عملیات",x=>x.operationSequence+": "+x.operationName],
+      ["ظرفیت عبوری (واحد/ساعت)",x=>num(x.capacityUnitsPerHour)],
+      ["زمان معادل (دقیقه/واحد)",x=>num(x.effectiveRunMinutesPerUnit)],
+      ["وضعیت",x=>x.isActive?"فعال؛ استفاده در CRP/APS":"غیرفعال؛ رجوع به Routing"],
+      ["آخرین تغییر",x=>stringDate(x.updatedUtc)]
+    ],state.productCapacities,{
+      label:x=>x.isActive?"غیرفعال‌سازی":"فعال‌سازی",
+      run:async x=>{
+        await api("/api/v1/work-center-product-capacities/"+x.id,"PUT",{
+          routingOperationId:x.routingOperationId,
+          capacityUnitsPerHour:x.capacityUnitsPerHour,isActive:!x.isActive
+        });
+        notice(x.isActive?"ظرفیت اختصاصی غیرفعال شد؛ محاسبات به زمان Routing برمی‌گردند.":
+          "ظرفیت اختصاصی فعال شد و در محاسبات CRP و APS اعمال می‌شود.");
+        await reload();
+      }
+    });
   }
   async function displayBom(){
     const parent=$("#bom-parent").value;const data=parent?await api(`/api/v1/bom/${parent}`):[];
@@ -120,11 +179,14 @@
       }});
   }
   async function reload(){
-    const paths=["/api/v1/items","/api/v1/work-centers","/api/v1/routings","/api/v1/work-shifts","/api/v1/production-plans"];
-    const keys=["items","centers","routings","shifts","plans"];
+    const paths=["/api/v1/items","/api/v1/work-centers","/api/v1/routings",
+      "/api/v1/work-shifts","/api/v1/production-plans",
+      "/api/v1/work-center-product-capacities"];
+    const keys=["items","centers","routings","shifts","plans","productCapacities"];
     const result=await Promise.all(paths.map(p=>api(p)));
     keys.forEach((k,i)=>{state[k]=result[i];});
-    displayItems();displayCenters();displayRoutings();displayShifts();displayPlans();await displayBom();
+    displayItems();displayCenters();displayRoutings();displayShifts();displayPlans();
+    displayProductCapacities();updateProductCapacityOperations();await displayBom();
   }
   function formHandler(id,send){
     const form=$(id);
@@ -176,6 +238,9 @@
       $("#message").hidden=true;
     }));
     $("#menu-toggle").onclick=()=>$("#side").classList.toggle("open");
+    $("#center-cap-item").addEventListener("change",updateProductCapacityOperations);
+    $("#center-cap-center").addEventListener("change",updateProductCapacityOperations);
+    $("#center-cap-operation").addEventListener("change",syncProductCapacityEditor);
     $("#bom-parent").onchange=()=>displayBom().catch(e=>notice(e.message,true));
     formHandler("#item-form", f=>api("/api/v1/items","POST",{
       code:fval(f,"code"),name:fval(f,"name"),unit:fval(f,"unit"),type:Number(fval(f,"type"))
@@ -183,6 +248,15 @@
     formHandler("#center-form",f=>api("/api/v1/work-centers","POST",{
       code:fval(f,"code"),name:fval(f,"name"),nominalUnitsPerHour:decimal(f,"rate")
     }));
+    formHandler("#center-product-capacity-form",async f=>{
+      const routingOperationId=String(fval(f,"routingOperationId")||"");
+      if(!routingOperationId)throw new Error("ابتدا محصول، مرکز و عملیات معتبر را انتخاب کنید.");
+      const payload={routingOperationId,capacityUnitsPerHour:decimal(f,"capacityUnitsPerHour"),
+        isActive:$("#center-cap-active").checked};
+      const existing=state.productCapacities.find(x=>x.routingOperationId===routingOperationId);
+      if(existing)await api("/api/v1/work-center-product-capacities/"+existing.id,"PUT",payload);
+      else await api("/api/v1/work-center-product-capacities","POST",payload);
+    });
     formHandler("#bom-form",f=>api("/api/v1/bom","POST",{
       parentItemId:fval(f,"parent"),componentItemId:fval(f,"component"),
       quantityPer:decimal(f,"quantity"),scrapPercent:decimal(f,"scrap"),sequence:decimal(f,"sequence")
