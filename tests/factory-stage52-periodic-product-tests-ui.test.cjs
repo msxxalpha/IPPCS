@@ -59,5 +59,5 @@ test("new SQL tables, constraints and EF snapshot are aligned, without external-
  assert.match(migration,/IX_FactoryPeriodicTestRuns_PlanId_DueOn/);
  assert.match(snapshot,/HasIndex\("PlanId", "DueOn"\)\s*\.IsUnique\(\)/);
  assert.match(source,/سامانه کالیبراسیون/);
- assert.doesNotMatch(source,/warehouse|/i);
+ assert.doesNotMatch(source,/https?:\\/\\//i,"the test workflow must not add external-system HTTP integrations");
 });
