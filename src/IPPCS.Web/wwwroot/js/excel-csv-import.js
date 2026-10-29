@@ -155,9 +155,9 @@
         if(component.id===parent?.id)return "والد و جزء نمی‌توانند یک کالا باشند.";
         if(!Number.isInteger(number(r.sequence))||number(r.sequence)<=0||!Number.isFinite(number(r.quantityPer))||number(r.quantityPer)<=0||!Number.isFinite(number(r.scrapPercent))||number(r.scrapPercent)<0||number(r.scrapPercent)>=100)return "ترتیب، مصرف و درصد ضایعات معتبر لازم است.";
         if(ctx.bomRevisions.find(x=>x.id===rev.id)?.lines?.some(x=>x.componentItemId===component.id||x.sequence===number(r.sequence)))return "جزء یا شماره ترتیب در نسخه از قبل وجود دارد.";
-        const key=rev.id+"|"+component.id+"|"+r.sequence;
-        if(ctx.seenBom.has(key))return "جزء یا شماره ترتیب در همین فایل تکراری است.";
-        ctx.seenBom.add(key);return "";
+        const componentKey=rev.id+"|component|"+component.id, sequenceKey=rev.id+"|sequence|"+number(r.sequence);
+        if(ctx.seenBom.has(componentKey)||ctx.seenBom.has(sequenceKey))return "جزء یا شماره ترتیب در همین فایل تکراری است.";
+        ctx.seenBom.add(componentKey);ctx.seenBom.add(sequenceKey);return "";
       },
       url: (r,ctx) => apiRoot+"/bom-revisions/"+ctx.bomRevisions.find(x=>x.parentItemId===ctx.items.find(i=>i.code.toLowerCase()===r.parentCode.toLowerCase())?.id&&String(x.revision).toLowerCase()===r.revision.toLowerCase())?.id+"/lines",
       refresh: true
@@ -178,6 +178,9 @@
         if(!item)return "کد محصول در اقلام پیدا نشد.";
         if(item.type!==2)return "فقط محصول نهایی قابل ثبت در MPS است.";
         if(!Number.isFinite(number(r.quantity))||number(r.quantity)<=0||!validDate(r.neededOnJalali)||String(r.reference||"").length>120)return "مقدار، تاریخ یا مرجع نامعتبر است.";
+        const needed=normalizeDate(r.neededOnJalali), key=version.id+"|"+item.id+"|"+needed;
+        if(version.lines?.some(x=>x.itemId===item.id&&normalizeDate(x.neededOnJalali)===needed)||ctx.seenMps.has(key))return "برای این محصول و تاریخ، ردیف MPS تکراری است.";
+        ctx.seenMps.add(key);
         return "";
       },
       url: (r,ctx) => apiRoot+"/mps/"+ctx.mps.find(x=>String(x.code).toLowerCase()===r.mpsCode.toLowerCase())?.id+"/lines",
