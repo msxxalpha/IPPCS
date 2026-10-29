@@ -166,12 +166,18 @@
     try {const data=await response.json();message=data.message||data.title||data.detail||message;} catch {}
     throw new Error("HTTP "+response.status+" — "+message);
   }
-  async function context() {
+  async function context(spec) {
+    const needsRouting=spec.form==="#routing-form"||spec.form==="#operation-form";
+    const needsBom=spec.form==="#bom-form";
     const [items,centers,bom,routings]=await Promise.all([
       window.IPPCSSecurity.secureFetch(apiRoot+"/items").then(r=>{if(!r.ok)throw Error("دریافت اقلام ناموفق بود");return r.json();}),
       window.IPPCSSecurity.secureFetch(apiRoot+"/work-centers").then(r=>{if(!r.ok)throw Error("دریافت مراکز کاری ناموفق بود");return r.json();}),
-      window.IPPCSSecurity.secureFetch(apiRoot+"/bom/"+(document.querySelector("#bom-parent")?.value||"00000000-0000-0000-0000-000000000000")).then(r=>r.ok?r.json():[]).catch(()=>[]),
-      window.IPPCSSecurity.secureFetch(apiRoot+"/routings").then(r=>{if(!r.ok)throw Error("دریافت مسیرهای ساخت ناموفق بود");return r.json();})
+      needsBom ? window.IPPCSSecurity.secureFetch(apiRoot+"/items").then(r=>r.ok?r.json():[]).then(async rows=>{
+        const all=[];
+        for(const item of rows){const response=await window.IPPCSSecurity.secureFetch(apiRoot+"/bom/"+item.id);if(response.ok)all.push(...await response.json());}
+        return all;
+      }) : Promise.resolve([]),
+      needsRouting ? window.IPPCSSecurity.secureFetch(apiRoot+"/routings").then(r=>{if(!r.ok)throw Error("دریافت مسیرهای ساخت ناموفق بود");return r.json();}) : Promise.resolve([])
     ]);
     return {items,centers,bom,routings,seenBom:new Set()};
   }
@@ -209,7 +215,7 @@
         const actual=Object.keys(rows[0]).filter(k=>k!=="__line");
         const missing=spec.headers.filter(h=>!actual.includes(h));
         if(missing.length)throw new Error("ستون‌های الزامی پیدا نشد: "+missing.join(", "));
-        const ctx=await context(),seenCodes=new Set();
+        const ctx=await context(spec),seenCodes=new Set();
         let ok=0,failed=0;
         const table=document.createElement("div");table.className="table-wrap";
         const out=document.createElement("table");
@@ -220,7 +226,7 @@
         for(const r of rows){
           const tr=document.createElement("tr"),line=document.createElement("td"),identity=document.createElement("td"),result=document.createElement("td");
           line.textContent=String(r.__line);
-          identity.textContent=r.code||r.parentCode+" → "+r.componentCode||r.itemCode||"—";
+          identity.textContent=r.code||(r.parentCode&&r.componentCode?r.parentCode+" → "+r.componentCode:null)||r.itemCode||(r.itemCode&&r.revisionCode?r.itemCode+" / "+r.revisionCode:null)||r.centerCode||"—";
           let error="";
           for(const key of spec.headers) if(!spec.optional?.includes(key)&&!String(r[key]??"").trim()){error="ستون "+key+" خالی است.";break;}
           if(!error&&spec.form==="#item-form"){
