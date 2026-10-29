@@ -614,7 +614,7 @@ function register(){
    ["عملیات","operationName"],["مرکز کاری",x=>center(x.workCenterId)],
    ["آماده‌سازی (دقیقه)",x=>format(x.setupMinutes)],
    ["زمان واحد (دقیقه)",x=>format(x.runMinutesPerUnit)],
-   ["بازده","yieldPercent"],
+   ["بازده",x=>format(x.yieldPercent)+"٪"],
    ["بار محصول (دقیقه)",x=>format(x.requiredMinutes)],
    ["ظرفیت شیفت (دقیقه)",x=>format(x.availableMinutes)],
    ["ظرفیت مستقل محصول (واحد)",x=>format(x.standaloneCapacityUnits)],
