@@ -315,7 +315,12 @@
     ]);
     return {items,centers,bom,routings,bomRevisions,mps,balances,seenBom:new Set(),seenBalance:new Set(),seenMps:new Set()};
   }
-  function compareJalaliDates(a,b) {\n    const parts=v=>normalizeDate(v).split("/").map(Number);\n    const x=parts(a),y=parts(b);\n    for(let i=0;i<3;i++){if(x[i]!==y[i])return x[i]-y[i];}\n    return 0;\n  }\n  function validDate(v) {
+  function compareJalaliDates(a,b) {
+    const parts=v=>normalizeDate(v).split("/").map(Number);
+    const x=parts(a),y=parts(b);
+    for(let i=0;i<3;i++){if(x[i]!==y[i])return x[i]-y[i];}
+    return 0;
+  }\n  function validDate(v) {
     const parts=normalizeDate(v).split("/");
     return parts.length===3 && parts[0].length===4 && parts.every(p=>p.length>0&&Array.from(p).every(ch=>ch>="0"&&ch<="9")) &&
       Number(parts[1])>=1&&Number(parts[1])<=12&&Number(parts[2])>=1&&Number(parts[2])<=31;
