@@ -209,10 +209,11 @@ async function boot(){
   for(const panel of $("#material-options-container [data-material-group]")){
    const hasUsage=materialSnapshot.groups.find(g=>g.groupCode===panel.dataset.materialGroup)
      ?.options.some(x=>x.actualQuantity>0)||false;
+   panel.dataset.materialLocked=hasUsage?"true":"false";
    panel.querySelectorAll("[data-material-share]").forEach(el=>el.disabled=!editableStatus||hasUsage);
   }
-  $("#material-options-save").disabled=!editableStatus||
-    materialSnapshot.groups.some(g=>g.options.some(x=>x.actualQuantity>0));
+  $("#material-options-save").disabled=!editableStatus||materialSnapshot.groups.length===0||
+    materialSnapshot.groups.every(g=>g.options.some(x=>x.actualQuantity>0));
   $("#material-usage-form").querySelectorAll("input,select,button").forEach(el=>el.disabled=!usageStatus);
   if(!usageStatus)flash("ثبت مصرف واقعی فقط برای دستور آزادشده یا در حال اجرا مجاز است.");
   const choices=[];
@@ -242,6 +243,7 @@ async function boot(){
    if(!materialSnapshot)await loadMaterialOptions();
    const id=$("#material-order").value;
    for(const panel of $("#material-options-container [data-material-group]")){
+    if(panel.dataset.materialLocked==="true")continue;
     const groupCode=panel.dataset.materialGroup;
     const shares=Array.from(panel.querySelectorAll("[data-material-share]"))
       .map(el=>({bomLineId:el.dataset.lineId,sharePercent:Number(el.value)}));
