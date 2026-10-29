@@ -31,6 +31,18 @@ public static class NetMrpDemandPegging
         IReadOnlyDictionary<Guid, PlanningItemType> types,
         IReadOnlyList<MrpRow> mrpRows)
     {
+        if (mpsLines.Any(x => x.Id == Guid.Empty || x.ItemId == Guid.Empty || x.Quantity <= 0) ||
+            mpsLines.Select(x => x.Id).Distinct().Count() != mpsLines.Count)
+            throw new InvalidOperationException("ردیف‌های MPS باید شناسه یکتا، قلم معتبر و مقدار مثبت داشته باشند.");
+        if (balances.Any(x => x.ItemId == Guid.Empty) ||
+            balances.Select(x => x.ItemId).Distinct().Count() != balances.Count)
+            throw new InvalidOperationException("برای هر قلم دقیقاً یک رکورد مبنای برنامه‌ریزی لازم است.");
+        if (receipts.Any(x => x.Id == Guid.Empty || x.ItemId == Guid.Empty || x.Quantity <= 0) ||
+            receipts.Select(x => x.Id).Distinct().Count() != receipts.Count)
+            throw new InvalidOperationException("دریافت‌های برنامه‌ای باید شناسه یکتا، قلم معتبر و مقدار مثبت داشته باشند.");
+        if (mrpRows.Select(x => (x.ItemId, x.NeededOn)).Distinct().Count() != mrpRows.Count)
+            throw new InvalidOperationException("برای هر قلم و تاریخ فقط یک ردیف MRP قابل پذیرش است.");
+
         var approved = boms.Where(b => b.State == ManufacturingRevisionState.Approved)
             .GroupBy(b => b.ParentItemId).ToDictionary(g => g.Key, g => g.ToList());
         var depth = new Dictionary<Guid, int>();
