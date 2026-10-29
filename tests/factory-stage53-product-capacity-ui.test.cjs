@@ -9,6 +9,7 @@ const production=read("js/production.js");
 const crp=fs.readFileSync(path.resolve(root,"../PlanningStageThree.cs"),"utf8");
 const capacity=fs.readFileSync(path.resolve(root,"../WorkCenterProductCapacity.cs"),"utf8");
 const aps=fs.readFileSync(path.resolve(root,"../FactoryDemandSopAps.cs"),"utf8");
+const mrpCapacity=fs.readFileSync(path.resolve(root,"../MrpLotCapacityPreview.cs"),"utf8");
 const mpsChange=fs.readFileSync(path.resolve(root,"../FactoryMpsChangeControl.cs"),"utf8");
 const program=fs.readFileSync(path.resolve(root,"../Program.cs"),"utf8");
 const migration=fs.readFileSync(path.resolve(root,"../Migrations/CI/20261029130000_StageFiftyThreeWorkCenterProductCapacities.cs"),"utf8");
@@ -59,6 +60,14 @@ test("S&OP, finite APS and MPS revision impact use the same active product rates
  assert.match(mpsChange,/LoadActiveRates\(db,ct\)/);
  assert.match(mpsChange,/RunRoughCutCrp\(source\.Lines,routings,shifts,productCapacityRates\)/);
  assert.match(mpsChange,/RunRoughCutCrp\(candidate\.Lines,routings,shifts,productCapacityRates\)/);
+});
+
+test("net MRP lot capacity preview applies product overrides and cumulative downstream yields",()=>{
+ assert.match(mrpCapacity,/WorkCenterProductCapacityRules\.LoadActiveRates\(db,ct\)/);
+ assert.match(mrpCapacity,/WorkCenterProductCapacityRules\.ApplyToRoutes\(routings,productCapacityRates\)/);
+ assert.match(mrpCapacity,/cumulativeYield\*=ops\[j\]\.YieldPercent\/100m/);
+ assert.match(mrpCapacity,/quantities\[i\]=lot\.Quantity\/cumulativeYield/);
+ assert.match(mrpCapacity,/new ApsTask\(taskId,lot\.ItemId,lot\.ReceiptOn,quantities\[i\]/);
 });
 
 test("the application and SQL migration carry the same per-operation capacity table and unique key",()=>{
