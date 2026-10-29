@@ -52,6 +52,28 @@ public sealed class BomAlternativePlanningTests
     }
 
     [Fact]
+    public void Mixed_order_allocation_calculates_each_option_quantity_from_its_own_usage_factor()
+    {
+        var preferred = new ManufacturingBomLine
+        {
+            ComponentItemId = Guid.NewGuid(), QuantityPer = 2, ScrapPercent = 0,
+            AlternativeGroupCode = "MAT", IsDefaultAlternative = true
+        };
+        var substitute = new ManufacturingBomLine
+        {
+            ComponentItemId = Guid.NewGuid(), QuantityPer = 3, ScrapPercent = 0,
+            AlternativeGroupCode = "MAT", IsDefaultAlternative = false
+        };
+
+        var preferredQuantity = BomAlternativeExecution.CalculatePlannedComponentQuantity(100, preferred, 70);
+        var substituteQuantity = BomAlternativeExecution.CalculatePlannedComponentQuantity(100, substitute, 30);
+
+        Assert.Equal(140m, preferredQuantity);
+        Assert.Equal(90m, substituteQuantity);
+        Assert.Equal(200m, BomAlternativeExecution.CalculatePlannedComponentQuantity(100, preferred));
+    }
+
+    [Fact]
     public void Bom_approval_requires_two_options_and_exactly_one_default_per_group()
     {
         var parent = Guid.NewGuid();
