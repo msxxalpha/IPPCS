@@ -8,10 +8,10 @@ const pages=[
  "execution.html","control-plan.html","engineering-rebind.html",
  "factory-recall.html","production-deviations.html",
  "factory-master-data.html","factory-release-readiness.html",
- "factory-analytical-verification.html","factory-reports.html","system-users.html","login.html"
+ "factory-analytical-verification.html","factory-reports.html","periodic-tests.html","system-users.html","login.html"
 ];
 const text=file=>fs.readFileSync(path.join(root,file),"utf8");
-test("all 15 entry pages serving the 18 modules are Persian RTL, accessible and load real assets",()=>{
+test("all 16 entry pages serving the 18 modules are Persian RTL, accessible and load real assets",()=>{
  for(const file of pages){
   const html=text(file);
   assert.match(html,/<html[^>]*lang="fa"/,file);
