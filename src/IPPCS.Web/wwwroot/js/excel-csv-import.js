@@ -75,6 +75,7 @@
       form: "#routing-form", title: "ورود گروهی نسخه‌های مسیر ساخت از فایل Excel/CSV",
       file: "ippcs-routing-revisions-template.csv",
       headers: ["itemCode","revisionCode","effectiveFromJalali","effectiveToJalali"],
+      optional: ["effectiveToJalali"],
       sample: [["FG-001","A","1405/01/01",""]],
       help: "کالا باید از قبل تعریف شده باشد. تاریخ پایان اختیاری است. نسخه‌ها ابتدا به صورت پیش‌نویس ثبت می‌شوند و برای تصویب باید کنترل‌های مهندسی را بگذرانند.",
       map: (r,ctx) => ({itemId:ctx.items.find(x=>x.code.toLowerCase()===r.itemCode.toLowerCase())?.id, revisionCode:r.revisionCode, effectiveFromJalali:normalizeDate(r.effectiveFromJalali), effectiveToJalali:r.effectiveToJalali?normalizeDate(r.effectiveToJalali):null}),
@@ -221,7 +222,7 @@
           line.textContent=String(r.__line);
           identity.textContent=r.code||r.parentCode+" → "+r.componentCode||r.itemCode||"—";
           let error="";
-          for(const key of spec.headers) if(!String(r[key]??"").trim()){error="ستون "+key+" خالی است.";break;}
+          for(const key of spec.headers) if(!spec.optional?.includes(key)&&!String(r[key]??"").trim()){error="ستون "+key+" خالی است.";break;}
           if(!error&&spec.form==="#item-form"){
             const key=r.code.toLowerCase();if(seenCodes.has(key))error="کد در خود فایل تکراری است.";else seenCodes.add(key);
           }
