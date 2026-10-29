@@ -394,18 +394,8 @@ public static class PlanningStageThreeEndpoints
             if(other.Any(x=>x.ParentItemId==rev.ParentItemId && x.ValidFrom<=(rev.ValidUntil??DateOnly.MaxValue)
                 && rev.ValidFrom<=(x.ValidUntil??DateOnly.MaxValue)))
                 return Results.Conflict(new{message="نسخه‌های تأییدشده دارای همپوشانی تاریخی هستند."});
-            // Conservative cycle rejection across all approved revisions, even disjoint dates.
-            var edges=other.Append(rev).SelectMany(x=>x.Lines.Select(l=>(Parent:x.ParentItemId,Child:l.ComponentItemId))).ToList();
-            var visiting=new HashSet<Guid>();var done=new HashSet<Guid>();
-            bool Cycle(Guid x){
-                if(visiting.Contains(x))return true;
-                if(!done.Add(x))return false;
-                visiting.Add(x);
-                foreach(var e in edges.Where(e=>e.Parent==x))if(Cycle(e.Child))return true;
-                visiting.Remove(x);return false;
-            }
-            if(edges.Select(x=>x.Parent).Distinct().Any(Cycle))
-                return Results.Conflict(new{message="ساختار مصوب موجب چرخه در BOM می‌شود."});
+            if(FactoryRevisionGovernance.HasEffectiveBomCycle(other.Where(x=>x.Id!=rev.Id).Append(rev)))
+                return Results.Conflict(new{message="ساختار BOM در یک بازه تاریخی مشترک موجب چرخه می‌شود."});
             rev.State=ManufacturingRevisionState.Approved;await db.SaveChangesAsync(ct);
             await tx.CommitAsync(ct);
             return Results.Ok(new{rev.Id,rev.State});
