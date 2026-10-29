@@ -119,11 +119,11 @@ function boot(){
    window.open("/factory-print.html?"+q.toString(),"_blank","noopener");
   });
  }
- $("nav [data-section]").forEach(b=>b.onclick=()=>{
+ $("nav [data-section]").forEach(b=>b.addEventListener("click",()=>{
   $$("section.page").forEach(s=>s.hidden=s.id!==b.dataset.section);
   $$("nav [data-section]").forEach(btn=>btn.classList.toggle("nav-active",btn===b));
   $("#title").textContent=b.textContent;$("#alert").hidden=true;
- });
+ }));
  // Open the requested working tab from analytic preflight links.
  const initialTab=decodeURIComponent(location.hash.slice(1));
  const tabButton=$("nav [data-section]").find(x=>x.dataset.section===initialTab);
