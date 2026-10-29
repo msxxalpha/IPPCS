@@ -15,28 +15,49 @@
 <div class="app-shell">
   <aside class="sidebar" id="side">
     <div class="brand"><div class="brand-logo">IP</div><div><strong>ایندامین سایپا</strong><small>سامانه جامع برنامه‌ریزی و کنترل تولید</small></div></div>
-    <div class="side-caption">ابزارهای توسعه و آزمون کارخانه</div>
+    <div class="side-caption">مسیر عملیاتی سامانه</div>
     <nav id="primary-nav" aria-label="بخش‌های سامانه">
       <button data-page="overview" class="nav-active">نمای کلی سامانه</button>
-      <a class="planning-link" href="/factory-release-readiness.html">آمادگی آزمون ۱۸ ماژول و راهنمای شروع</a>
-      <a class="planning-link" href="/factory-analytical-verification.html">آزمون هدایت‌شده ۸ ماژول تحلیلی</a>
-      <a class="planning-link" href="/factory-reports.html">گزارش‌های مدیریتی و عملیاتی تولید</a>
-      <a class="planning-link" href="/factory-master-data.html">اطلاعات پایه · فهرست‌های مرجع</a>
-      <button data-page="items">اقلام و محصولات تولیدی</button>
-      <button data-page="centers">مراکز کاری</button>
-      <button data-page="bom">ساختار مواد (BOM)</button>
-      <button data-page="routings">مسیر و عملیات ساخت</button>
-      <button data-page="shifts">شیفت‌های کاری</button>
-      <button data-page="plans">برنامه‌های تولید</button>
-      <a class="planning-link" href="/planning.html">مدیریت BOM نسخه‌دار، MPS، MRP و CRP</a>
-      <a class="planning-link" href="/engineering-rebind.html">کنترل تغییر نسخه BOM و Routing دستورات پیش‌نویس</a>
-      <a class="planning-link" href="/execution.html">دستورات ساخت و کنترل اجرای تولید</a>
-      <a class="planning-link" href="/control-plan.html">کنترل پلن و ردیابی تولید</a>
-      <a class="planning-link" href="/factory-recall.html">بررسی دامنه اثر بچ و سریال‌های متأثر</a>
-      <a class="planning-link" href="/mps-pegging.html">تخصیص دستورات به برنامه MPS</a>
-      <a class="planning-link" href="/production-deviations.html">مدیریت انحرافات برنامه و اقدامات اصلاحی</a>
-      <a class="planning-link" href="/planning-advanced.html">تقاضا، S&OP، APS و تحلیل تولید</a>
-      <a class="planning-link" href="/system-users.html">حساب شخصی و کاربران سامانه</a>
+      <div class="nav-group" aria-label="داده‌های پایه کارخانه">
+        <div class="nav-group-title">۱. داده‌های پایه کارخانه</div>
+        <a class="planning-link" href="/factory-master-data.html">فهرست‌های مرجع و اطلاعات پایه</a>
+        <button data-page="items">اقلام و محصولات تولیدی</button>
+        <button data-page="centers">مراکز کاری و منابع تولید</button>
+        <button data-page="shifts">تقویم شیفت و ظرفیت زمانی مراکز</button>
+      </div>
+      <div class="nav-group" aria-label="مهندسی محصول و ساخت">
+        <div class="nav-group-title">۲. مهندسی محصول و ساخت</div>
+        <button data-page="bom">ساختار مواد (BOM)</button>
+        <button data-page="routings">مسیر ساخت و عملیات</button>
+        <a class="planning-link" href="/engineering-rebind.html">کنترل تغییر نسخه BOM و Routing</a>
+      </div>
+      <div class="nav-group" aria-label="برنامه‌ریزی تولید">
+        <div class="nav-group-title">۳. برنامه‌ریزی تولید</div>
+        <a class="planning-link" href="/planning-advanced.html">تقاضا، پیش‌بینی، S&amp;OP، APS و سناریوهای ظرفیت</a>
+        <button data-page="plans">برنامه مقدماتی تولید (نمونه محدود)</button>
+        <a class="planning-link" href="/planning.html">BOM نسخه‌دار، برنامه MPS، نیازسنجی MRP و ظرفیت‌سنجی CRP</a>
+        <a class="planning-link" href="/mps-pegging.html">تخصیص و ردیابی دستورات نسبت به MPS</a>
+      </div>
+      <div class="nav-group" aria-label="اجرای تولید">
+        <div class="nav-group-title">۴. اجرای تولید</div>
+        <a class="planning-link" href="/execution.html">دستورات ساخت و کنترل اجرای عملیات</a>
+        <a class="planning-link" href="/production-deviations.html">انحراف برنامه، علل و اقدامات اصلاحی</a>
+      </div>
+      <div class="nav-group" aria-label="آزمایش‌ها و تست‌های دوره‌ای و سالانه">
+        <div class="nav-group-title">۵. آزمایش‌ها و تست‌های دوره‌ای/سالانه</div>
+        <a class="planning-link" href="/control-plan.html">کنترل کیفیت، بازرسی حین تولید، تست نهایی EOL و SPC</a>
+        <a class="planning-link" href="/factory-release-readiness.html">آمادگی آزمون و گیت‌های پذیرش ۱۸ ماژول</a>
+        <a class="planning-link" href="/factory-analytical-verification.html">آزمون هدایت‌شده محاسبات و داده‌های واقعی</a>
+      </div>
+      <div class="nav-group" aria-label="ردیابی و گزارش‌ها">
+        <div class="nav-group-title">۶. ردیابی و گزارش‌ها</div>
+        <a class="planning-link" href="/factory-recall.html">ردیابی بچ، سریال و بررسی دامنه اثر</a>
+        <a class="planning-link" href="/factory-reports.html">گزارش‌های مدیریتی و عملیاتی تولید</a>
+      </div>
+      <div class="nav-group" aria-label="مدیریت سامانه">
+        <div class="nav-group-title">۷. مدیریت سامانه</div>
+        <a class="planning-link" href="/system-users.html">حساب شخصی و کاربران سامانه</a>
+      </div>
     </nav>
     <div class="sidebar-foot">IPPCS • Stage 35 development preview<br>بدون اتصال به انبار، خرید، فروش یا منابع انسانی<br>پذیرش کارخانه و مجوز انتشار هنوز انجام نشده است</div>
   </aside>
@@ -67,7 +88,7 @@
         <form id="center-form" class="panel form-grid">
           <label>کد مرکز کاری <input name="code" required maxlength="64"></label>
           <label>نام مرکز کاری <input name="name" required maxlength="256"></label>
-          <label>ظرفیت اسمی (واحد در ساعت) <input name="rate" type="number" min="0.0001" step="any" required></label>
+          <label>ظرفیت مرجع عمومی (واحد/ساعت؛ ظرفیت محصول در CRP از مسیر و زمان عملیات محاسبه می‌شود) <input name="rate" type="number" min="0.0001" step="any" required></label>
           <div class="form-actions"><button class="btn-main" type="submit">ثبت مرکز کاری</button></div>
         </form>
         <div class="panel table-panel"><h3>فهرست مراکز کاری</h3><div id="center-list"></div></div>
