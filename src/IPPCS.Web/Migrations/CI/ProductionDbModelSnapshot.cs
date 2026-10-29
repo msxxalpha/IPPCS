@@ -908,8 +908,8 @@ namespace IPPCS.Web.Migrations.CI
                         .HasColumnType("datetime2");
 
                     b.Property<string>("Details")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
 
                     b.Property<Guid>("OrderId")
                         .HasColumnType("uniqueidentifier");
