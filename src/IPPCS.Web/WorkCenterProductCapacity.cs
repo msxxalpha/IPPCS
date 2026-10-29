@@ -157,7 +157,7 @@ public static class WorkCenterProductCapacityRules
             ProductionDb db, HttpContext http, CancellationToken ct) =>
         {
             if (input.RoutingOperationId == Guid.Empty ||
-                input.CapacityUnitsPerHour is <= 0 or > 1_000_000m)
+                input.CapacityUnitsPerHour is < 0.0001m or > 1_000_000m)
                 return Results.BadRequest(new
                 {
                     message = "عملیات محصول و ظرفیت عبوری مثبت تا یک میلیون واحد در ساعت لازم است."
