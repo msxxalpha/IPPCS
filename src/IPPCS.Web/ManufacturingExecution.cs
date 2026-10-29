@@ -112,7 +112,7 @@ public static class ManufacturingExecutionEndpoints
         model.Entity<ManufacturingDowntime>().HasOne<ManufacturingOrder>().WithMany().HasForeignKey(x=>x.OrderId).OnDelete(DeleteBehavior.Restrict);
         model.Entity<ManufacturingDowntime>().HasOne<ManufacturingOrderOperation>().WithMany().HasForeignKey(x=>x.OperationId).OnDelete(DeleteBehavior.Restrict);
         model.Entity<ManufacturingOrderAudit>().Property(x=>x.Action).HasMaxLength(64);
-        model.Entity<ManufacturingOrderAudit>().Property(x=>x.Details).HasMaxLength(500);
+        model.Entity<ManufacturingOrderAudit>().Property(x=>x.Details).HasMaxLength(2000);
         model.Entity<ManufacturingOrderAudit>().HasOne<ManufacturingOrder>().WithMany().HasForeignKey(x=>x.OrderId).OnDelete(DeleteBehavior.Restrict);
     }
 
