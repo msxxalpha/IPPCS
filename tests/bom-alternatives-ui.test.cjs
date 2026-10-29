@@ -27,6 +27,9 @@ test('order UI can allocate alternatives and record actual material usage', () =
   assert.match(executionJs, /\/material-usage/);
   assert.match(service, /SharePercent/);
   assert.match(service, /ComponentItemId = line.ComponentItemId/);
+  assert.match(service, /RecordedBy = context\.User\.Identity/);
+  assert.match(execution, /material-usage-history/);
+  assert.match(executionJs, /x\.recordedBy/);
   assert.match(service, /مصرف تجمعی از مقدار برنامه‌ریزی‌شده بیشتر است/);
 });
 
