@@ -715,6 +715,8 @@ public static class FactoryDemandApsEndpoints
             return Results.Ok(new{runId=snapshot.Id,snapshot.Algorithm,
                 allocations=result.Allocations.Select(x=>new{x.ItemId,x.WorkCenterId,x.Sequence,
                     x.Quantity,x.OperationName,x.DurationMinutes,x.Late,
+                    startDateIso=x.StartDate.ToString("yyyy-MM-dd",CultureInfo.InvariantCulture),
+                    finishDateIso=x.FinishDate.ToString("yyyy-MM-dd",CultureInfo.InvariantCulture),
                     startJalali=PersianPlanningDates.Format(x.StartDate),
                     startTime=x.StartsAt.ToString("HH:mm"),
                     finishJalali=PersianPlanningDates.Format(x.FinishDate),
