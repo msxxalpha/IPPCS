@@ -199,6 +199,11 @@ window.IPPCSHelpFields = {
     "mrp-risk-form": [
       "نسخه مصوب MPS"
     ],
+    "mrp-capacity-preview-form": [
+      "نسخه مصوب MPS",
+      "افق زمان‌بندی (روز)",
+      "ضریب ظرفیت سناریو"
+    ],
     "crp-stress-form": [
       "نسخه مصوب MPS"
     ]
