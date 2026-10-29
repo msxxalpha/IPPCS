@@ -237,6 +237,19 @@ public static class ManufacturingExecutionEndpoints
                 order,route,bom,pegs,pegLines);
             if(releaseIssues.Count>0)
                 return Results.Conflict(new{message="پیش‌شرط‌های آزادسازی دستور برقرار نیست.",issues=releaseIssues});
+            var materialAllocations=await db.Set<ManufacturingOrderMaterialAllocation>().AsNoTracking()
+                .Where(x=>x.OrderId==id).ToListAsync(ct);
+            var bomLineIds=bom!.Lines.Select(x=>x.Id).ToHashSet();
+            if(materialAllocations.Any(x=>!bomLineIds.Contains(x.BomLineId)))
+                return Results.Conflict(new{message="تخصیص مواد دستور به نسخه منجمد BOM تعلق ندارد."});
+            foreach(var group in bom.Lines.Where(x=>!string.IsNullOrWhiteSpace(x.AlternativeGroupCode))
+                .GroupBy(x=>x.AlternativeGroupCode!,StringComparer.OrdinalIgnoreCase))
+            {
+                var selected=materialAllocations.Where(a=>group.Any(line=>line.Id==a.BomLineId)).ToArray();
+                if(selected.Length>0&&(selected.Any(x=>x.SharePercent<=0||x.SharePercent>100||x.PlannedQuantity<=0)
+                    ||selected.Sum(x=>x.SharePercent)!=100m))
+                    return Results.Conflict(new{message=$"سهم آلترناتیوهای گروه {group.Key} باید دقیقاً ۱۰۰٪ باشد."});
+            }
             var controlPlans=await db.ManufacturingControlPlans.AsNoTracking()
                 .Include(x=>x.Characteristics)
                 .Where(x=>x.RoutingRevisionId==order.RoutingRevisionId && x.State==ControlPlanState.Approved
