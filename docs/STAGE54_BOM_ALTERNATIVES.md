@@ -24,4 +24,4 @@ This change is confined to IPPCS production planning and execution. It does not 
 ## SQL and tests
 Migration `20261029140000_StageFiftyFourBomAlternatives` adds the optional group/default/priority metadata and the order allocation/usage tables. Existing BOM lines remain mandatory by default through migration defaults.
 
-Unit tests cover default-only MRP demand and rejection of multiple defaults. Browser contract tests cover BOM entry, CSV import, order-level allocations, and actual usage UI. The consolidated GitHub Actions run remains unverified while the repository's GitHub Actions billing/spending-limit lock is unresolved; run the full .NET, JavaScript, EF model-drift, migration, and disposable SQL checks at the latest branch head before merge or deployment.
+Unit tests cover default-only MRP demand and rejection of multiple defaults. Browser contract tests cover BOM entry, CSV import, order-level allocations, and actual usage UI. The full consolidated GitHub Actions run must pass at the latest branch head before merge or deployment; CI does not substitute for factory UAT.
