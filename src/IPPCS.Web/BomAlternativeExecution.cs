@@ -55,9 +55,13 @@ public static class BomAlternativeExecution
             .WithMany().HasForeignKey(x => x.ComponentItemId).OnDelete(DeleteBehavior.Restrict);
     }
 
-    private static decimal RequiredQuantity(ManufacturingOrder order, ManufacturingBomLine line, decimal? sharePercent = null)
+    public static decimal CalculatePlannedComponentQuantity(
+        decimal orderQuantity, ManufacturingBomLine line, decimal? sharePercent = null)
     {
-        var quantity = order.PlannedQuantity * line.QuantityPer / (1m - line.ScrapPercent / 100m);
+        if (orderQuantity <= 0 || line.QuantityPer <= 0 || line.ScrapPercent is < 0 or >= 100 ||
+            (sharePercent.HasValue && sharePercent.Value is <= 0 or > 100))
+            throw new InvalidOperationException("مقدار دستور، ضریب مصرف، ضایعات یا سهم آلترناتیو نامعتبر است.");
+        var quantity = orderQuantity * line.QuantityPer / (1m - line.ScrapPercent / 100m);
         return sharePercent.HasValue ? quantity * sharePercent.Value / 100m : quantity;
     }
 
@@ -99,7 +103,7 @@ public static class BomAlternativeExecution
                                 ?? (line.IsDefaultAlternative && !allocations.Any(a => g.Any(gl => gl.Id == a.BomLineId)) ? 100m : 0m),
                             plannedQuantity = allocationByLine.GetValueOrDefault(line.Id)?.PlannedQuantity
                                 ?? (line.IsDefaultAlternative && !allocations.Any(a => g.Any(gl => gl.Id == a.BomLineId))
-                                    ? RequiredQuantity(order, line) : 0m),
+                                    ? CalculatePlannedComponentQuantity(order.PlannedQuantity, line) : 0m),
                             actualQuantity = usedByLine.GetValueOrDefault(line.Id)
                         })
                     }),
@@ -173,7 +177,7 @@ public static class BomAlternativeExecution
                     OrderId = id,
                     BomLineId = line.Id,
                     SharePercent = share.SharePercent,
-                    PlannedQuantity = RequiredQuantity(order, line, share.SharePercent)
+                    PlannedQuantity = CalculatePlannedComponentQuantity(order.PlannedQuantity, line, share.SharePercent)
                 });
             }
             db.ManufacturingOrderAudits.Add(new ManufacturingOrderAudit
