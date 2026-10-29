@@ -64,5 +64,5 @@ test("field-level help labels cover every real form",()=>{
    count++;
   }
  }
- assert.equal(count,65);
+ assert.equal(count,66);
 });
