@@ -66,7 +66,6 @@ public sealed class PlanningMrpEffectiveBomTests
         Assert.Contains(rows, x => x.ItemId == currentRaw && x.GrossRequired == 15);
         Assert.DoesNotContain(rows, x => x.ItemId == historicalRaw);
     }
-}
 
     [Fact]
     public void Bom_revision_is_selected_at_suggested_release_date_not_need_date()
