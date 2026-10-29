@@ -246,6 +246,18 @@
 <div class="form-actions"><button type="submit" class="btn-outline">تحلیل پوشش فرضی مواد و بچ‌ها</button></div>
 </form>
 <div class="panel"><h3>منشأ تأمین فرضی، کمبود زمان و آزادسازی‌های قبل از مبنا</h3><div id="mrp-risk-summary"></div><div id="mrp-risk-lines"></div></div>
+<form id="mrp-capacity-preview-form" class="panel form-grid">
+<h3 class="wide">پیش‌نمایش زمان‌بندی بچ‌های پیشنهادی MRP با ظرفیت محدود</h3>
+<p class="wide">این گزارش بچ‌های ساخت پیشنهادی MRP خالص را با مسیر ساخت، شیفت، ظرفیت مراکز، دستورهای فعال، رزروهای داخلی و ساعت‌های ثبت‌شده تطبیق می‌دهد. نتیجه فقط شبیه‌سازی است و دستور ساخت یا رزرو واقعی ایجاد نمی‌کند.</p>
+<label>نسخه مصوب MPS<select name="mpsId" data-mps required></select></label>
+<label>افق زمان‌بندی (روز)<input name="horizon" type="number" min="1" max="90" value="30" required></label>
+<label>ضریب ظرفیت سناریو<input name="capacity" type="number" min="0.1" max="2" step="any" value="1" required></label>
+<div class="form-actions"><button type="submit" class="btn-outline">محاسبه زمان‌بندی بچ‌های MRP</button></div>
+</form>
+<div class="panel"><h3>خلاصه امکان‌پذیری بچ‌ها</h3><div id="mrp-capacity-summary"></div></div>
+<div class="panel"><h3>وضعیت و موعد بچ‌های پیشنهادی</h3><div id="mrp-capacity-lots"></div></div>
+<div class="panel"><h3>عملیات تخصیص‌یافته به شیفت و مرکز کاری</h3><div id="mrp-capacity-allocations"></div></div>
+<div class="panel"><h3>عملیات تخصیص‌نیافته و علت</h3><div id="mrp-capacity-unscheduled"></div></div>
 <form id="crp-stress-form" class="panel form-grid">
 <h3 class="wide">گلوگاه‌های مراکز کاری بر اساس CRP</h3>
 <label>نسخه مصوب MPS<select name="mpsId" data-mps required></select></label>
