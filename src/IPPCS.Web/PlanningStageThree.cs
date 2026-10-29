@@ -394,7 +394,8 @@ public static class PlanningStageThreeEndpoints
                 return Results.Conflict(new{message="شماره ترتیب جزء اجباری تکراری است."});
             if(groupCode is not null&&existingLines.Any(x=>
                 (x.AlternativeGroupCode==groupCode&&x.Sequence!=input.Sequence)||
-                (x.AlternativeGroupCode is null&&x.Sequence==input.Sequence)))
+                (x.Sequence==input.Sequence&&
+                 !string.Equals(x.AlternativeGroupCode,groupCode,StringComparison.OrdinalIgnoreCase))))
                 return Results.Conflict(new{message="اعضای یک گروه آلترناتیو باید ترتیب یکسان داشته باشند و با جزء اجباری هم‌ردیف نشوند."});
             if(groupCode is not null&&input.IsDefaultAlternative&&existingLines.Any(x=>
                 x.AlternativeGroupCode==groupCode&&x.IsDefaultAlternative))
