@@ -127,10 +127,23 @@ public static class MrpLotCapacityPreview
                         problem="مراحل، مرکز کاری، زمان استاندارد یا بازده مسیر ساخت نامعتبر است.";
                     else
                     {
-                        var durations=ops.Select(x=>x.SetupMinutes+
-                            lot.Quantity*x.RunMinutesPerUnit*100m/x.YieldPercent).ToArray();
-                        if(durations.Any(x=>x<=0||x>20000))
-                            problem="زمان موردنیاز یکی از عملیات بچ خارج از محدوده زمان‌بندی است.";
+                        // Match CRP/APS: an upstream operation processes enough
+                        // units to cover this operation and all downstream yield losses.
+                        var quantities=new decimal[ops.Length];
+                        var durations=new decimal[ops.Length];
+                        for(var i=0;i<ops.Length;i++)
+                        {
+                            decimal cumulativeYield=1m;
+                            for(var j=i;j<ops.Length;j++)
+                                cumulativeYield*=ops[j].YieldPercent/100m;
+                            if(cumulativeYield<=0m)
+                                throw new InvalidOperationException("بازده تجمعی عملیات بچ نامعتبر است.");
+                            quantities[i]=lot.Quantity/cumulativeYield;
+                            durations[i]=ops[i].SetupMinutes+quantities[i]*ops[i].RunMinutesPerUnit;
+                        }
+                        if(durations.Any(x=>x<=0||x>20000) ||
+                            quantities.Any(x=>x<=0||x>100_000_000m))
+                            problem="زمان یا مقدار عبوری یکی از عملیات بچ خارج از محدوده زمان‌بندی است.";
                         else
                         {
                             var taskId=TaskId(lot.LotKey);
@@ -138,7 +151,7 @@ public static class MrpLotCapacityPreview
                                 throw new InvalidOperationException("شناسه محاسباتی دو بچ متفاوت یکسان شده است.");
                             earliest.Add(taskId,lot.ReleaseOn);
                             for(var i=0;i<ops.Length;i++)
-                                tasks.Add(new ApsTask(taskId,lot.ItemId,lot.ReceiptOn,lot.Quantity,
+                                tasks.Add(new ApsTask(taskId,lot.ItemId,lot.ReceiptOn,quantities[i],
                                     route.Id,ops[i].Sequence,ops[i].WorkCenterId,durations[i],ops[i].Name));
                         }
                     }
@@ -202,6 +215,8 @@ public static class MrpLotCapacityPreview
             var types=await db.Items.AsNoTracking().ToDictionaryAsync(x=>x.Id,x=>x.Type,ct);
             var routings=await db.RoutingRevisions.AsNoTracking().Include(x=>x.Operations)
                 .Where(x=>x.State==RoutingState.Approved).ToListAsync(ct);
+            var productCapacityRates=await WorkCenterProductCapacityRules.LoadActiveRates(db,ct);
+            WorkCenterProductCapacityRules.ApplyToRoutes(routings,productCapacityRates);
             var shifts=await db.WorkShifts.AsNoTracking().ToListAsync(ct);
             var auditClocks=await db.ManufacturingOrderAudits.AsNoTracking()
                 .Where(x=>x.Action==FactoryOperationClock.Started ||
