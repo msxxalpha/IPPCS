@@ -97,7 +97,7 @@
     const itemId=$("#center-cap-item").value;
     const centerId=$("#center-cap-center").value;
     const options=[];
-    for(const route of state.routings.filter(x=>x.itemId===itemId)){
+    for(const route of state.routings.filter(x=>x.itemId===itemId&&x.state!==2)){
       for(const operation of route.operations||[]){
         if(operation.workCenterId!==centerId)continue;
         options.push({
