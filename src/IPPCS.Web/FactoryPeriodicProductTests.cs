@@ -13,7 +13,6 @@ public sealed class FactoryPeriodicTestPlan
     public string Code { get; set; } = "";
     public string Name { get; set; } = "";
     public Guid ItemId { get; set; }
-    public PlanningItem Item { get; set; } = null!;
     public FactoryPeriodicTestCadence Cadence { get; set; }
     public int IntervalMonths { get; set; }
     public DateOnly FirstDueOn { get; set; }
@@ -27,14 +26,12 @@ public sealed class FactoryPeriodicTestPlan
     public bool IsActive { get; set; } = true;
     public string CreatedBy { get; set; } = "";
     public DateTime CreatedUtc { get; set; } = DateTime.UtcNow;
-    public List<FactoryPeriodicTestRun> Runs { get; set; } = new();
 }
 
 public sealed class FactoryPeriodicTestRun
 {
     public Guid Id { get; set; } = Guid.NewGuid();
     public Guid PlanId { get; set; }
-    public FactoryPeriodicTestPlan Plan { get; set; } = null!;
     public DateOnly DueOn { get; set; }
     public FactoryPeriodicTestRunState State { get; set; } = FactoryPeriodicTestRunState.Scheduled;
     public DateOnly? PerformedOn { get; set; }
@@ -120,9 +117,9 @@ public static class FactoryPeriodicTestRules
 
 public static class FactoryPeriodicProductTests
 {
-    private static object PlanView(FactoryPeriodicTestPlan x) => new
+    private static object PlanView(FactoryPeriodicTestPlan x, PlanningItem item) => new
     {
-        x.Id, x.Code, x.Name, x.ItemId, itemCode = x.Item.Code, itemName = x.Item.Name,
+        x.Id, x.Code, x.Name, x.ItemId, itemCode = item.Code, itemName = item.Name,
         cadence = x.Cadence.ToString(), x.IntervalMonths,
         firstDueJalali = PersianPlanningDates.Format(x.FirstDueOn),
         validThroughJalali = x.ValidThrough.HasValue ? PersianPlanningDates.Format(x.ValidThrough.Value) : null,
@@ -130,11 +127,11 @@ public static class FactoryPeriodicProductTests
         x.SampleCount, x.IsActive, x.CreatedBy, x.CreatedUtc
     };
 
-    private static object RunView(FactoryPeriodicTestRun x, DateOnly today) => new
+    private static object RunView(FactoryPeriodicTestRun x, FactoryPeriodicTestPlan plan, PlanningItem item, DateOnly today) => new
     {
-        x.Id, x.PlanId, planCode = x.Plan.Code, planName = x.Plan.Name,
-        x.ItemId, itemCode = x.Plan.Item.Code, itemName = x.Plan.Item.Name,
-        cadence = x.Plan.Cadence.ToString(), x.Plan.IntervalMonths,
+        x.Id, x.PlanId, planCode = plan.Code, planName = plan.Name,
+        itemId = plan.ItemId, itemCode = item.Code, itemName = item.Name,
+        cadence = plan.Cadence.ToString(), plan.IntervalMonths,
         dueJalali = PersianPlanningDates.Format(x.DueOn),
         state = x.State.ToString(),
         scheduleStatus = x.State == FactoryPeriodicTestRunState.Completed ? "Completed" :
@@ -142,7 +139,7 @@ public static class FactoryPeriodicProductTests
         performedOnJalali = x.PerformedOn.HasValue ? PersianPlanningDates.Format(x.PerformedOn.Value) : null,
         x.SampleReference, x.MeasuredValue, outcome = x.Outcome.ToString(),
         x.ReportReference, x.Notes, x.RecordedBy, x.RecordedUtc, x.CreatedUtc,
-        x.Plan.Unit, x.Plan.Minimum, x.Plan.Maximum, x.Plan.AcceptanceCriteria
+        plan.Unit, plan.Minimum, plan.Maximum, plan.AcceptanceCriteria
     };
 
     public static void ConfigureModel(ModelBuilder model)
@@ -158,7 +155,7 @@ public static class FactoryPeriodicProductTests
         model.Entity<FactoryPeriodicTestPlan>().Property(x => x.Minimum).HasPrecision(18, 6);
         model.Entity<FactoryPeriodicTestPlan>().Property(x => x.Maximum).HasPrecision(18, 6);
         model.Entity<FactoryPeriodicTestPlan>().Property(x => x.CreatedBy).HasMaxLength(256);
-        model.Entity<FactoryPeriodicTestPlan>().HasOne(x => x.Item).WithMany()
+        model.Entity<FactoryPeriodicTestPlan>().HasOne<PlanningItem>().WithMany()
             .HasForeignKey(x => x.ItemId).OnDelete(DeleteBehavior.Restrict);
 
         model.Entity<FactoryPeriodicTestRun>().HasKey(x => x.Id);
@@ -169,7 +166,7 @@ public static class FactoryPeriodicProductTests
         model.Entity<FactoryPeriodicTestRun>().Property(x => x.ReportReference).HasMaxLength(120);
         model.Entity<FactoryPeriodicTestRun>().Property(x => x.Notes).HasMaxLength(500);
         model.Entity<FactoryPeriodicTestRun>().Property(x => x.RecordedBy).HasMaxLength(256);
-        model.Entity<FactoryPeriodicTestRun>().HasOne(x => x.Plan).WithMany(x => x.Runs)
+        model.Entity<FactoryPeriodicTestRun>().HasOne<FactoryPeriodicTestPlan>().WithMany()
             .HasForeignKey(x => x.PlanId).OnDelete(DeleteBehavior.Restrict);
     }
 
@@ -181,10 +178,13 @@ public static class FactoryPeriodicProductTests
         read.MapGet("/plans", async (ProductionDb db, CancellationToken ct) =>
         {
             var rows = await db.FactoryPeriodicTestPlans.AsNoTracking()
-                .Include(x => x.Item).OrderBy(x => x.Code).Take(501).ToListAsync(ct);
+                .OrderBy(x => x.Code).Take(501).ToListAsync(ct);
             if (rows.Count > 500)
                 return Results.Conflict(new { message = "تعداد برنامه‌های آزمون بیش از سقف نمایش است؛ فهرست را محدود کنید." });
-            return Results.Ok(rows.Select(PlanView));
+            var itemIds = rows.Select(x => x.ItemId).Distinct().ToArray();
+            var items = await db.Items.AsNoTracking().Where(x => itemIds.Contains(x.Id))
+                .ToDictionaryAsync(x => x.Id, ct);
+            return Results.Ok(rows.Where(x => items.ContainsKey(x.ItemId)).Select(x => PlanView(x, items[x.ItemId])));
         });
 
         read.MapGet("/runs", async (string? fromJalali, string? throughJalali,
@@ -195,13 +195,19 @@ public static class FactoryPeriodicProductTests
                 from > through || through.DayNumber - from.DayNumber > 3660)
                 return Results.BadRequest(new { message = "تاریخ شروع/پایان شمسی معتبر و بازه حداکثر ده‌ساله لازم است." });
             var rows = await db.FactoryPeriodicTestRuns.AsNoTracking()
-                .Include(x => x.Plan).ThenInclude(x => x.Item)
                 .Where(x => x.DueOn >= from && x.DueOn <= through)
                 .OrderBy(x => x.DueOn).ThenBy(x => x.Plan.Code).Take(501).ToListAsync(ct);
             if (rows.Count > 500)
                 return Results.Conflict(new { message = "تعداد رخدادهای آزمون بیش از سقف ۵۰۰ ردیف است؛ بازه را کوتاه کنید." });
             var today = FactoryPeriodicTestRules.TodayTehran();
-            return Results.Ok(rows.Select(x => RunView(x, today)));
+            var planIds = rows.Select(x => x.PlanId).Distinct().ToArray();
+            var plans = await db.FactoryPeriodicTestPlans.AsNoTracking().Where(x => planIds.Contains(x.Id))
+                .ToDictionaryAsync(x => x.Id, ct);
+            var itemIds = plans.Values.Select(x => x.ItemId).Distinct().ToArray();
+            var items = await db.Items.AsNoTracking().Where(x => itemIds.Contains(x.Id))
+                .ToDictionaryAsync(x => x.Id, ct);
+            return Results.Ok(rows.Where(x => plans.ContainsKey(x.PlanId) && items.ContainsKey(plans[x.PlanId].ItemId))
+                .Select(x => RunView(x, plans[x.PlanId], items[plans[x.PlanId].ItemId], today)));
         });
 
         quality.MapPost("/plans", async (FactoryPeriodicTestPlanInput input, ProductionDb db,
@@ -338,12 +344,12 @@ public static class FactoryPeriodicProductTests
             if (performed > FactoryPeriodicTestRules.TodayTehran())
                 return Results.BadRequest(new { message = "تاریخ اجرای آزمون نمی‌تواند در آینده باشد." });
 
-            var run = await db.FactoryPeriodicTestRuns.Include(x => x.Plan).ThenInclude(x => x.Item)
-                .SingleOrDefaultAsync(x => x.Id == id, ct);
+            var run = await db.FactoryPeriodicTestRuns.SingleOrDefaultAsync(x => x.Id == id, ct);
             if (run is null) return Results.NotFound();
             if (run.State != FactoryPeriodicTestRunState.Scheduled)
                 return Results.Conflict(new { message = "نتیجه آزمون فقط یک بار و پیش از تکمیل رخداد ثبت می‌شود." });
-            var plan = run.Plan;
+            var plan = await db.FactoryPeriodicTestPlans.SingleOrDefaultAsync(x => x.Id == run.PlanId, ct);
+            if (plan is null) return Results.Conflict(new { message = "برنامه مبنای آزمون موجود نیست." });
             var outside = input.MeasuredValue.HasValue &&
                 ((plan.Minimum.HasValue && input.MeasuredValue.Value < plan.Minimum.Value) ||
                  (plan.Maximum.HasValue && input.MeasuredValue.Value > plan.Maximum.Value));
