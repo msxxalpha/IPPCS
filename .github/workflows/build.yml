@@ -46,7 +46,7 @@ jobs:
           node --check src/IPPCS.Web/wwwroot/js/login.js
           node --check src/IPPCS.Web/wwwroot/js/factory-print.js
       - name: Jalali browser calendar and recall UI tests
-        run: node --test tests/jalali.test.cjs tests/factory-recall-ui.test.cjs tests/eco-ui.test.cjs tests/factory-master-ui.test.cjs tests/factory-first-run-ui.test.cjs tests/factory-analytical-ui.test.cjs tests/factory-eighteen-module-ui-audit.test.cjs tests/factory-reports-ui.test.cjs tests/factory-stage39-acceptance-ui.test.cjs tests/factory-stage40-spc-ui.test.cjs tests/factory-stage41-aps-ui.test.cjs tests/factory-stage42-help.test.cjs tests/factory-stage42-shared-tool-ui.test.cjs tests/factory-stage44-print-ui.test.cjs tests/factory-stage46-navigation-ui.test.cjs
+        run: node --test tests/jalali.test.cjs tests/factory-recall-ui.test.cjs tests/eco-ui.test.cjs tests/factory-master-ui.test.cjs tests/factory-first-run-ui.test.cjs tests/factory-analytical-ui.test.cjs tests/factory-eighteen-module-ui-audit.test.cjs tests/factory-reports-ui.test.cjs tests/factory-stage39-acceptance-ui.test.cjs tests/factory-stage40-spc-ui.test.cjs tests/factory-stage41-aps-ui.test.cjs tests/factory-stage42-help.test.cjs tests/factory-stage42-shared-tool-ui.test.cjs tests/factory-stage44-print-ui.test.cjs tests/factory-stage46-navigation-ui.test.cjs tests/factory-stage47-control-plan-ui.test.cjs tests/factory-stage48-mrp-capacity-ui.test.cjs tests/factory-stage49-menu-order-ui.test.cjs
       - name: First-test PowerShell script syntax preflight (Windows compatible)
         shell: pwsh
         run: |
