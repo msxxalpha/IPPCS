@@ -89,9 +89,23 @@ public static class FactoryRevisionGovernance
             x.ComponentItemId==Guid.Empty||x.Sequence<=0||x.QuantityPer<=0||
             x.ScrapPercent<0||x.ScrapPercent>=100))
             issues.Add(new("InvalidComponent","جزء، ضریب مصرف یا ضایعات BOM نامعتبر است."));
-        if(revision.Lines.GroupBy(x=>x.Sequence).Any(x=>x.Count()>1)||
-            revision.Lines.GroupBy(x=>x.ComponentItemId).Any(x=>x.Count()>1))
-            issues.Add(new("DuplicateComponent","جزء یا شماره ترتیب BOM تکراری است."));
+        if(revision.Lines.GroupBy(x=>x.ComponentItemId).Any(x=>x.Count()>1)||
+            revision.Lines.GroupBy(x=>x.Sequence).Any(group=>group.Count()>1&&
+                (group.Any(x=>string.IsNullOrWhiteSpace(x.AlternativeGroupCode))||
+                 group.Select(x=>x.AlternativeGroupCode).Distinct(StringComparer.OrdinalIgnoreCase).Count()!=1)))
+            issues.Add(new("DuplicateComponent","جزء تکراری یا ترتیب مشترک بین گروه‌های متفاوت BOM وجود دارد."));
+        foreach(var group in revision.Lines.Where(x=>!string.IsNullOrWhiteSpace(x.AlternativeGroupCode))
+            .GroupBy(x=>x.AlternativeGroupCode!.Trim(),StringComparer.OrdinalIgnoreCase))
+        {
+            if(group.Count()<2)
+                issues.Add(new("IncompleteAlternativeGroup",$"گروه آلترناتیو {group.Key} باید حداقل دو قطعه داشته باشد."));
+            if(group.Count(x=>x.IsDefaultAlternative)!=1)
+                issues.Add(new("AlternativeDefault",$"گروه آلترناتیو {group.Key} باید دقیقاً یک قطعه پیش‌فرض داشته باشد."));
+            if(group.Any(x=>x.Sequence!=group.First().Sequence))
+                issues.Add(new("AlternativeSequence",$"ترتیب اعضای گروه آلترناتیو {group.Key} باید یکسان باشد."));
+            if(group.GroupBy(x=>x.AlternativePriority).Any(x=>x.Count()>1))
+                issues.Add(new("AlternativePriority",$"اولویت قطعات در گروه آلترناتیو {group.Key} باید یکتا باشد."));
+        }
         if(approved.Any(x=>x.Id!=revision.Id&&x.ParentItemId==revision.ParentItemId&&
             x.State==ManufacturingRevisionState.Approved&&Overlaps(
                 revision.ValidFrom,revision.ValidUntil,x.ValidFrom,x.ValidUntil)))
