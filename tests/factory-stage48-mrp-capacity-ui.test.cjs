@@ -5,6 +5,8 @@ const path=require("node:path");
 const root=path.resolve(__dirname,"../src/IPPCS.Web/wwwroot");
 const html=fs.readFileSync(path.join(root,"planning-advanced.html"),"utf8");
 const js=fs.readFileSync(path.join(root,"js/planning-advanced.js"),"utf8");
+const stageThreeHtml=fs.readFileSync(path.join(root,"planning.html"),"utf8");
+const stageThreeJs=fs.readFileSync(path.join(root,"js/planning-stage3.js"),"utf8");
 
 test("net MRP lot capacity preview is reachable from the planning workspace",()=>{
  for(const id of ["mrp-capacity-preview-form","mrp-capacity-summary",
@@ -42,4 +44,15 @@ test("MRP capacity preview stays read-only and does not create firm production o
  assert.match(form,/پیش‌نمایش/);
  assert.match(form,/دستور ساخت یا رزرو واقعی ایجاد نمی‌کند/);
  assert.doesNotMatch(js,/api\("\/manufacturing-orders".*POST/);
+});
+
+test("product-dependent CRP is directly reachable from the MPS/MRP/CRP form",()=>{
+ assert.match(stageThreeHtml,/id="product-capacity-run"/);
+ assert.match(stageThreeHtml,/id="product-capacity-summary"/);
+ assert.match(stageThreeHtml,/id="product-capacity-table"/);
+ assert.match(stageThreeJs,/\$\("#product-capacity-run"\)\.onclick/);
+ assert.match(stageThreeJs,/\/crp\/"\+id\+"\/product-capacity-preview/);
+ for(const field of ["r.setupMinutes","r.runMinutesPerUnit","r.yieldPercent",
+  "r.requiredMinutes","r.availableMinutes","r.standaloneCapacityUnits"])
+  assert.ok(stageThreeJs.includes(field),"missing product-capacity display field "+field);
 });
