@@ -14,6 +14,13 @@ public static class MaterialConstrainedPlanning
         IReadOnlyDictionary<Guid,PlanningItemType> itemTypes,
         DateOnly horizonStart)
     {
+        if (lines is null || revisions is null || balances is null || receipts is null || itemTypes is null)
+            throw new ArgumentNullException("ورودی‌های کنترل مواد نمی‌توانند تهی باشند.");
+        if (balances.GroupBy(x => x.ItemId).Any(g => g.Count() > 1))
+            throw new InvalidOperationException("برای هر قلم فقط یک موجودی مبنای برنامه‌ریزی مجاز است.");
+        if (receipts.Any(x => x.Quantity <= 0))
+            throw new InvalidOperationException("مقدار دریافت برنامه‌ای باید مثبت باشد.");
+
         var byBalance=balances.ToDictionary(x=>x.ItemId);
         var approved=revisions.Where(x=>x.State==ManufacturingRevisionState.Approved).ToList();
         var cumulativeDemand=new Dictionary<Guid,decimal>();
@@ -22,18 +29,21 @@ public static class MaterialConstrainedPlanning
         foreach(var line in ordered)
         {
             var causes=new List<string>();
+            var structureValid=true;
             var requirements=new Dictionary<Guid,decimal>();
             void Expand(Guid item,decimal qty,HashSet<Guid> stack)
             {
                 if(!stack.Add(item))
                 {
                     causes.Add("چرخه ساختار مواد شناسایی شد.");
+                    structureValid=false;
                     return;
                 }
                 var kind=itemTypes.GetValueOrDefault(item);
                 if(!itemTypes.ContainsKey(item))
                 {
                     causes.Add("اطلاعات پایه یک قطعه وجود ندارد.");
+                    structureValid=false;
                     stack.Remove(item);return;
                 }
                 // Only raw materials have assumed exogenous supply; semi-finished items
@@ -49,20 +59,27 @@ public static class MaterialConstrainedPlanning
                 if(found.Count!=1||found[0].Lines.Count==0)
                 {
                     causes.Add("BOM مصوب معتبر برای کالای ساختنی موجود نیست.");
+                    structureValid=false;
                     stack.Remove(item);return;
                 }
                 foreach(var component in found[0].Lines)
                 {
                     if(component.QuantityPer<=0||component.ScrapPercent is <0 or >=100)
                     {
-                        causes.Add("مقادیر BOM معتبر نیست.");continue;
+                        causes.Add("مقادیر BOM معتبر نیست.");
+                        structureValid=false;
+                        continue;
                     }
                     Expand(component.ComponentItemId,
                         qty*component.QuantityPer/(1-component.ScrapPercent/100m),stack);
                 }
                 stack.Remove(item);
             }
-            if(line.Quantity<=0)causes.Add("مقدار تقاضا نامعتبر است.");
+            if(line.Quantity<=0)
+            {
+                causes.Add("مقدار تقاضا نامعتبر است.");
+                structureValid=false;
+            }
             else Expand(line.ItemId,line.Quantity,new HashSet<Guid>());
             foreach(var required in requirements.OrderBy(x=>x.Key))
             {
@@ -90,7 +107,11 @@ public static class MaterialConstrainedPlanning
                 if(usable-committed<required.Value)
                     causes.Add("ماده اولیه کافی در تاریخ شروع افق موجود نیست.");
             }
-            if(causes.Count==0)
+
+            // Preserve demand priority even when this line is itself infeasible.
+            // Otherwise its shortfall would leave the same stock available to a later
+            // line, producing a false-positive APS material gate.
+            if(structureValid)
                 foreach(var r in requirements)
                     cumulativeDemand[r.Key]=cumulativeDemand.GetValueOrDefault(r.Key)+r.Value;
             results.Add(new MaterialGateResult(line.Id,line.ItemId,causes.Count==0,
