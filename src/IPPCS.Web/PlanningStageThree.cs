@@ -104,6 +104,22 @@ public record CrpProductCapacityRow(Guid MpsLineId, Guid ItemId, DateOnly Needed
 
 public static class PlanningCalculators
 {
+    // Baseline planning treats alternate lines as mutually exclusive options.
+    // Order-specific allocation can split the requirement across multiple options.
+    public static IReadOnlyList<ManufacturingBomLine> EffectiveDemandLines(ManufacturingBomRevision revision)
+    {
+        var lines = revision.Lines.Where(x => string.IsNullOrWhiteSpace(x.AlternativeGroupCode)).ToList();
+        foreach (var group in revision.Lines.Where(x => !string.IsNullOrWhiteSpace(x.AlternativeGroupCode))
+            .GroupBy(x => x.AlternativeGroupCode!, StringComparer.OrdinalIgnoreCase))
+        {
+            var defaults = group.Where(x => x.IsDefaultAlternative).ToArray();
+            if (group.Count() < 2 || defaults.Length != 1)
+                throw new InvalidOperationException("گروه آلترناتیو BOM باید حداقل دو گزینه و دقیقاً یک قطعه پیش‌فرض داشته باشد.");
+            lines.Add(defaults[0]);
+        }
+        return lines;
+    }
+
     public static List<MrpRow> RunMrp(
         IReadOnlyList<MpsDemandLine> lines, IReadOnlyList<ManufacturingBomRevision> revisions,
         IReadOnlyList<PlanningBalance> balances, IReadOnlyList<PlanningExpectedReceipt> receipts,
@@ -178,13 +194,7 @@ public static class PlanningCalculators
                 var effective=selected[0];
                 // Mandatory lines are additive. Each alternative group contributes exactly
                 // one default option to baseline MRP; order-specific mixes are handled separately.
-                var effectiveLines=effective.Lines.Where(x=>string.IsNullOrWhiteSpace(x.AlternativeGroupCode))
-                    .Concat(effective.Lines.Where(x=>!string.IsNullOrWhiteSpace(x.AlternativeGroupCode))
-                        .GroupBy(x=>x.AlternativeGroupCode!,StringComparer.OrdinalIgnoreCase)
-                        .Select(group=>group.SingleOrDefault(x=>x.IsDefaultAlternative)
-                            ??throw new InvalidOperationException("گروه آلترناتیو BOM باید دقیقاً یک قطعه پیش‌فرض داشته باشد.")))
-                    .ToArray();
-                foreach(var part in effectiveLines)
+                foreach(var part in EffectiveDemandLines(effective))
                 {
                     decimal partNeed=planned*part.QuantityPer/(1-part.ScrapPercent/100m);
                     var key=(part.ComponentItemId,release!.Value);
