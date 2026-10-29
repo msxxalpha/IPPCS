@@ -143,4 +143,41 @@ public sealed class NetMrpDemandPeggingTests
         Assert.Throws<InvalidOperationException>(() =>
             NetMrpDemandPegging.Build([line], [], [balance], [], types, rows));
     }
+
+    [Fact]
+    public void Duplicate_mps_line_identity_is_rejected_before_ambiguous_pegging()
+    {
+        var item = Guid.NewGuid();
+        var line = new MpsDemandLine { ItemId = item, Quantity = 5, NeededOn = Start.AddDays(1) };
+        var balance = Balance(item, 5);
+        var types = new Dictionary<Guid, PlanningItemType> { [item] = PlanningItemType.Finished };
+        var rows = PlanningCalculators.RunMrp([line], [], [balance], [], types);
+        Assert.Throws<InvalidOperationException>(() =>
+            NetMrpDemandPegging.Build([line, line], [], [balance], [], types, rows));
+    }
+
+    [Fact]
+    public void Duplicate_opening_balance_for_an_item_is_rejected_with_planning_validation()
+    {
+        var item = Guid.NewGuid();
+        var line = new MpsDemandLine { ItemId = item, Quantity = 5, NeededOn = Start.AddDays(1) };
+        var balance = Balance(item, 5);
+        var types = new Dictionary<Guid, PlanningItemType> { [item] = PlanningItemType.Finished };
+        var rows = PlanningCalculators.RunMrp([line], [], [balance], [], types);
+        var error = Assert.Throws<InvalidOperationException>(() =>
+            NetMrpDemandPegging.Build([line], [], [balance, balance with { PhysicalQuantity = 7 }], [], types, rows));
+        Assert.Contains("مبنای برنامه‌ریزی", error.Message);
+    }
+
+    [Fact]
+    public void Duplicate_mrp_item_date_rows_are_rejected_before_allocation()
+    {
+        var item = Guid.NewGuid();
+        var line = new MpsDemandLine { ItemId = item, Quantity = 5, NeededOn = Start.AddDays(1) };
+        var balance = Balance(item, 5);
+        var types = new Dictionary<Guid, PlanningItemType> { [item] = PlanningItemType.Finished };
+        var rows = PlanningCalculators.RunMrp([line], [], [balance], [], types);
+        Assert.Throws<InvalidOperationException>(() =>
+            NetMrpDemandPegging.Build([line], [], [balance], [], types, [rows[0], rows[0]]));
+    }
 }
