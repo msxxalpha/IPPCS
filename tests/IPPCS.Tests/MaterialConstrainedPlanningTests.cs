@@ -50,6 +50,30 @@ public sealed class MaterialConstrainedPlanningTests
         Assert.False(result[1].Feasible);
     }
     [Fact]
+    public void Infeasible_earlier_demand_still_reserves_its_material_priority()
+    {
+        var x=Setup(demand:10); // requires 20 units of raw material
+        var earlier=x.line;
+        earlier.NeededOn=Start.AddDays(1);
+        var later=new MpsDemandLine{Id=Guid.NewGuid(),ItemId=x.line.ItemId,
+            Quantity=2,NeededOn=Start.AddDays(2)}; // requires 4 more units
+        var balance=new PlanningBalance{ItemId=x.raw,PhysicalQuantity=10,SnapshotDate=Start};
+        var results=MaterialConstrainedPlanning.Check([earlier,later],[x.bom],[balance],[],x.types,Start);
+        Assert.False(results[0].Feasible);
+        Assert.False(results[1].Feasible);
+    }
+    [Fact]
+    public void Invalid_or_duplicate_planning_supply_fails_closed()
+    {
+        var x=Setup();
+        var balance=new PlanningBalance{ItemId=x.raw,PhysicalQuantity=25,SnapshotDate=Start};
+        var invalidReceipt=new PlanningExpectedReceipt{ItemId=x.raw,Quantity=-1,AvailableOn=Start.AddDays(1)};
+        Assert.Throws<InvalidOperationException>(()=>
+            MaterialConstrainedPlanning.Check([x.line],[x.bom],[balance],[invalidReceipt],x.types,Start));
+        Assert.Throws<InvalidOperationException>(()=>
+            MaterialConstrainedPlanning.Check([x.line],[x.bom],[balance,balance],[],x.types,Start));
+    }
+    [Fact]
     public void Missing_approved_bom_or_planning_balance_fails_closed()
     {
         var x=Setup();
