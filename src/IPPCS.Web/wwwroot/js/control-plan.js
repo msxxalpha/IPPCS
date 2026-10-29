@@ -386,6 +386,10 @@ function boot(){
  $$("nav [data-section]").forEach(b=>b.classList.toggle("nav-active",b===button));
  $("#page-title").textContent=button.textContent;$("#feedback").hidden=true;
  }));
+ // Honor direct menu links such as /control-plan.html#eol.
+ const directSection=window.location.hash.slice(1);
+ const directButton=$("nav [data-section]").find(button=>button.dataset.section===directSection);
+ if(directButton)directButton.click();
  register("#plan-form",f=>api("/control-plans","POST",{
  routingRevisionId:val(f,"routing"),code:val(f,"code"),validFromJalali:val(f,"from"),
  validUntilJalali:val(f,"to")||null
