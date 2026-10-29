@@ -16,10 +16,15 @@ public static class MaterialConstrainedPlanning
     {
         if (lines is null || revisions is null || balances is null || receipts is null || itemTypes is null)
             throw new ArgumentNullException("ورودی‌های کنترل مواد نمی‌توانند تهی باشند.");
-        if (balances.GroupBy(x => x.ItemId).Any(g => g.Count() > 1))
-            throw new InvalidOperationException("برای هر قلم فقط یک موجودی مبنای برنامه‌ریزی مجاز است.");
-        if (receipts.Any(x => x.Quantity <= 0))
-            throw new InvalidOperationException("مقدار دریافت برنامه‌ای باید مثبت باشد.");
+        if (lines.Any(x => x.Id == Guid.Empty || x.ItemId == Guid.Empty || x.Quantity <= 0) ||
+            lines.Select(x => x.Id).Distinct().Count() != lines.Count)
+            throw new InvalidOperationException("ردیف‌های تقاضا باید شناسه یکتا، قلم معتبر و مقدار مثبت داشته باشند.");
+        if (balances.Any(x => x.ItemId == Guid.Empty) ||
+            balances.GroupBy(x => x.ItemId).Any(g => g.Count() > 1))
+            throw new InvalidOperationException("برای هر قلم فقط یک موجودی مبنای معتبر برنامه‌ریزی مجاز است.");
+        if (receipts.Any(x => x.Id == Guid.Empty || x.ItemId == Guid.Empty || x.Quantity <= 0) ||
+            receipts.Select(x => x.Id).Distinct().Count() != receipts.Count)
+            throw new InvalidOperationException("دریافت‌های برنامه‌ای باید شناسه یکتا، قلم معتبر و مقدار مثبت داشته باشند.");
 
         var byBalance=balances.ToDictionary(x=>x.ItemId);
         var approved=revisions.Where(x=>x.State==ManufacturingRevisionState.Approved).ToList();
