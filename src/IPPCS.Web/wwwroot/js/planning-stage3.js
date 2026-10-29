@@ -54,7 +54,7 @@ function render(){
  table("#bom-table",[
   ["محصول",r=>name(r.parentItemId)],["نسخه","revision"],["از","validFromJalali"],
   ["تا",r=>r.validUntilJalali||"نامحدود"],["وضعیت",r=>stateName(r.state)],
-  ["اجزاء",r=>r.lines.map(x=>name(x.componentItemId)+": "+fmt(x.quantityPer)).join(" ، ")||"—"]
+  ["اجزاء",r=>r.lines.map(x=>name(x.componentItemId)+": "+fmt(x.quantityPer)+(x.alternativeGroupCode?" [ALT "+x.alternativeGroupCode+(x.isDefaultAlternative?", پیش‌فرض":"")+"]":"")).join(" ، ")||"—"]
  ],state.bom,{text:r=>r.state===0?"تأیید نسخه":"قفل",disabled:r=>r.state!==0,click:async r=>{await call("/bom-revisions/"+r.id+"/approve","POST");alertText("نسخه BOM تأیید شد.");await load();}});
  table("#mps-table",[
   ["کد برنامه","code"],["وضعیت",r=>stateName(r.state)],
@@ -64,7 +64,10 @@ function render(){
 
  table("#bom-lines-table",[
   ["محصول",r=>name(r.parentItemId)],["نسخه","revision"],["جزء",r=>name(r.componentItemId)],
-  ["مقدار",r=>fmt(r.quantityPer)],["ترتیب","sequence"]
+  ["مقدار",r=>fmt(r.quantityPer)],["ترتیب","sequence"],
+  ["گروه آلترناتیو",r=>r.alternativeGroupCode||"جزء اجباری"],
+  ["پیش‌فرض",r=>r.alternativeGroupCode?(r.isDefaultAlternative?"بله":"خیر"):"—"],
+  ["اولویت","alternativePriority"]
  ],state.bom.filter(x=>x.state===0).flatMap(r=>r.lines.map(l=>({...l,parentItemId:r.parentItemId,revision:r.revision,revisionId:r.id}))),
  {text:()=>"حذف جزء",click:async r=>{
   if(!window.confirm("آیا جزء انتخاب‌شده از پیش‌نویس BOM حذف شود؟"))return;
@@ -188,7 +191,10 @@ function boot(){
  }));
  register("#bom-line-form",f=>call("/bom-revisions/"+val(f,"revisionId")+"/lines","POST",{
   componentItemId:val(f,"componentItemId"),quantityPer:number(f,"quantityPer"),
-  scrapPercent:number(f,"scrapPercent"),sequence:number(f,"sequence")
+  scrapPercent:number(f,"scrapPercent"),sequence:number(f,"sequence"),
+  alternativeGroupCode:String(val(f,"alternativeGroupCode")||"").trim()||null,
+  isDefaultAlternative:f.elements.namedItem("isDefaultAlternative").checked,
+  alternativePriority:number(f,"alternativePriority")
  }));
  register("#mps-form",f=>call("/mps","POST",{code:val(f,"code")}));
  register("#mps-controlled-revision-form",async f=>{
