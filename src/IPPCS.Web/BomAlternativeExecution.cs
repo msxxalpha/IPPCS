@@ -23,6 +23,7 @@ public sealed class ManufacturingOrderMaterialUsage
     public decimal Quantity { get; set; }
     public string? LotCode { get; set; }
     public string? Note { get; set; }
+    public string RecordedBy { get; set; } = "unknown";
     public DateTime OccurredUtc { get; set; } = DateTime.UtcNow;
 }
 
@@ -44,6 +45,7 @@ public static class BomAlternativeExecution
         model.Entity<ManufacturingOrderMaterialUsage>().Property(x => x.Quantity).HasPrecision(18, 4);
         model.Entity<ManufacturingOrderMaterialUsage>().Property(x => x.LotCode).HasMaxLength(100);
         model.Entity<ManufacturingOrderMaterialUsage>().Property(x => x.Note).HasMaxLength(500);
+        model.Entity<ManufacturingOrderMaterialUsage>().Property(x => x.RecordedBy).HasMaxLength(256);
         model.Entity<ManufacturingOrderMaterialUsage>().HasIndex(x => new { x.OrderId, x.BomLineId, x.OccurredUtc });
         model.Entity<ManufacturingOrderMaterialUsage>().HasOne<ManufacturingOrder>()
             .WithMany().HasForeignKey(x => x.OrderId).OnDelete(DeleteBehavior.Restrict);
@@ -113,7 +115,7 @@ public static class BomAlternativeExecution
 
         planningApi.MapPost("/manufacturing-orders/{id:guid}/material-options/{groupCode}", async (
             Guid id, string groupCode, ManufacturingOrderMaterialAllocationInput input,
-            ProductionDb db, CancellationToken ct) =>
+            ProductionDb db, HttpContext context, CancellationToken ct) =>
         {
             if (string.IsNullOrWhiteSpace(groupCode) || groupCode.Trim().Length > 32 ||
                 input.Shares is null || input.Shares.Count < 1 ||
@@ -163,7 +165,7 @@ public static class BomAlternativeExecution
             db.ManufacturingOrderAudits.Add(new ManufacturingOrderAudit
             {
                 OrderId = id, Action = prior.Count > 0 ? "MaterialAlternativeRevised" : "MaterialAlternativeAllocated",
-                Details = $"Group={groupCode.Trim().ToUpperInvariant()};Previous={string.Join(",", priorShares)};Current=" +
+                Details = $"By={context.User.Identity?.Name ?? "unknown"};Group={groupCode.Trim().ToUpperInvariant()};Previous={string.Join(",", priorShares)};Current=" +
                     string.Join(",", input.Shares.Select(x => $"{x.BomLineId}:{x.SharePercent}%"))
             });
             await db.SaveChangesAsync(ct);
@@ -172,7 +174,7 @@ public static class BomAlternativeExecution
         });
 
         floorApi.MapPost("/manufacturing-orders/{id:guid}/material-usage", async (
-            Guid id, ManufacturingOrderMaterialUsageInput input, ProductionDb db, CancellationToken ct) =>
+            Guid id, ManufacturingOrderMaterialUsageInput input, ProductionDb db, HttpContext context, CancellationToken ct) =>
         {
             if (input.BomLineId == Guid.Empty || input.Quantity <= 0 || input.Quantity > 1_000_000_000m ||
                 (input.LotCode?.Length ?? 0) > 100 || (input.Note?.Length ?? 0) > 500)
@@ -219,18 +221,19 @@ public static class BomAlternativeExecution
             var usage = new ManufacturingOrderMaterialUsage
             {
                 OrderId = id, BomLineId = line.Id, ComponentItemId = line.ComponentItemId,
-                Quantity = input.Quantity, LotCode = input.LotCode?.Trim(), Note = input.Note?.Trim()
+                Quantity = input.Quantity, LotCode = input.LotCode?.Trim(), Note = input.Note?.Trim(),
+                RecordedBy = context.User.Identity?.Name ?? "unknown"
             };
             db.Set<ManufacturingOrderMaterialUsage>().Add(usage);
             db.ManufacturingOrderAudits.Add(new ManufacturingOrderAudit
             {
                 OrderId = id, Action = "MaterialUsageRecorded",
-                Details = $"Component={line.ComponentItemId};Qty={input.Quantity};Lot={usage.LotCode ?? ""}"
+                Details = $"By={usage.RecordedBy};Component={line.ComponentItemId};Qty={input.Quantity};Lot={usage.LotCode ?? ""}"
             });
             await db.SaveChangesAsync(ct);
             await tx.CommitAsync(ct);
             return Results.Created($"/api/v1/manufacturing-orders/{id}/material-usage/{usage.Id}",
-                new { usage.Id, usage.BomLineId, usage.ComponentItemId, usage.Quantity, usage.LotCode, usage.OccurredUtc });
+                new { usage.Id, usage.BomLineId, usage.ComponentItemId, usage.Quantity, usage.LotCode, usage.RecordedBy, usage.OccurredUtc });
         });
         return routes;
     }
