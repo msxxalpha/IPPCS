@@ -204,6 +204,17 @@ async function boot(){
    }
    tbl.append(tbody);panel.append(tbl);root.append(panel);
   }
+  const editableStatus=[0,1,2].includes(materialSnapshot.orderStatus);
+  const usageStatus=[1,2].includes(materialSnapshot.orderStatus);
+  for(const panel of $("#material-options-container [data-material-group]")){
+   const hasUsage=materialSnapshot.groups.find(g=>g.groupCode===panel.dataset.materialGroup)
+     ?.options.some(x=>x.actualQuantity>0)||false;
+   panel.querySelectorAll("[data-material-share]").forEach(el=>el.disabled=!editableStatus||hasUsage);
+  }
+  $("#material-options-save").disabled=!editableStatus||
+    materialSnapshot.groups.some(g=>g.options.some(x=>x.actualQuantity>0));
+  $("#material-usage-form").querySelectorAll("input,select,button").forEach(el=>el.disabled=!usageStatus);
+  if(!usageStatus)flash("ثبت مصرف واقعی فقط برای دستور آزادشده یا در حال اجرا مجاز است.");
   const choices=[];
   for(const line of materialSnapshot.mandatoryComponents)choices.push({...line,label:itemName(line.componentItemId)+" • اجباری"});
   for(const group of materialSnapshot.groups)for(const line of group.options)
