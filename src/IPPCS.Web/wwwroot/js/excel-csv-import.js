@@ -10,7 +10,7 @@
       help: "طبقه کالا: 0=مواد اولیه، 1=نیمه‌ساخته، 2=محصول نهایی، 3=مواد مصرفی. واحد باید از اطلاعات پایه فعال سامانه باشد.",
       map: r => ({code:r.code, name:r.name, unit:r.unit, type:Number(r.type)}),
       validate: (r, ctx) => {
-        if (!r.code || r.code.length > 64 || !r.name || r.name.length > 256 || !r.unit || !["0","1","2","3"].includes(r.type))
+        if (!r.code || r.code.length > 64 || !r.name || r.name.length > 256 || !r.unit || ![0,1,2,3].includes(number(r.type)))
           return "کد، شرح، واحد و طبقه معتبر لازم است.";
         if (ctx.items.some(x => x.code.toLowerCase() === r.code.toLowerCase())) return "کد کالا از قبل وجود دارد؛ ردیف تکراری وارد نشد.";
         return "";
