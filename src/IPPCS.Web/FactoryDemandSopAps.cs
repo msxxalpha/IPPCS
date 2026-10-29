@@ -487,6 +487,8 @@ public static class FactoryDemandApsEndpoints
                 .Where(x=>x.DueOn>=from&&x.DueOn<=through).ToListAsync(ct);
             var routes=await db.RoutingRevisions.AsNoTracking().Include(x=>x.Operations)
                 .Where(x=>x.State==RoutingState.Approved).ToListAsync(ct);
+            var capacityRates=await WorkCenterProductCapacityRules.LoadActiveRates(db,ct);
+            WorkCenterProductCapacityRules.ApplyToRoutes(routes,capacityRates);
             var shifts=await db.WorkShifts.AsNoTracking().ToListAsync(ct);
             var workCenterLoad=new Dictionary<Guid,decimal>();
             var warnings=new List<string>();
@@ -556,6 +558,8 @@ public static class FactoryDemandApsEndpoints
                 return Results.Conflict(new{message="ابتدا نسخه MPS را تأیید کنید."});
             var routes=await db.RoutingRevisions.AsNoTracking().Include(x=>x.Operations)
                 .Where(x=>x.State==RoutingState.Approved).ToListAsync(ct);
+            var capacityRates=await WorkCenterProductCapacityRules.LoadActiveRates(db,ct);
+            WorkCenterProductCapacityRules.ApplyToRoutes(routes,capacityRates);
             var shifts=await db.WorkShifts.AsNoTracking().ToListAsync(ct);
             var unavailable=new HashSet<(Guid WorkCenterId,DateOnly Date)>();
             foreach(var block in input.UnavailableDays??new())
