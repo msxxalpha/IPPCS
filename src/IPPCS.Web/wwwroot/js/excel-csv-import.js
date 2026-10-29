@@ -211,11 +211,15 @@
         const existingSequenceKeys=Array.from(ctx.seenBom).filter(k=>k.startsWith(baseSequence+"|"));
         const priorityKey=rev.id+"|altpriority|"+group+"|"+priority;
         const defaultKey=rev.id+"|altdefault|"+group;
+        const groupSequencePrefix=rev.id+"|altgroupseq|"+group+"|";
+        const groupSequenceKey=groupSequencePrefix+number(r.sequence);
+        if(group.length>32)return "کد گروه آلترناتیو حداکثر ۳۲ نویسه است.";
         if(ctx.seenBom.has(componentKey)||existingSequenceKeys.some(k=>k!==sequenceKey))return "قطعه تکراری یا ترتیب مشترک بین گروه‌های متفاوت در همین فایل وجود دارد.";
+        if(group&&Array.from(ctx.seenBom).some(k=>k.startsWith(groupSequencePrefix)&&k!==groupSequenceKey))return "اعضای یک گروه آلترناتیو باید ترتیب یکسان داشته باشند.";
         if(group&&ctx.seenBom.has(priorityKey))return "اولویت در گروه آلترناتیو در همین فایل تکراری است.";
         if(group&&isDefault&&ctx.seenBom.has(defaultKey))return "برای هر گروه فقط یک قطعه پیش‌فرض مجاز است.";
         ctx.seenBom.add(componentKey);ctx.seenBom.add(sequenceKey);
-        if(group)ctx.seenBom.add(priorityKey);
+        if(group){ctx.seenBom.add(priorityKey);ctx.seenBom.add(groupSequenceKey);}
         if(group&&isDefault)ctx.seenBom.add(defaultKey);
         return "";
       },
