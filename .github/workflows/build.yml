@@ -30,11 +30,13 @@ jobs:
           dotnet tool install --global dotnet-ef --version 10.0.0
           dotnet ef migrations add Stage54ModelDiagnostic --project src/IPPCS.Web/IPPCS.Web.csproj --startup-project src/IPPCS.Web/IPPCS.Web.csproj --configuration Release --no-build --output-dir Migrations/CI
           echo "===== DIAGNOSTIC MIGRATION OPERATIONS ====="
-          find src/IPPCS.Web/Migrations/CI -maxdepth 1 -name '*_Stage54ModelDiagnostic.cs' -print -exec cat {} ;
+          for file in src/IPPCS.Web/Migrations/CI/*_Stage54ModelDiagnostic.cs; do
+            if [ -f "$file" ]; then echo "FILE: $file"; cat "$file"; fi
+          done
           echo "===== SNAPSHOT DIFF ====="
           git diff -- src/IPPCS.Web/Migrations/CI/ProductionDbModelSnapshot.cs
           git checkout -- src/IPPCS.Web/Migrations/CI/ProductionDbModelSnapshot.cs
-          find src/IPPCS.Web/Migrations/CI -maxdepth 1 -name '*_Stage54ModelDiagnostic*' -delete
+          rm -f src/IPPCS.Web/Migrations/CI/*_Stage54ModelDiagnostic*
       - name: .NET calendar unit tests
         run: dotnet test tests/IPPCS.Tests/IPPCS.Tests.csproj --configuration Release
       - name: Browser script syntax
