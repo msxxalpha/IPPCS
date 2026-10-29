@@ -102,6 +102,7 @@ public static class FactoryMpsChangeControl
     {
         var routings=await db.RoutingRevisions.AsNoTracking().Include(x=>x.Operations)
             .ToListAsync(ct);
+        var productCapacityRates=await WorkCenterProductCapacityRules.LoadActiveRates(db,ct);
         var shifts=await db.WorkShifts.AsNoTracking().ToListAsync(ct);
         var boms=await db.ManufacturingBomRevisions.AsNoTracking().Include(x=>x.Lines)
             .ToListAsync(ct);
@@ -111,8 +112,8 @@ public static class FactoryMpsChangeControl
         if(balances.Count>0&&balances.Any(x=>x.SnapshotDate!=balances[0].SnapshotDate))
             throw new InvalidOperationException("مبناهای مانده فرضی برنامه‌ریزی یکسان نیستند.");
         return Compare(source,candidate,
-            PlanningCalculators.RunRoughCutCrp(source.Lines,routings,shifts),
-            PlanningCalculators.RunRoughCutCrp(candidate.Lines,routings,shifts),
+            PlanningCalculators.RunRoughCutCrp(source.Lines,routings,shifts,productCapacityRates),
+            PlanningCalculators.RunRoughCutCrp(candidate.Lines,routings,shifts,productCapacityRates),
             PlanningCalculators.RunMrp(source.Lines,boms,balances,receipts,types),
             PlanningCalculators.RunMrp(candidate.Lines,boms,balances,receipts,types));
     }
