@@ -238,3 +238,6 @@ table th{position:sticky;top:0;z-index:1}
 #primary-nav .nav-group-title{margin:0 10px 4px;color:#91a8b9;font-size:11px;font-weight:700;line-height:1.9}
 #primary-nav .nav-group a.planning-link{margin-top:0}
 #primary-nav .nav-group button{min-height:40px}
+
+/* Audit visibility for failed periodic/annual test evidence. */
+#test-run-table tr.test-result-failed td{border-top:2px solid #b45309;border-bottom:1px solid #fed7aa}
