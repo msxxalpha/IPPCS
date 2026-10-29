@@ -165,7 +165,7 @@ public sealed class NetMrpDemandPeggingTests
         var types = new Dictionary<Guid, PlanningItemType> { [item] = PlanningItemType.Finished };
         var rows = PlanningCalculators.RunMrp([line], [], [balance], [], types);
         var error = Assert.Throws<InvalidOperationException>(() =>
-            NetMrpDemandPegging.Build([line], [], [balance, balance with { PhysicalQuantity = 7 }], [], types, rows));
+            NetMrpDemandPegging.Build([line], [], [balance, new PlanningBalance { ItemId = item, SnapshotDate = Start, PhysicalQuantity = 7 }], [], types, rows));
         Assert.Contains("مبنای برنامه‌ریزی", error.Message);
     }
 
