@@ -167,6 +167,7 @@ app.MapManufacturingFoundation();
 app.MapWorkCenterProductCapacities();
 app.MapPlanningStageThree();
 app.MapManufacturingExecution();
+app.MapBomAlternativeExecution();
 app.MapQualityAndOee();
 app.MapControlPlanEndpoints();
 app.MapFactoryPeriodicProductTests();
@@ -274,6 +275,7 @@ public sealed class ProductionDb(DbContextOptions<ProductionDb> options) : Ident
         WorkCenterProductCapacityRules.ConfigureModel(model);
         PlanningStageThreeEndpoints.ConfigureModel(model);
         ManufacturingExecutionEndpoints.ConfigureModel(model);
+        BomAlternativeExecution.ConfigureModel(model);
         ManufacturingQualityAndOeeEndpoints.ConfigureModel(model);
         ManufacturingControlPlanEndpoints.ConfigureModel(model);
         FactoryPeriodicProductTests.ConfigureModel(model);
