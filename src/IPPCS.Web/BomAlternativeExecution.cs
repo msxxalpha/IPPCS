@@ -111,7 +111,7 @@ public static class BomAlternativeExecution
                     .Select(line => new
                     {
                         line.Id, line.ComponentItemId, line.QuantityPer, line.ScrapPercent,
-                        plannedQuantity = RequiredQuantity(order, line),
+                        plannedQuantity = CalculatePlannedComponentQuantity(order.PlannedQuantity, line),
                         actualQuantity = usedByLine.GetValueOrDefault(line.Id)
                     })
             });
@@ -210,7 +210,7 @@ public static class BomAlternativeExecution
 
             decimal planned;
             if (string.IsNullOrWhiteSpace(line.AlternativeGroupCode))
-                planned = RequiredQuantity(order, line);
+                planned = CalculatePlannedComponentQuantity(order.PlannedQuantity, line);
             else
             {
                 var groupLines = await db.ManufacturingBomLines.AsNoTracking()
@@ -229,7 +229,7 @@ public static class BomAlternativeExecution
                 {
                     if (!line.IsDefaultAlternative)
                         return Results.Conflict(new { message = "بدون تخصیص صریح، فقط قطعه پیش‌فرض گروه مجاز است." });
-                    planned = RequiredQuantity(order, line);
+                    planned = CalculatePlannedComponentQuantity(order.PlannedQuantity, line);
                 }
             }
             var priorUsage = await db.Set<ManufacturingOrderMaterialUsage>().AsNoTracking()
