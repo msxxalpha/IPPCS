@@ -110,6 +110,25 @@ public static class FactoryPeriodicTestRules
         return result;
     }
 
+    public static string? ValidateOutcome(FactoryPeriodicTestPlan plan, decimal? measuredValue,
+        FactoryPeriodicTestOutcome outcome, string? notes)
+    {
+        if (outcome == FactoryPeriodicTestOutcome.None)
+            return "نتیجه آزمون باید قبول، مردود یا نامعین باشد.";
+        var hasNumericLimits = plan.Minimum.HasValue || plan.Maximum.HasValue;
+        var outside = measuredValue.HasValue &&
+            ((plan.Minimum.HasValue && measuredValue.Value < plan.Minimum.Value) ||
+             (plan.Maximum.HasValue && measuredValue.Value > plan.Maximum.Value));
+        if (outside && outcome != FactoryPeriodicTestOutcome.Failed)
+            return "مقدار اندازه‌گیری خارج از حدود ثبت‌شده است؛ نتیجه نمی‌تواند قبول یا نامعین باشد.";
+        if (hasNumericLimits && !measuredValue.HasValue && outcome == FactoryPeriodicTestOutcome.Passed)
+            return "برای آزمونی با حدود عددی، ثبت نتیجه قبول بدون مقدار اندازه‌گیری مجاز نیست.";
+        if (outcome is FactoryPeriodicTestOutcome.Failed or FactoryPeriodicTestOutcome.Inconclusive &&
+            string.IsNullOrWhiteSpace(notes))
+            return "برای نتیجه مردود یا نامعین، توضیح قابل ممیزی لازم است.";
+        return null;
+    }
+
     public static TimeZoneInfo TehranZone => TimeZoneInfo.FindSystemTimeZoneById("Asia/Tehran");
     public static DateOnly TodayTehran() => DateOnly.FromDateTime(
         TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, TehranZone));
@@ -350,18 +369,10 @@ public static class FactoryPeriodicProductTests
                 return Results.Conflict(new { message = "نتیجه آزمون فقط یک بار و پیش از تکمیل رخداد ثبت می‌شود." });
             var plan = await db.FactoryPeriodicTestPlans.SingleOrDefaultAsync(x => x.Id == run.PlanId, ct);
             if (plan is null) return Results.Conflict(new { message = "برنامه مبنای آزمون موجود نیست." });
-            var outside = input.MeasuredValue.HasValue &&
-                ((plan.Minimum.HasValue && input.MeasuredValue.Value < plan.Minimum.Value) ||
-                 (plan.Maximum.HasValue && input.MeasuredValue.Value > plan.Maximum.Value));
-            if (outside && outcome != FactoryPeriodicTestOutcome.Failed)
-                return Results.Conflict(new { message = "مقدار اندازه‌گیری خارج از حدود ثبت‌شده است؛ نتیجه نمی‌تواند «قبول» یا «نامعین» باشد." });
-            if ((plan.Minimum.HasValue || plan.Maximum.HasValue) && !input.MeasuredValue.HasValue &&
-                outcome == FactoryPeriodicTestOutcome.Passed)
-                return Results.Conflict(new { message = "برای آزمونی با حدود عددی، ثبت نتیجه قبول بدون مقدار اندازه‌گیری مجاز نیست." });
             var notes = input.Notes?.Trim();
-            if (outcome is FactoryPeriodicTestOutcome.Failed or FactoryPeriodicTestOutcome.Inconclusive &&
-                string.IsNullOrWhiteSpace(notes))
-                return Results.BadRequest(new { message = "برای نتیجه مردود یا نامعین، توضیح قابل ممیزی لازم است." });
+            var resultIssue = FactoryPeriodicTestRules.ValidateOutcome(plan, input.MeasuredValue, outcome, notes);
+            if (resultIssue is not null)
+                return Results.Conflict(new { message = resultIssue });
 
             run.PerformedOn = performed;
             run.SampleReference = input.SampleReference.Trim();
