@@ -22,7 +22,22 @@ public static class BomAlternativeExecution
 {
     public static void ConfigureModel(ModelBuilder model)
     {
-        model.Entity<ManufacturingOrderMaterialAllocation>().ToTable("ManufacturingOrderMaterialAllocations");
+        var allocation=model.Entity<ManufacturingOrderMaterialAllocation>();
+        allocation.ToTable("ManufacturingOrderMaterialAllocations",table =>
+        {
+            table.HasCheckConstraint("CK_ManufacturingOrderMaterialAllocations_SharePercent",
+                "[SharePercent] > 0 AND [SharePercent] <= 100");
+            table.HasCheckConstraint("CK_ManufacturingOrderMaterialAllocations_PlannedQuantity",
+                "[PlannedQuantity] > 0");
+        });
+        allocation.Property(x=>x.SharePercent).HasPrecision(8,4);
+        allocation.Property(x=>x.PlannedQuantity).HasPrecision(18,4);
+        allocation.HasIndex(x=>x.BomLineId);
+        allocation.HasIndex(x=>new{x.OrderId,x.BomLineId}).IsUnique();
+        allocation.HasOne<ManufacturingBomLine>().WithMany()
+            .HasForeignKey(x=>x.BomLineId).OnDelete(DeleteBehavior.Restrict);
+        allocation.HasOne<ManufacturingOrder>().WithMany()
+            .HasForeignKey(x=>x.OrderId).OnDelete(DeleteBehavior.Restrict);
     }
 
     public static decimal CalculatePlannedComponentQuantity(
