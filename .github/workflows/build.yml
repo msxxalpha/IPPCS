@@ -238,9 +238,16 @@ jobs:
             'http://127.0.0.1:5295/api/v1/factory-reports/overview?fromJalali=1405%2F08%2F05&throughJalali=1405%2F08%2F01')
           test "$bad_range" = "400"
           echo "PASS: bounded management reports, authenticated access and date validation."
-          curl --fail --silent --show-error -b /tmp/ippcs-cookie \
-            http://127.0.0.1:5295/api/v1/factory-release-readiness/priority-queue \
-            > /tmp/ippcs-uat-queue.json
+          priority_status=$(curl --silent --show-error -b /tmp/ippcs-cookie \
+            -o /tmp/ippcs-uat-queue.json -w '%{http_code}' \
+            http://127.0.0.1:5295/api/v1/factory-release-readiness/priority-queue)
+          if [ "$priority_status" != "200" ]; then
+            echo "Factory priority queue returned HTTP $priority_status"
+            cat /tmp/ippcs-uat-queue.json || true
+            echo "Application diagnostic log:"
+            grep -E "fail:|Exception|SqlException|InvalidOperation|warn:" /tmp/ippcs-web.log | tail -n 100 || true
+            exit 1
+          fi
           python3 -c 'import json;d=json.load(open("/tmp/ippcs-uat-queue.json"));assert d["kind"]=="FactoryPriorityExceptionsOnly";assert d["factoryAcceptedModules"]==0 and d["productionReleaseAuthorized"] is False;assert d["total"]==len(d["rows"]);assert d["critical"]+d["high"]+d["medium"]==d["total"]'
           echo "PASS: evidence-only ECO/CAPA/EOL/APS priority queue and no fabricated factory acceptance."
           if ! python3 tests/production_e2e_smoke.py; then
