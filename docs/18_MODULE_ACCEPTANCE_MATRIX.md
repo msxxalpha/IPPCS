@@ -186,3 +186,10 @@ These rows are implementation evidence, **not an attestation of successfully run
 - Added unit coverage for the one-time admin gate and environment-specific secure-cookie policy. No database schema or external integration changed.
 - Added `docs/FACTORY_OPERATIONAL_TEST_SETUP.md` with isolated SQL Server, IIS/.NET 10 Hosting Bundle, HTTPS, least-privilege database identity, bootstrap, smoke checks and factory UAT instructions.
 - This makes controlled IIS/UAT deployment possible; it does **not** establish production security certification, backup/restore acceptance, load testing, or factory acceptance. Keep the PR Draft and Factory Accepted at zero until those gates pass.
+
+
+## Stage 64 — first-UAT handoff documentation
+
+- Updated the first-UAT pack and Visual Studio first-run guide to distinguish controlled IIS UAT from permanent production operation.
+- IIS UAT is permitted only on an isolated site with HTTPS, a dedicated IPPCS UAT database, least-privilege SQL identity, one-time administrator bootstrap and explicit test records. The complete runbook is `docs/FACTORY_OPERATIONAL_TEST_SETUP.md`.
+- No branch merge or production release is authorized by these documentation changes. The fixed UAT branch/package must be created from a single commit only after all CI jobs on that exact commit pass.
