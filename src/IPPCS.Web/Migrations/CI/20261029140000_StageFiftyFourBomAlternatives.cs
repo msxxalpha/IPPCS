@@ -6,8 +6,6 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 namespace IPPCS.Web.Migrations.CI
 {
-    [DbContext(typeof(ProductionDb))]
-    [Migration("20261029140000_StageFiftyFourBomAlternatives")]
     public partial class StageFiftyFourBomAlternatives : Migration
     {
         protected override void Up(MigrationBuilder migrationBuilder)
