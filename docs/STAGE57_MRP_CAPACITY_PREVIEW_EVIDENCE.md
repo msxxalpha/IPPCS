@@ -17,7 +17,7 @@ For each relevant operation the evidence distinguishes:
 
 The calculation remains read-only. It does not create firm orders, reserve inventory, issue material, create warehouse movements or convert suggested lots to released production. Product-capacity override application and cumulative downstream yield sizing are unchanged.
 
-The response algorithm identifier advances to MRP-CRP-PREVIEW-5 to distinguish the evidence-bearing response contract.
+The response algorithm identifier advances to MRP-CRP-PREVIEW-5 to distinguish the evidence-bearing response contract. The Persian RTL planning workspace renders a dedicated table for the selected revisions, with Jalali effective dates, product, route operation, work center, setup time, Routing baseline, effective run time, units/hour, override/fallback source and yield.
 
 ## Regression coverage
 
