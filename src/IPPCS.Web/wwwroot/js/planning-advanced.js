@@ -577,6 +577,24 @@ function register(){
    {name:"ساعت‌های عملیات باز",value:r.runningOperationClockSessions},
    {name:"دستورات فعال دارای عملیات باز",value:r.conservativelyBlockedActiveOrders}
   ]);
+  const persianDate=value=>value
+   ?new Date(value+"T12:00:00Z").toLocaleDateString("fa-IR-u-ca-persian",{timeZone:"Asia/Tehran"})
+   :"—";
+  table("#mrp-capacity-evidence",[
+   ["محصول",x=>item(x.itemId)],
+   ["نسخه مسیر","routingRevisionCode"],
+   ["اعتبار از",x=>persianDate(x.routingEffectiveFrom)],
+   ["اعتبار تا",x=>x.routingEffectiveTo?persianDate(x.routingEffectiveTo):"بدون تاریخ پایان"],
+   ["ترتیب","operationSequence"],
+   ["عملیات","operationName"],
+   ["مرکز کاری",x=>center(x.workCenterId)],
+   ["آماده‌سازی (دقیقه)",x=>format(x.setupMinutes)],
+   ["زمان استاندارد Routing (دقیقه/واحد)",x=>format(x.routingRunMinutesPerUnit)],
+   ["زمان مؤثر پیش‌نمایش (دقیقه/واحد)",x=>format(x.effectiveRunMinutesPerUnit)],
+   ["ظرفیت محصول (واحد/ساعت)",x=>x.capacityUnitsPerHour===null?"—":format(x.capacityUnitsPerHour)],
+   ["منبع نرخ",x=>x.hasProductCapacityOverride?"ظرفیت اختصاصی محصول":"استاندارد Routing"],
+   ["بازده",x=>format(x.yieldPercent)+"٪"]
+  ],r.productCapacityEvidence||[]);
   const statuses={OnTime:"به‌موقع",Late:"دیرکرد",Blocked:"مسدود",Unscheduled:"زمان‌بندی‌نشده",Pending:"در انتظار"};
   table("#mrp-capacity-lots",[
    ["بچ پیشنهادی","lotKey"],["کالا",x=>item(x.itemId)],
