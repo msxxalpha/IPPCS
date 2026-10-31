@@ -22,7 +22,8 @@ public static class FactoryExecutionInsights
 {
     public static IReadOnlyList<FactoryMaterialExecutionRow> MaterialReconciliation(
         ManufacturingOrder order,IReadOnlyList<ManufacturingBomLine> bom,
-        IReadOnlyList<FactoryMaterialUsage> usages)
+        IReadOnlyList<FactoryMaterialUsage> usages,
+        IReadOnlyList<ManufacturingOrderMaterialAllocation> allocations)
     {
         var last=order.Operations.OrderBy(x=>x.Sequence).LastOrDefault();
         var hasOutput=last is not null &&
@@ -30,7 +31,8 @@ public static class FactoryExecutionInsights
         var reported=last is null?0m:last.GoodQuantity+last.ScrapQuantity+last.ReworkQuantity;
         return bom.GroupBy(x=>x.ComponentItemId).OrderBy(x=>x.Key).Select(group=>{
             var records=usages.Where(x=>x.ComponentItemId==group.Key).ToArray();
-            var factor=group.Sum(x=>x.QuantityPer*100m/(100m-x.ScrapPercent));
+            var factor=group.Sum(line=>
+                BomAlternativeExecution.CalculateSelectedComponentQuantity(1m,line,bom,allocations));
             var planned=order.PlannedQuantity*factor;
             decimal? outputBased=hasOutput?reported*factor:null;
             decimal? actual=records.Length>0?records.Sum(x=>x.QuantityConsumed):null;
@@ -160,9 +162,13 @@ public static class FactoryExecutionInsights
                 return Results.Conflict(new{message="ضریب ضایعات BOM معتبر نیست."});
             var usage=await db.FactoryMaterialUsages.AsNoTracking()
                 .Where(x=>x.OrderId==orderId).ToListAsync(ct);
-            return Results.Ok(new{orderId,order.Number,rows=
-                MaterialReconciliation(order,bom.Lines,usage),
-                disclaimer="انحراف مقدار ثبت‌شده مصرف پای خط نسبت به نیاز استاندارد خروجی آخرین عملیات؛ داده مصرف ناموجود Null است، نه صفر. بدون صدور حواله یا ثبت انبار."});
+            var allocations=await db.Set<ManufacturingOrderMaterialAllocation>().AsNoTracking()
+                .Where(x=>x.OrderId==orderId).ToListAsync(ct);
+            try{
+                return Results.Ok(new{orderId,order.Number,rows=
+                    MaterialReconciliation(order,bom.Lines,usage,allocations),
+                    disclaimer="نیاز استاندارد هر قطعه بر اساس ترکیب آلترناتیو دستور محاسبه شده است. انحراف مصرف پای خط بر اساس خروجی آخرین عملیات؛ داده مصرف ناموجود Null است، نه صفر. بدون صدور حواله یا ثبت انبار."});
+            }catch(InvalidOperationException ex){return Results.Conflict(new{message=ex.Message});}
         });
         api.MapGet("/manufacturing-orders/{id:guid}/spc/{requirementId:guid}",
             async(Guid id,Guid requirementId,ProductionDb db,CancellationToken ct)=>{
