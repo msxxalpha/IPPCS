@@ -169,3 +169,10 @@ These rows are implementation evidence, **not an attestation of successfully run
 - An unchanged alternative mix is now idempotent: resubmitting the same group shares does not delete/reinsert allocation rows or append a misleading revision audit event. Groups with actual consumption retain their existing immutable-mix guard; unused groups can still be adjusted independently.
 - Added regression coverage proving that a 60/40 mix recalculates to 120 and 100 component units when planned output changes to 200, even when stored historical planned quantities remain 60 and 50.
 - Scope remains order planning and shop-floor evidence only. No warehouse issue, stock reservation, inventory valuation or external ERP integration is created. This is not factory acceptance; API concurrency, SQL integration and line-side UAT remain release gates.
+
+
+## Stage 62 — MRP/APS cyclic-dependency regression fixture
+
+- The Stage 61 CI run confirmed SQL Server schema acceptance, but the .NET test job failed in the cyclic-lot-dependency test because its synthetic graph assigned each proposed receipt to the wrong component item. The stricter Stage 60 source-to-lot consistency validation correctly rejected that malformed fixture before the cycle detector ran.
+- Corrected the fixture so each parent demand references the other lot's actual item, preserving the intended two-node dependency cycle. The regression now exercises cycle rejection after the graph passes source identity, item and receipt-date validation.
+- No production scheduling behavior or database schema changed in this correction. CI must pass on the new commit before this regression can be marked verified.
