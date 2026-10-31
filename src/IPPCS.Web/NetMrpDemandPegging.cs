@@ -255,14 +255,21 @@ public static class NetMrpDemandPegging
     /// saved MRP run. Later edits to live BOM, balances or receipts cannot alter
     /// the evidence associated with that run.
     /// </summary>
-    public static bool TryBuildFromRunSnapshot(PlanningCalculation run,
-        out NetPeggingReport report,out string error)
+    public sealed record RestoredRunSnapshot(MpsVersion Mps,
+        IReadOnlyList<ManufacturingBomRevision> Boms,
+        IReadOnlyList<PlanningBalance> Balances,
+        IReadOnlyList<PlanningExpectedReceipt> Receipts,
+        IReadOnlyDictionary<Guid,PlanningItemType> Types,
+        IReadOnlyList<MrpRow> MrpRows);
+
+    public static bool TryRestoreRunSnapshot(PlanningCalculation run,
+        out RestoredRunSnapshot? restored,out string error)
     {
-        report=new NetPeggingReport([],[],[]);
+        restored=null;
         error="";
         if(run.Id==Guid.Empty||run.MpsVersionId==Guid.Empty||
             run.AlgorithmVersion!="MRP-PREVIEW-1")
-        {error="نسخه محاسبات MRP برای بازسازی ردگیری پشتیبانی نمی‌شود.";return false;}
+        {error="نسخه محاسبات MRP برای بازسازی تصویر ورودی پشتیبانی نمی‌شود.";return false;}
         try
         {
             var snapshot=JsonSerializer.Deserialize<NetMrpRunInputSnapshot>(
@@ -272,10 +279,12 @@ public static class NetMrpDemandPegging
                 snapshot.Mps.State!=PlanningApproval.Approved||
                 snapshot.Mps.Lines.Count==0||snapshot.Types.Count==0)
             {error="تصویر ورودی یا نتیجه اجرای MRP ناقص یا ناسازگار است.";return false;}
-            var lines=snapshot.Mps.Lines.Select(x=>new MpsDemandLine{
-                Id=x.Id,MpsVersionId=snapshot.Mps.Id,ItemId=x.ItemId,
+            var mps=new MpsVersion{Id=snapshot.Mps.Id,Code=snapshot.Mps.Code,
+                State=snapshot.Mps.State};
+            mps.Lines=snapshot.Mps.Lines.Select(x=>new MpsDemandLine{
+                Id=x.Id,MpsVersionId=mps.Id,Version=mps,ItemId=x.ItemId,
                 NeededOn=x.NeededOn,Quantity=x.Quantity,Reference=x.Reference
-            }).ToArray();
+            }).ToList();
             var boms=snapshot.Bom.Select(x=>{
                 var revision=new ManufacturingBomRevision{
                     Id=x.Id,ParentItemId=x.ParentItemId,Revision=x.Revision,
@@ -291,14 +300,34 @@ public static class NetMrpDemandPegging
                 }).ToList();
                 return revision;
             }).ToArray();
-            report=Build(lines,boms,snapshot.Balances,snapshot.Receipts,
-                snapshot.Types,rows);
+            restored=new RestoredRunSnapshot(mps,boms,snapshot.Balances,
+                snapshot.Receipts,snapshot.Types,rows);
             return true;
         }
         catch(Exception ex) when(ex is JsonException or InvalidOperationException or
             ArgumentException or OverflowException or KeyNotFoundException)
         {
-            error="ردگیری از روی تصویر ذخیره‌شده MRP ممکن نیست: "+ex.Message;
+            error="بازسازی تصویر ذخیره‌شده MRP ممکن نیست: "+ex.Message;
+            return false;
+        }
+    }
+
+    public static bool TryBuildFromRunSnapshot(PlanningCalculation run,
+        out NetPeggingReport report,out string error)
+    {
+        report=new NetPeggingReport([],[],[]);
+        if(!TryRestoreRunSnapshot(run,out var restored,out error)||restored is null)
+            return false;
+        try
+        {
+            report=Build(restored.Mps.Lines,restored.Boms,restored.Balances,
+                restored.Receipts,restored.Types,restored.MrpRows);
+            return true;
+        }
+        catch(Exception ex) when(ex is InvalidOperationException or
+            ArgumentException or OverflowException or KeyNotFoundException)
+        {
+            error="اعتبارسنجی گراف اجرای ذخیره‌شده MRP ناموفق بود: "+ex.Message;
             return false;
         }
     }
