@@ -38,12 +38,21 @@ public static class BomAlternativeExecution
         model.Entity<ManufacturingOrderMaterialAllocation>().ToTable("ManufacturingOrderMaterialAllocations");
         model.Entity<ManufacturingOrderMaterialUsage>().ToTable("ManufacturingOrderMaterialUsages");
         model.Entity<ManufacturingOrderMaterialAllocation>().HasIndex(x => new { x.OrderId, x.BomLineId }).IsUnique();
+        model.Entity<ManufacturingOrderMaterialAllocation>().ToTable(t =>
+        {
+            t.HasCheckConstraint("CK_ManufacturingOrderMaterialAllocations_SharePercent",
+                "[SharePercent] > 0 AND [SharePercent] <= 100");
+            t.HasCheckConstraint("CK_ManufacturingOrderMaterialAllocations_PlannedQuantity",
+                "[PlannedQuantity] > 0");
+        });
         model.Entity<ManufacturingOrderMaterialAllocation>().Property(x => x.SharePercent).HasPrecision(8, 4);
         model.Entity<ManufacturingOrderMaterialAllocation>().Property(x => x.PlannedQuantity).HasPrecision(18, 4);
         model.Entity<ManufacturingOrderMaterialAllocation>().HasOne<ManufacturingOrder>()
             .WithMany().HasForeignKey(x => x.OrderId).OnDelete(DeleteBehavior.Restrict);
         model.Entity<ManufacturingOrderMaterialAllocation>().HasOne<ManufacturingBomLine>()
             .WithMany().HasForeignKey(x => x.BomLineId).OnDelete(DeleteBehavior.Restrict);
+        model.Entity<ManufacturingOrderMaterialUsage>().ToTable(t =>
+            t.HasCheckConstraint("CK_ManufacturingOrderMaterialUsages_Quantity_Positive", "[Quantity] > 0"));
         model.Entity<ManufacturingOrderMaterialUsage>().Property(x => x.Quantity).HasPrecision(18, 4);
         model.Entity<ManufacturingOrderMaterialUsage>().Property(x => x.LotCode).HasMaxLength(100);
         model.Entity<ManufacturingOrderMaterialUsage>().Property(x => x.Note).HasMaxLength(500);
