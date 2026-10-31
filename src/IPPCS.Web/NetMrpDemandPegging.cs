@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 
 // Read-only provenance graph for net MRP. All supply is an IPPCS planning assumption;
 // planned receipts are proposals, never confirmed warehouse or purchasing transactions.
@@ -11,6 +12,52 @@ public record NetPegPlannedLot(string LotKey, Guid ItemId, DateOnly ReceiptOn, D
     Guid? BomRevisionId, bool ReleaseBeforeBaseline, decimal UnallocatedQuantity);
 public record NetPeggingReport(IReadOnlyList<NetPegDemand> Demands,
     IReadOnlyList<NetPegAllocation> Allocations, IReadOnlyList<NetPegPlannedLot> PlannedLots);
+
+
+public sealed class NetMrpMpsSnapshot
+{
+    public Guid Id { get; set; }
+    public string Code { get; set; } = "";
+    public PlanningApproval State { get; set; }
+    public List<NetMrpMpsLineSnapshot> Lines { get; set; } = new();
+}
+public sealed class NetMrpMpsLineSnapshot
+{
+    public Guid Id { get; set; }
+    public Guid ItemId { get; set; }
+    public DateOnly NeededOn { get; set; }
+    public decimal Quantity { get; set; }
+    public string Reference { get; set; } = "";
+}
+public sealed class NetMrpBomSnapshot
+{
+    public Guid Id { get; set; }
+    public Guid ParentItemId { get; set; }
+    public string Revision { get; set; } = "";
+    public ManufacturingRevisionState State { get; set; }
+    public DateOnly ValidFrom { get; set; }
+    public DateOnly? ValidUntil { get; set; }
+    public List<NetMrpBomLineSnapshot> Lines { get; set; } = new();
+}
+public sealed class NetMrpBomLineSnapshot
+{
+    public Guid Id { get; set; }
+    public Guid ComponentItemId { get; set; }
+    public decimal QuantityPer { get; set; }
+    public decimal ScrapPercent { get; set; }
+    public int Sequence { get; set; }
+    public string? AlternativeGroupCode { get; set; }
+    public bool IsDefaultAlternative { get; set; }
+    public int AlternativePriority { get; set; }
+}
+public sealed class NetMrpRunInputSnapshot
+{
+    public NetMrpMpsSnapshot Mps { get; set; } = new();
+    public List<NetMrpBomSnapshot> Bom { get; set; } = new();
+    public List<PlanningBalance> Balances { get; set; } = new();
+    public List<PlanningExpectedReceipt> Receipts { get; set; } = new();
+    public Dictionary<Guid, PlanningItemType> Types { get; set; } = new();
+}
 
 public static class NetMrpDemandPegging
 {
@@ -202,9 +249,90 @@ public static class NetMrpDemandPegging
                 .OrderBy(x => x.ReceiptOn).ThenBy(x => x.ItemId).ToArray());
     }
 
+
+    /// <summary>
+    /// Rebuilds pegging strictly from the immutable input/result snapshot of one
+    /// saved MRP run. Later edits to live BOM, balances or receipts cannot alter
+    /// the evidence associated with that run.
+    /// </summary>
+    public static bool TryBuildFromRunSnapshot(PlanningCalculation run,
+        out NetPeggingReport report,out string error)
+    {
+        report=new NetPeggingReport([],[],[]);
+        error="";
+        if(run.Id==Guid.Empty||run.MpsVersionId==Guid.Empty||
+            run.AlgorithmVersion!="MRP-PREVIEW-1")
+        {error="نسخه محاسبات MRP برای بازسازی ردگیری پشتیبانی نمی‌شود.";return false;}
+        try
+        {
+            var snapshot=JsonSerializer.Deserialize<NetMrpRunInputSnapshot>(
+                run.InputSnapshotJson,new JsonSerializerOptions{PropertyNameCaseInsensitive=true});
+            var rows=JsonSerializer.Deserialize<List<MrpRow>>(run.ResultSnapshotJson);
+            if(snapshot is null||rows is null||snapshot.Mps.Id!=run.MpsVersionId||
+                snapshot.Mps.State!=PlanningApproval.Approved||
+                snapshot.Mps.Lines.Count==0||snapshot.Types.Count==0)
+            {error="تصویر ورودی یا نتیجه اجرای MRP ناقص یا ناسازگار است.";return false;}
+            var lines=snapshot.Mps.Lines.Select(x=>new MpsDemandLine{
+                Id=x.Id,MpsVersionId=snapshot.Mps.Id,ItemId=x.ItemId,
+                NeededOn=x.NeededOn,Quantity=x.Quantity,Reference=x.Reference
+            }).ToArray();
+            var boms=snapshot.Bom.Select(x=>{
+                var revision=new ManufacturingBomRevision{
+                    Id=x.Id,ParentItemId=x.ParentItemId,Revision=x.Revision,
+                    State=x.State,ValidFrom=x.ValidFrom,ValidUntil=x.ValidUntil
+                };
+                revision.Lines=x.Lines.Select(line=>new ManufacturingBomLine{
+                    Id=line.Id,RevisionId=x.Id,Revision=revision,
+                    ComponentItemId=line.ComponentItemId,QuantityPer=line.QuantityPer,
+                    ScrapPercent=line.ScrapPercent,Sequence=line.Sequence,
+                    AlternativeGroupCode=line.AlternativeGroupCode,
+                    IsDefaultAlternative=line.IsDefaultAlternative,
+                    AlternativePriority=line.AlternativePriority
+                }).ToList();
+                return revision;
+            }).ToArray();
+            report=Build(lines,boms,snapshot.Balances,snapshot.Receipts,
+                snapshot.Types,rows);
+            return true;
+        }
+        catch(Exception ex) when(ex is JsonException or InvalidOperationException or
+            ArgumentException or OverflowException or KeyNotFoundException)
+        {
+            error="ردگیری از روی تصویر ذخیره‌شده MRP ممکن نیست: "+ex.Message;
+            return false;
+        }
+    }
+
     public static IEndpointRouteBuilder MapNetMrpDemandPegging(this IEndpointRouteBuilder routes)
     {
         var api = routes.MapGroup("/api/v1").RequireAuthorization("IpProductionUser");
+
+        api.MapGet("/mrp/runs/{runId:guid}/net-demand-pegging",
+            async(Guid runId,ProductionDb db,CancellationToken ct)=>{
+            var run=await db.PlanningCalculations.AsNoTracking()
+                .SingleOrDefaultAsync(x=>x.Id==runId,ct);
+            if(run is null)return Results.NotFound();
+            if(!TryBuildFromRunSnapshot(run,out var traced,out var error))
+                return Results.Conflict(new{message=error});
+            return Results.Ok(new{
+                kind="ImmutableMrpRunNetDemandPegging",
+                runId=run.Id,mpsVersionId=run.MpsVersionId,
+                calculatedUtc=run.CalculatedUtc,algorithm=run.AlgorithmVersion,
+                warning="این ردگیری دقیقاً از تصویر ورودی و نتیجه همان اجرای ذخیره‌شده MRP بازسازی شده است؛ تغییرات بعدی اطلاعات پایه، BOM، موجودی برنامه‌ریزی یا دریافت‌ها در آن اعمال نمی‌شود. پیشنهادها همچنان سفارش قطعی یا رزرو انبار نیستند.",
+                demands=traced.Demands.Select(x=>new{x.DemandKey,x.ItemId,
+                    neededOnJalali=PersianPlanningDates.Format(x.NeededOn),
+                    x.Quantity,x.MpsLineId,x.ParentLotKey,x.BomRevisionId,x.Path,x.Level}),
+                allocations=traced.Allocations.Select(x=>new{x.DemandKey,x.ItemId,
+                    neededOnJalali=PersianPlanningDates.Format(x.NeededOn),
+                    x.SourceType,x.SourceKey,x.IsFirm,
+                    availableOnJalali=PersianPlanningDates.Format(x.AvailableOn),x.Quantity}),
+                plannedLots=traced.PlannedLots.Select(x=>new{x.LotKey,x.ItemId,
+                    receiptOnJalali=PersianPlanningDates.Format(x.ReceiptOn),
+                    releaseOnJalali=PersianPlanningDates.Format(x.ReleaseOn),
+                    x.Quantity,x.NetShortage,x.LotSizingSurplus,x.ProposalType,
+                    x.BomRevisionId,x.ReleaseBeforeBaseline,x.UnallocatedQuantity})
+            });
+        });
         api.MapGet("/mrp/{id:guid}/net-demand-pegging", async (Guid id, ProductionDb db, CancellationToken ct) =>
         {
             var mps = await db.MpsVersions.AsNoTracking().Include(x => x.Lines)
