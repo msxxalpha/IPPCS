@@ -35,6 +35,21 @@ public sealed class TimePhasedMaterialPeggingTests
         Assert.All(report.Allocations,x=>Assert.True(x.AvailableOn<=x.NeededOn));
     }
     [Fact]
+    public void Duplicate_receipt_identity_and_invalid_unused_balances_are_rejected()
+    {
+        var line=Guid.NewGuid();
+        var receipt=new PlanningExpectedReceipt{Id=Guid.NewGuid(),ItemId=Item,
+            Quantity=5,AvailableOn=Baseline.AddDays(1)};
+        Assert.Throws<InvalidOperationException>(()=>
+            TimePhasedMaterialPegging.Allocate([Need(line,Baseline.AddDays(1),1)],
+                [Balance(10)],[receipt,receipt]));
+        var invalidUnusedBalance=new PlanningBalance{ItemId=Guid.NewGuid(),
+            PhysicalQuantity=-1,SnapshotDate=Baseline};
+        Assert.Throws<InvalidOperationException>(()=>
+            TimePhasedMaterialPegging.Allocate([Need(line,Baseline.AddDays(1),1)],
+                [Balance(10),invalidUnusedBalance],[]));
+    }
+    [Fact]
     public void Invalid_or_missing_planning_baseline_fails_closed()
     {
         var line=Guid.NewGuid();
