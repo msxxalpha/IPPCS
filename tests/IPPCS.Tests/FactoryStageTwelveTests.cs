@@ -63,7 +63,7 @@ public sealed class FactoryStageTwelveTests
             ScrapPercent=0};
         var usage=new FactoryMaterialUsage{ComponentItemId=comp,QuantityConsumed=15};
         var row=Assert.Single(FactoryExecutionInsights.MaterialReconciliation(
-            order,[bom],[usage]));
+            order,[bom],[usage],[]));
         Assert.Equal(20,row.StandardForPlannedQuantity);
         Assert.Equal(16,row.StandardForReportedOutput);
         Assert.Equal(15,row.ActualLoggedConsumption);
@@ -79,14 +79,14 @@ public sealed class FactoryStageTwelveTests
         var withoutOutput=new ManufacturingOrder{PlannedQuantity=10,
             Operations=[new ManufacturingOrderOperation{Sequence=10}]};
         var row=Assert.Single(FactoryExecutionInsights.MaterialReconciliation(
-            withoutOutput,[bom],[]));
+            withoutOutput,[bom],[],[]));
         Assert.Null(row.ActualLoggedConsumption);
         Assert.Null(row.StandardForReportedOutput);
         Assert.Null(row.OutputBasedVariance);
         Assert.Equal("NoFinalOutput",row.Confidence);
         withoutOutput.Operations[0].GoodQuantity=8;
         row=Assert.Single(FactoryExecutionInsights.MaterialReconciliation(
-            withoutOutput,[bom],[]));
+            withoutOutput,[bom],[],[]));
         Assert.Equal(8m,row.StandardForReportedOutput);
         Assert.Null(row.OutputBasedVariance);
         Assert.Equal("NoConsumptionLog",row.Confidence);
