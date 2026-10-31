@@ -166,34 +166,59 @@ public static class BomAlternativeExecution
             var lines = await db.ManufacturingBomLines.AsNoTracking()
                 .Where(x => x.RevisionId == order.BomRevisionId && x.AlternativeGroupCode != null)
                 .ToListAsync(ct);
-            var actualGroupMap = lines.GroupBy(x => x.AlternativeGroupCode!, StringComparer.OrdinalIgnoreCase)
+            var groupMap = lines.GroupBy(x => x.AlternativeGroupCode!, StringComparer.OrdinalIgnoreCase)
                 .ToDictionary(x => x.Key, x => x.ToList(), StringComparer.OrdinalIgnoreCase);
-            if (actualGroupMap.Count != input.Groups.Count ||
-                input.Groups.Any(x => !actualGroupMap.ContainsKey(x.GroupCode.Trim())))
-                return Results.BadRequest(new { message = "تمام گروه‌های آلترناتیو BOM باید در یک مرحله تخصیص داده شوند." });
+            if (groupMap.Count != input.Groups.Count ||
+                input.Groups.Any(x => !groupMap.ContainsKey(x.GroupCode.Trim())))
+                return Results.BadRequest(new { message = "تمام گروه‌های آلترناتیو این BOM باید یکجا ارسال شوند." });
+            if (groupMap.Values.Any(x => x.Count < 2))
+                return Results.Conflict(new { message = "هر گروه آلترناتیو باید دست‌کم دو گزینه داشته باشد." });
 
             var allocations = db.Set<ManufacturingOrderMaterialAllocation>();
             var usage = db.Set<ManufacturingOrderMaterialUsage>();
-            var allLineIds = lines.Select(x => x.Id).ToArray();
-            if (await usage.AnyAsync(x => x.OrderId == id && allLineIds.Contains(x.BomLineId), ct))
-                return Results.Conflict(new { message = "پس از اولین مصرف واقعی از هر قطعه آلترناتیو، ترکیب گروه‌ها قفل می‌شود؛ اصلاح باید از مسیر کنترل‌شده مغایرت انجام شود." });
-
             var prior = await allocations.Where(x => x.OrderId == id).ToListAsync(ct);
-            var priorDetails = prior.OrderBy(x => x.BomLineId)
+            var priorByLine = prior.ToDictionary(x => x.BomLineId);
+            var auditPrevious = prior.OrderBy(x => x.BomLineId)
                 .Select(x => $"{x.BomLineId}:{x.SharePercent}%").ToArray();
-            if (prior.Count > 0) db.RemoveRange(prior);
+            var auditCurrent = new List<string>();
+            var changed = false;
 
-            var currentDetails = new List<string>();
             foreach (var groupInput in input.Groups)
             {
                 var groupCode = groupInput.GroupCode.Trim();
-                var groupLines = actualGroupMap[groupCode];
-                if (groupLines.Count < 2)
-                    return Results.Conflict(new { message = $"گروه {groupCode} کمتر از دو آلترناتیو معتبر دارد." });
+                var groupLines = groupMap[groupCode];
                 var byId = groupLines.ToDictionary(x => x.Id);
                 if (groupInput.Shares.Any(x => !byId.ContainsKey(x.BomLineId)))
                     return Results.BadRequest(new { message = $"همه قطعات تخصیص‌یافته باید عضو گروه {groupCode} باشند." });
-                foreach (var share in groupInput.Shares)
+
+                var groupLineIds = groupLines.Select(x => x.Id).ToArray();
+                var hasUsage = await usage.AnyAsync(x => x.OrderId == id && groupLineIds.Contains(x.BomLineId), ct);
+                var requested = groupInput.Shares.OrderBy(x => x.BomLineId).ToArray();
+                var priorGroup = prior.Where(x => groupLineIds.Contains(x.BomLineId)).ToArray();
+
+                if (hasUsage)
+                {
+                    // A consumed group is immutable. It may still be resubmitted unchanged
+                    // while another, as-yet-unused group is adjusted in the same atomic request.
+                    var effectivePrior = priorGroup.Length > 0
+                        ? priorGroup.Select(x => new ManufacturingOrderMaterialShareInput(x.BomLineId, x.SharePercent))
+                            .OrderBy(x => x.BomLineId).ToArray()
+                        : groupLines.Where(x => x.IsDefaultAlternative)
+                            .Select(x => new ManufacturingOrderMaterialShareInput(x.Id, 100m)).ToArray();
+                    if (requested.Length != effectivePrior.Length ||
+                        requested.Where((x, i) => x.BomLineId != effectivePrior[i].BomLineId ||
+                            x.SharePercent != effectivePrior[i].SharePercent).Any())
+                        return Results.Conflict(new { message = $"پس از ثبت مصرف واقعی، ترکیب گروه {groupCode} قفل شده است." });
+                    auditCurrent.AddRange(requested.Select(x => $"{groupCode}:{x.BomLineId}:{x.SharePercent}%"));
+                    continue;
+                }
+
+                if (priorGroup.Length > 0)
+                {
+                    db.RemoveRange(priorGroup);
+                    changed = true;
+                }
+                foreach (var share in requested)
                 {
                     var line = byId[share.BomLineId];
                     allocations.Add(new ManufacturingOrderMaterialAllocation
@@ -201,21 +226,26 @@ public static class BomAlternativeExecution
                         OrderId = id,
                         BomLineId = line.Id,
                         SharePercent = share.SharePercent,
-                        PlannedQuantity = RequiredQuantity(order, line, share.SharePercent)
+                        PlannedQuantity = CalculatePlannedComponentQuantity(order.PlannedQuantity, line, share.SharePercent)
                     });
-                    currentDetails.Add($"{groupCode}:{line.Id}:{share.SharePercent}%");
+                    auditCurrent.Add($"{groupCode}:{line.Id}:{share.SharePercent}%");
+                    changed = true;
                 }
             }
-            db.ManufacturingOrderAudits.Add(new ManufacturingOrderAudit
+
+            if (changed)
             {
-                OrderId = id,
-                Action = prior.Count > 0 ? "MaterialAlternativesRevised" : "MaterialAlternativesAllocated",
-                Details = $"Previous={string.Join(",", priorDetails)};Current={string.Join(",", currentDetails)}"
-            });
-            await db.SaveChangesAsync(ct);
+                db.ManufacturingOrderAudits.Add(new ManufacturingOrderAudit
+                {
+                    OrderId = id,
+                    Action = prior.Count > 0 ? "MaterialAlternativesRevised" : "MaterialAlternativesAllocated",
+                    Details = $"Previous={string.Join(",", auditPrevious)};Current={string.Join(",", auditCurrent)}"
+                });
+                await db.SaveChangesAsync(ct);
+            }
             await tx.CommitAsync(ct);
             return Results.Ok(new { orderId = id, groupCount = input.Groups.Count,
-                totalSharePercentPerGroup = 100m, allocationCount = currentDetails.Count });
+                totalSharePercentPerGroup = 100m, allocationCount = auditCurrent.Count, changed });
         });
 
         floorApi.MapPost("/manufacturing-orders/{id:guid}/material-usage", async (
