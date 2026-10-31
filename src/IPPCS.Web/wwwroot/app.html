@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#17324d">
+  <title>IPPCS | برنامه‌ریزی و کنترل تولید کمک‌فنر</title>
+  <link rel="stylesheet" href="/css/production.css">
+  <script defer src="/js/security-client.js"></script>
+<script defer src="/js/jalali-datepicker.js"></script>
+  <script defer src="/js/factory-choices.js"></script>
+  <script defer src="/js/production.js"></script>
+  <script defer src="/js/excel-csv-import.js"></script>
+</head>
+<body>
+<div class="app-shell">
+  <aside class="sidebar" id="side">
+    <div class="brand"><div class="brand-logo">IP</div><div><strong>ایندامین سایپا</strong><small>سامانه جامع برنامه‌ریزی و کنترل تولید</small></div></div>
+    <div class="side-caption">مسیر عملیاتی سامانه</div>
+    <nav id="primary-nav" aria-label="بخش‌های سامانه">
+      <button data-page="overview" class="nav-active">نمای کلی سامانه</button>
+      <div class="nav-group" aria-label="داده‌های پایه کارخانه">
+        <div class="nav-group-title">۱. داده‌های پایه کارخانه</div>
+        <a class="planning-link" href="/factory-master-data.html">فهرست‌های مرجع و اطلاعات پایه</a>
+        <button data-page="items">اقلام و محصولات تولیدی</button>
+        <button data-page="centers">مراکز کاری و منابع تولید</button>
+        <button data-page="shifts">تقویم شیفت و ظرفیت زمانی مراکز</button>
+      </div>
+      <div class="nav-group" aria-label="مهندسی محصول و ساخت">
+        <div class="nav-group-title">۲. مهندسی محصول و ساخت</div>
+        <button data-page="bom">ساختار مواد (BOM)</button>
+        <button data-page="routings">مسیر ساخت و عملیات</button>
+        <a class="planning-link" href="/engineering-rebind.html">کنترل تغییر نسخه BOM و Routing</a>
+      </div>
+      <div class="nav-group" aria-label="برنامه‌ریزی تولید">
+        <div class="nav-group-title">۳. برنامه‌ریزی تولید</div>
+        <a class="planning-link" href="/planning-advanced.html">تقاضا، پیش‌بینی، S&amp;OP، APS و سناریوهای ظرفیت</a>
+        <button data-page="plans">برنامه مقدماتی تولید (نمونه محدود)</button>
+        <a class="planning-link" href="/planning.html">BOM نسخه‌دار، برنامه MPS، نیازسنجی MRP و ظرفیت‌سنجی CRP</a>
+        <a class="planning-link" href="/mps-pegging.html">تخصیص و ردیابی دستورات نسبت به MPS</a>
+      </div>
+      <div class="nav-group" aria-label="اجرای تولید">
+        <div class="nav-group-title">۴. اجرای تولید</div>
+        <a class="planning-link" href="/execution.html">دستورات ساخت و کنترل اجرای عملیات</a>
+        <a class="planning-link" href="/production-deviations.html">انحراف برنامه، علل و اقدامات اصلاحی</a>
+      </div>
+      <div class="nav-group" aria-label="آزمایش‌ها و تست‌های دوره‌ای و سالانه">
+        <div class="nav-group-title">۵. آزمایش‌ها و تست‌های دوره‌ای/سالانه</div>
+        <a class="planning-link" href="/periodic-tests.html">برنامه آزمون‌های ادواری و سالانه محصول/فرآیند</a>
+        <a class="planning-link" href="/control-plan.html#inspection">بازرسی و ثبت نتایج آزمون حین تولید</a>
+        <a class="planning-link" href="/control-plan.html#eol">تست نهایی مونتاژ و گواهی داخلی EOL</a>
+        <a class="planning-link" href="/control-plan.html#spc">SPC و تحلیل پوشش نمونه‌برداری</a>
+        <a class="planning-link" href="/control-plan.html#readiness">آمادگی عملیات و وضعیت بازرسی</a>
+        <a class="planning-link" href="/factory-release-readiness.html">آمادگی آزمون و گیت‌های پذیرش ۱۸ ماژول</a>
+        <a class="planning-link" href="/factory-analytical-verification.html">آزمون هدایت‌شده محاسبات و داده‌های واقعی</a>
+      </div>
+      <div class="nav-group" aria-label="ردیابی و گزارش‌ها">
+        <div class="nav-group-title">۶. ردیابی و گزارش‌ها</div>
+        <a class="planning-link" href="/factory-recall.html">ردیابی بچ، سریال و بررسی دامنه اثر</a>
+        <a class="planning-link" href="/factory-reports.html">گزارش‌های مدیریتی و عملیاتی تولید</a>
+      </div>
+      <div class="nav-group" aria-label="مدیریت سامانه">
+        <div class="nav-group-title">۷. مدیریت سامانه</div>
+        <a class="planning-link" href="/system-users.html">حساب شخصی و کاربران سامانه</a>
+      </div>
+    </nav>
+    <div class="sidebar-foot">IPPCS • Stage 35 development preview<br>بدون اتصال به انبار، خرید، فروش یا منابع انسانی<br>پذیرش کارخانه و مجوز انتشار هنوز انجام نشده است</div>
+  </aside>
+  <div class="main">
+    <header class="topbar"><button id="menu-toggle" class="menu-toggle" type="button" aria-label="فهرست">☰</button><div><span class="eyebrow">مدیریت یکپارچه عملیات تولید</span><h1 id="page-title">نمای کلی سامانه</h1></div><span class="environment-pill">محیط توسعه</span><button type="button" class="btn-outline" data-ip-logout>خروج از سامانه</button></header>
+    <main class="content">
+      <div id="message" class="notice" hidden role="status" aria-live="polite"></div>
+      <section id="overview" class="page">
+        <div class="hero"><div><span class="eyebrow">سامانه تولید تخصصی صنعت کمک‌فنر</span><h2>برنامه‌ریزی دقیق؛ کنترل هوشمند تولید</h2><p>۱۸ حوزهٔ نرم‌افزاری شامل برنامه‌ریزی، اجرای ساخت، کیفیت، ردیابی، هزینه و شاخص‌ها قابلیت‌های قابل آزمایش دارند. راه‌اندازی در Visual Studio و پذیرش واقعی هر بخش هنوز جداگانه لازم است.</p></div><div class="hero-emblem">IPPCS</div></div>
+        <div class="callout">این نسخه برای بررسی و تست در پایگاه دادهٔ مستقل توسعه است و هنوز مجوز استفادهٔ واقعی در خط تولید ندارد. <a href="/factory-release-readiness.html">پیش‌نیازهای داده و گیت‌های پذیرش ۱۸ ماژول را اینجا ببینید.</a></div>
+        <div class="summary-stats"><div><span>ماژول‌های دارای مسیر آزمایش</span><strong>۱۸</strong></div><div><span>پذیرش نهایی ثبت‌شدهٔ کارخانه</span><strong>۰</strong></div><div><span>پیش‌نیازها و سناریوها</span><strong><a href="/factory-release-readiness.html">بررسی آمادگی</a></strong></div></div>
+        <div class="section-title"><h3>نقشه ماژول‌های جامع تولید</h3><small>هر کارت به فرم آزمایشی مرتبط وصل است. «دارای قابلیت» به معنی «تأیید تولید» نیست.</small></div>
+        <div class="module-grid" id="module-grid"></div>
+      </section>
+      <section id="items" class="page" hidden>
+        <div class="section-title"><h3>اقلام و محصولات</h3><small>مرجع اقلام برنامه‌ریزی داخلی؛ نه سامانه انبار.</small></div>
+        <form id="item-form" class="panel form-grid">
+          <label>کد کالا <input name="code" required maxlength="64"></label>
+          <label>شرح کالا <input name="name" required maxlength="256"></label>
+          <label>واحد اندازه‌گیری (اطلاعات پایه) <select id="item-unit" name="unit" required aria-label="واحد اندازه‌گیری کالا"></select></label>
+          <label>طبقه کالا <select name="type"><option value="0">مواد اولیه</option><option value="1">نیمه‌ساخته</option><option value="2">محصول نهایی</option><option value="3">مواد مصرفی</option></select></label>
+          <div class="form-actions"><button class="btn-main" type="submit">ثبت کالا</button></div>
+        </form>
+        <div class="panel table-panel"><h3>فهرست اقلام</h3><div id="item-list"></div></div>
+      </section>
+      <section id="centers" class="page" hidden>
+        <div class="section-title"><h3>مراکز کاری</h3><small>تعریف خطوط، ماشین‌آلات یا مراکز منابع تولید.</small></div>
+        <form id="center-form" class="panel form-grid">
+          <label>کد مرکز کاری <input name="code" required maxlength="64"></label>
+          <label>نام مرکز کاری <input name="name" required maxlength="256"></label>
+          <label>ظرفیت اسمی مرجع مرکز (واحد/ساعت؛ نرخ اختصاصی محصول و عملیات را در بخش پایین تعریف کنید) <input name="rate" type="number" min="0.0001" step="any" required></label>
+          <div class="form-actions"><button class="btn-main" type="submit">ثبت مرکز کاری</button></div>
+        </form>
+        <div class="panel table-panel"><h3>فهرست مراکز کاری</h3><div id="center-list"></div></div>
+        <section class="panel">
+          <div class="section-title"><h3>ظرفیت محصول‌محور هر مرکز کاری</h3>
+            <small>نرخ مستقل برای ترکیب محصول × نسخه مسیر ساخت × عملیات × مرکز کاری؛ نه یک ظرفیت عمومی مشترک برای همه محصولات.</small>
+          </div>
+          <div class="callout">برای هر عملیات مشخص، ظرفیت عبوری همان محصول را بر حسب واحد در ساعت ثبت کنید. سیستم آن را به زمان هر واحد تبدیل می‌کند و در CRP و APS استفاده می‌کند. زمان آماده‌سازی و بازده همچنان از عملیات مسیر ساخت خوانده می‌شوند؛ ظرفیت مستقل غیرفعال باشد، مقدار استاندارد Routing مبنا خواهد بود.</div>
+          <form id="center-product-capacity-form" class="form-grid">
+            <label>محصول یا نیمه‌ساخته
+              <select id="center-cap-item" name="itemId" required></select>
+            </label>
+            <label>مرکز کاری
+              <select id="center-cap-center" name="workCenterId" data-centers required></select>
+            </label>
+            <label>نسخه مسیر و عملیات همین محصول
+              <select id="center-cap-operation" name="routingOperationId" required></select>
+            </label>
+            <label>ظرفیت عبوری این محصول در عملیات (واحد/ساعت)
+              <input id="center-cap-rate" name="capacityUnitsPerHour" type="number" min="0.0001" max="1000000" step="any" required>
+            </label>
+            <label class="choice-check"><input id="center-cap-active" name="isActive" type="checkbox" checked> اعمال این ظرفیت در برنامه‌ریزی CRP و APS</label>
+            <div class="form-actions"><button class="btn-main" id="center-cap-save" type="submit">ثبت ظرفیت محصول‌محور</button></div>
+          </form>
+          <p class="hint">هر عملیات یک نرخ اختصاصی دارد. اگر یک محصول روی یک مرکز چند عملیات متفاوت دارد، برای هر عملیات نرخ جداگانه تعیین کنید. این مقدار ظرفیت زمانی شیفت را زیاد نمی‌کند؛ سرعت انجام همان محصول در آن عملیات را مشخص می‌کند.</p>
+          <div id="center-product-capacity-list"></div>
+        </section>
+      </section>
+      <section id="bom" class="page" hidden>
+        <div class="section-title"><h3>ساختار مواد (BOM)</h3><small>تعریف اجزای موردنیاز هر محصول با کنترل حلقه در ساختار چندسطحی.</small></div>
+        <form id="bom-form" class="panel form-grid">
+          <label>کالای والد <select name="parent" data-items required></select></label>
+          <label>قطعه یا ماده زیرمجموعه <select name="component" data-items required></select></label>
+          <label>تعداد مصرف در واحد <input name="quantity" type="number" min="0.000001" step="any" required></label>
+          <label>ضایعات استاندارد (%) <input name="scrap" type="number" min="0" max="99.999" step="any" value="0" required></label>
+          <label>ترتیب <input name="sequence" type="number" min="0" step="1" value="10" required></label>
+          <div class="form-actions"><button class="btn-main" type="submit">ثبت جزء BOM</button></div>
+        </form>
+        <div class="panel"><label>مشاهده ساختار محصول <select id="bom-parent" data-items></select></label><div id="bom-list" class="table-panel"></div></div>
+      </section>
+      <section id="routings" class="page" hidden>
+        <div class="section-title"><h3>مسیر ساخت و نسخه‌های مهندسی</h3><small>تعریف مسیر ساخت با تاریخ اعتبار هجری شمسی و کنترل همپوشانی نسخه‌های تأییدشده.</small></div>
+        <form id="routing-form" class="panel form-grid">
+          <label>محصول <select name="itemId" data-items required></select></label>
+          <label>کد نسخه مسیر <input name="revisionCode" value="A" maxlength="32" required></label>
+          <label>شروع اعتبار <span class="jalali-field"><input name="from" data-jalali-date required placeholder="۱۴۰۵/۰۸/۰۴"><button type="button" data-jalali-trigger class="date-trigger">▣</button></span></label>
+          <label>پایان اعتبار (اختیاری) <span class="jalali-field"><input name="to" data-jalali-date placeholder="انتخاب تاریخ"><button type="button" data-jalali-trigger class="date-trigger">▣</button></span></label>
+          <div class="form-actions"><button class="btn-main" type="submit">ثبت مسیر پیش‌نویس</button></div>
+        </form>
+        <form id="operation-form" class="panel form-grid">
+          <h3 class="wide">افزودن عملیات به مسیر پیش‌نویس</h3>
+          <label>مسیر ساخت <select name="routeId" id="operation-route" required></select></label>
+          <label>مرکز کاری <select name="centerId" data-centers required></select></label>
+          <label>ترتیب عملیات <input name="sequence" type="number" min="1" value="10" required></label>
+          <label>عنوان عملیات <input name="name" required maxlength="180" placeholder="مثلاً جوشکاری بدنه"></label>
+          <label>زمان آماده‌سازی (دقیقه) <input name="setup" type="number" step="any" min="0" value="0" required></label>
+          <label>زمان انجام هر واحد (دقیقه) <input name="run" type="number" step="any" min="0.000001" required></label>
+          <label>بازده عملیات (%) <input name="yield" type="number" step="any" min="0.001" max="100" value="100" required></label>
+          <div class="form-actions"><button class="btn-main" type="submit">افزودن عملیات</button></div>
+        </form>
+        <div class="panel form-grid">
+         <h3 class="wide">چاپ برگه مسیر ساخت</h3>
+         <label>نسخه مسیر<select id="print-routing-select"></select></label>
+         <div class="form-actions"><button id="print-routing-button" type="button" class="btn-outline">پیش‌نمایش و چاپ Routing</button></div>
+        </div>
+        <div class="panel table-panel"><h3>نسخه‌ها و عملیات مسیر ساخت</h3><div id="routing-list"></div></div>
+      </section>
+      <section id="shifts" class="page" hidden>
+        <div class="section-title"><h3>تقویم شیفت مرکز کاری</h3><small>شیفت‌های عبوری از نیمه‌شب پشتیبانی می‌شوند؛ مثلاً شروع ۲۲:۰۰ و پایان ۰۶:۰۰ روز بعد است. همپوشانی با شیفت روز بعد رد می‌شود. درصد ظرفیت مؤثر بازه قابل زمان‌بندی را از ابتدای شیفت کاهش می‌دهد.</small></div>
+        <form id="shift-form" class="panel form-grid">
+          <label>مرکز کاری <select name="centerId" data-centers required></select></label>
+          <label>روز هفته <select name="day"><option value="6">شنبه</option><option value="0">یکشنبه</option><option value="1">دوشنبه</option><option value="2">سه‌شنبه</option><option value="3">چهارشنبه</option><option value="4">پنجشنبه</option><option value="5">جمعه</option></select></label>
+          <label>شروع شیفت <input name="start" type="time" value="07:00" required></label>
+          <label>پایان شیفت <input name="end" type="time" value="15:00" required></label>
+          <label>ضریب ظرفیت مفید (%) <input name="capacity" type="number" min="0.001" max="100" value="85" step="any" required></label>
+          <div class="form-actions"><button class="btn-main" type="submit">ثبت شیفت</button></div>
+        </form>
+        <div class="panel table-panel"><h3>تقویم مراکز کاری</h3><div id="shift-list"></div></div>
+        <div class="panel"><h3>تقویم روزانه ظرفیت مؤثر، شامل دقایق شیفت شب</h3>
+          <p>ظرفیت هر روز شمسی از دقیقه‌های شیفت همان روز و بخش باقیمانده شیفت شب روز قبل محاسبه می‌شود. این گزارش مستقل از حضور و غیاب کارکنان است.</p>
+          <div class="form-grid">
+            <label>مرکز کاری<select id="shift-capacity-center" data-centers></select></label>
+            <label>تاریخ شروع<span class="jalali-field"><input id="shift-capacity-from" data-jalali-date placeholder="انتخاب تاریخ شمسی"><button type="button" class="date-trigger" data-jalali-trigger>▣</button></span></label>
+            <label>تعداد روز<input id="shift-capacity-days" type="number" min="1" max="31" value="7"></label>
+            <div class="form-actions"><button id="shift-capacity-review" type="button" class="btn-outline">بررسی ظرفیت روزانه و انتقال شیفت شب</button></div>
+          </div>
+          <div id="shift-capacity-table"></div>
+        </div>
+      </section>
+      <section id="plans" class="page" hidden>
+        <div class="section-title"><h3>برنامه تولید (نمونه اولیه)</h3><small>ثبت مقدار و موعد تولید با تقویم شمسی؛ محاسبه نیاز ناخالص چندسطحی مواد.</small></div>
+        <form id="plan-form" class="panel form-grid">
+          <label>محصول <select name="itemId" data-items required></select></label>
+          <label>مقدار تولید <input name="quantity" type="number" min="0.0001" step="any" required></label>
+          <label>موعد تولید (هجری شمسی) <span class="jalali-field"><input name="due" data-jalali-date required placeholder="انتخاب تاریخ"><button type="button" data-jalali-trigger class="date-trigger">▣</button></span></label>
+          <div class="form-actions"><button class="btn-main" type="submit">ثبت برنامه</button></div>
+        </form>
+        <div class="panel form-grid">
+         <h3 class="wide">چاپ برنامه مقدماتی تولید</h3>
+         <label>برنامه انتخابی<select id="print-plan-select"></select></label>
+         <div class="form-actions"><button id="print-plan-button" type="button" class="btn-outline">برگه چاپی برنامه تولید</button></div>
+        </div>
+        <div class="panel table-panel"><h3>برنامه‌های ثبت‌شده</h3><div id="plan-list"></div></div>
+        <div class="panel" id="requirements-panel" hidden><h3>نیاز ناخالص مواد (پیش‌نمایش)</h3><p>این محاسبه هنوز موجودی، زمان تأمین و ظرفیت را کسر نمی‌کند؛ MRP خالص نیست.</p><div id="requirements-list"></div></div>
+      </section>
+    </main>
+    <footer class="footer">IPPCS • سامانه مستقل برنامه‌ریزی و کنترل تولید <span>Build Prototype 0.2.0</span></footer>
+  </div>
+</div>
+</body>
+</html>

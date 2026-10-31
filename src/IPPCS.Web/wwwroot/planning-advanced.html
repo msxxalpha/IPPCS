@@ -1,0 +1,279 @@
+<!doctype html><html lang="fa" dir="rtl"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>IPPCS | تقاضا، S&OP، APS و تحلیل تولید</title>
+<link rel="stylesheet" href="/css/production.css">
+<script defer src="/js/security-client.js"></script>
+<script defer src="/js/jalali-datepicker.js"></script>
+<script defer src="/js/factory-choices.js"></script>
+<script defer src="/js/aps-gantt-segments.js"></script>
+<script defer src="/js/planning-advanced.js"></script></head><body>
+<div class="app-shell"><aside class="sidebar">
+<div class="brand"><div class="brand-logo">IP</div><div><strong>ایندامین سایپا</strong><small>کنترل و زمان‌بندی تولید</small></div></div>
+<nav>
+<a class="planning-link" href="/app.html">داشبورد اصلی</a>
+<a class="planning-link" href="/planning.html">BOM / MPS / MRP</a>
+<a class="planning-link" href="/execution.html">اجرای عملیات تولید</a>
+<a class="planning-link" href="/factory-analytical-verification.html">آزمون سناریوهای تحلیلی</a>
+<button class="nav-active" data-view="demand">تقاضای مستقل تولید</button>
+<button data-view="sop">تراز کلان S&OP</button>
+<button data-view="aps">زمان‌بندی محدودیت‌دار APS</button>
+<button data-view="whatif">سناریوهای ظرفیت What-if</button>
+<button data-view="materials">مصرف داخلی مواد پای خط</button>
+<button data-view="cost">هزینه تبدیل و بهره‌وری</button>
+<button data-view="dashboard">پایش برنامه و KPI</button>
+</nav><div class="sidebar-foot">IPPCS • نسخه آزمایشی<br>ماژول‌های ERP و اتصال به آن‌ها خارج از محدوده‌اند</div>
+</aside>
+<div class="main">
+<header class="topbar"><div><span class="eyebrow">سامانه مستقل برنامه‌ریزی تولید کمک‌فنر</span><h1 id="page-heading">تقاضای مستقل تولید</h1></div><button class="btn-outline" data-ip-logout type="button">خروج</button></header>
+<main class="content">
+<div id="flash" class="notice" role="status" aria-live="polite" hidden></div>
+<div class="callout">این سامانه هیچ ارتباط عملیاتی با نرم‌افزارهای انبار، خرید، فروش و منابع انسانی ندارد. تقاضاها، موجودی‌های فرضی، نرخ‌های تبدیل و مصرف پای خط فقط ورودی‌های مستقل برنامه‌ریزی/ثبت عملکرد IPPCS هستند.</div>
+<section id="demand" class="page">
+<div class="section-title"><h3>تقاضا و پیش‌بینی تولید</h3><small>ورود مستقیم نیاز محصول نهایی بدون اتصال به سیستم فروش</small></div>
+<form id="demand-form" class="panel form-grid">
+<label>محصول نهایی<select name="itemId" data-finished required></select></label>
+<label>مرجع برنامه‌ای<input name="reference" maxlength="100" required placeholder="برنامه هفتگی ساخت"></label>
+<label>نوع نیاز<select name="category" required><option value="Forecast">پیش‌بینی</option><option value="Confirmed">نیاز قطعی داخلی</option><option value="SafetyBuild">تولید اطمینان</option></select></label>
+<label>تاریخ نیاز<span class="jalali-field"><input name="due" data-jalali-date required placeholder="انتخاب تاریخ شمسی"><button type="button" data-jalali-trigger class="date-trigger">▣</button></span></label>
+<label>مقدار<input name="quantity" type="number" step="any" min="0.0001" required></label>
+<div class="form-actions"><button type="submit" class="btn-main">ثبت تقاضا</button></div>
+</form><form id="forecast-form" class="panel form-grid">
+<h3 class="wide">پیش‌بینی آماری ساده بر اساس نیازهای قطعی داخلی قبلی</h3>
+<label>محصول نهایی<select name="itemId" data-finished required></select></label>
+<label>شروع ماه پیش‌بینی<span class="jalali-field"><input name="from" data-jalali-date required><button type="button" data-jalali-trigger class="date-trigger">▣</button></span></label>
+<label>ماه‌های سابقه<input name="lookback" type="number" min="2" max="12" value="6" required></label>
+<label>ماه‌های آینده<input name="months" type="number" min="1" max="6" value="3" required></label>
+<div class="form-actions"><button class="btn-outline" type="submit">پیش‌نمایش میانگین متحرک</button></div>
+</form>
+<div class="panel"><h3>نتیجه پیش‌بینی (بدون ثبت خودکار تقاضا)</h3><div id="forecast-table"></div></div>
+<form id="forecast-backtest-form" class="panel form-grid">
+  <h3 class="wide">سنجش دقت پیش‌بینی بر اساس ماه‌های شمسی خاتمه‌یافته</h3>
+  <label>محصول نهایی<select name="itemId" data-finished required></select></label>
+  <label>آخرین ماه ارزیابی<span class="jalali-field"><input name="through" data-jalali-date required placeholder="یکی از روزهای ماه خاتمه‌یافته"><button type="button" data-jalali-trigger class="date-trigger">▣</button></span></label>
+  <label>طول پنجره پیش‌بینی (ماه)<input name="lookback" type="number" min="2" max="12" value="3" required></label>
+  <label>ماه‌های ارزیابی<input name="months" type="number" min="2" max="12" value="6" required></label>
+  <div class="form-actions"><button type="submit" class="btn-outline">ارزیابی تاریخی دقت</button></div>
+</form>
+<div class="panel"><h3>خطای ماهانه، MAE، WAPE و سوگیری پیش‌بینی</h3><div id="backtest-summary"></div><div id="backtest-table"></div></div><div class="panel"><h3>فهرست تقاضاهای داخلی</h3><div id="demand-table"></div></div>
+<div class="panel form-grid">
+<label>نسخه پیش‌نویس هدف MPS<select id="demand-mps-target"></select></label>
+<div class="form-actions"><button id="demand-transfer" class="btn-outline" type="button">انتقال تقاضای انتخاب‌شده به MPS</button></div>
+</div><div class="panel"><h3>انتخاب تقاضا برای انتقال</h3>
+<select id="demand-target" aria-label="انتخاب تقاضای داخلی"></select>
+</div>
+</section>
+<section id="sop" class="page" hidden>
+<div class="section-title"><h3>تراز تجمیعی ظرفیت در برابر نیاز</h3><small>پیش‌نمایش بار کل کارخانه، نه برنامه نهایی توزیع بار بین مراکز</small></div>
+<form id="sop-form" class="panel form-grid">
+<label>کد ارزیابی<input name="code" maxlength="80" required placeholder="SOP-1405-09"></label>
+<label>از تاریخ<span class="jalali-field"><input name="from" data-jalali-date required><button type="button" data-jalali-trigger class="date-trigger">▣</button></span></label>
+<label>تا تاریخ<span class="jalali-field"><input name="through" data-jalali-date required><button type="button" data-jalali-trigger class="date-trigger">▣</button></span></label>
+<div class="form-actions"><button type="submit" class="btn-main">محاسبه و ثبت Snapshot S&OP</button></div></form>
+<div class="panel"><h3>نتایج ثبت‌شده تراز تولید</h3><div id="sop-table"></div></div>
+<div class="panel"><h3>آخرین تراز به تفکیک مرکز کاری</h3><div id="sop-centers"></div></div>
+<form id="sop-mps-bridge-form" class="panel form-grid">
+<h3 class="wide">مقایسه تصویر تاریخی S&OP با نسخه مصوب MPS</h3>
+<label>ارزیابی S&OP ثبت‌شده<select id="sop-bridge-sop" name="sopId" required></select></label>
+<label>نسخه مصوب MPS<select name="mpsId" data-mps required></select></label>
+<div class="form-actions"><button type="submit" class="btn-outline">بررسی فاصله S&OP و برنامه مصوب</button></div>
+</form>
+<div class="panel"><h3>مقدار S&OP، نیازهای فعلی و برنامه MPS</h3><div id="sop-mps-bridge-table"></div></div>
+</section>
+<section id="aps" class="page" hidden>
+<div class="section-title"><h3>زمان‌بندی ظرفیت محدود در شیفت</h3><small>بدون همپوشانی مرکز کاری و با ترتیب عملیات؛ مقدار ورودی و زمان هر مرحله با لحاظ کردن بازده تجمعی عملیات پایین‌دست محاسبه می‌شود. این خروجی همچنان پیش‌نمایش است، نه رزرو قطعی یا تأیید اجرای کارخانه.</small></div>
+<form id="aps-form" class="panel form-grid">
+<label>نسخه MPS مصوب<select name="mpsId" data-mps required></select></label>
+<label>شروع افق<span class="jalali-field"><input name="start" data-jalali-date required><button type="button" data-jalali-trigger class="date-trigger">▣</button></span></label>
+<label>افق (روز)<input name="horizon" type="number" min="1" max="90" value="14" required></label>
+<label>ضریب ظرفیت<input name="capacity" type="number" min="0.1" max="2" step="any" value="1" required></label>
+<div class="wide panel" style="padding:12px">
+  <h3>روزهای تعطیلی اضطراری یا تعمیرات برنامه‌ای مراکز کاری</h3>
+  <p>روز عدم‌دسترسی در این محاسبه باعث توقف تخصیص عملیات به همان مرکز می‌شود؛ فقط فرض زمان‌بندی IPPCS است.</p>
+  <div class="form-grid">
+    <label>مرکز کاری<select id="aps-blackout-center"></select></label>
+    <label>تاریخ عدم‌دسترسی<span class="jalali-field"><input id="aps-blackout-date" data-jalali-date placeholder="انتخاب تاریخ شمسی"><button type="button" class="date-trigger" data-jalali-trigger>▣</button></span></label>
+    <label>دلیل عدم دسترسی (اطلاعات پایه)<select id="aps-blackout-reason-code"></select></label>
+    <div class="form-actions"><button id="aps-add-blackout" type="button" class="btn-outline">افزودن روز عدم‌دسترسی</button></div>
+  </div>
+  <div id="aps-blackout-list"></div>
+</div>
+<div class="wide panel" style="padding:12px">
+  <h3>بازه‌های ساعتی توقف ماشین، تعویض ابزار یا تعمیرات</h3>
+  <p>بازه نیمه‌باز به وقت محلی تهران فقط در همین سناریوی APS اعمال می‌شود. بازه می‌تواند از نیمه‌شب عبور کند؛ مرکز، دلیل ثبت‌شده در اطلاعات پایه و آغاز/پایان دقیق الزامی است. تغییری در دستور واقعی، رزرو فعال یا برنامه MPS ایجاد نمی‌شود.</p>
+  <div class="form-grid">
+    <label>مرکز کاری<select id="aps-slot-center"></select></label>
+    <label>شروع (شمسی)<span class="jalali-field"><input id="aps-slot-start" data-jalali-date placeholder="تاریخ شروع"><button type="button" class="date-trigger" data-jalali-trigger>▣</button></span></label>
+    <label>ساعت شروع<input id="aps-slot-start-time" type="time" value="10:00"></label>
+    <label>پایان (شمسی)<span class="jalali-field"><input id="aps-slot-end" data-jalali-date placeholder="تاریخ پایان"><button type="button" class="date-trigger" data-jalali-trigger>▣</button></span></label>
+    <label>ساعت پایان<input id="aps-slot-end-time" type="time" value="12:00"></label>
+    <label>دلیل توقف (اطلاعات پایه)<select id="aps-slot-reason-code"></select></label>
+    <div class="form-actions"><button id="aps-add-slot" type="button" class="btn-outline">افزودن توقف ساعتی به سناریو</button></div>
+  </div>
+  <div id="aps-slot-list" aria-live="polite"></div>
+</div>
+<div class="wide panel" style="padding:12px">
+ <h3>ابزار مشترک بین مراکز کاری</h3>
+ <p>اگر دو یا چند مرکز در یک سناریوی APS از یک ابزار/فیکسچر مشترک استفاده می‌کنند، همان کد ابزار را برای آن مراکز انتخاب کنید. موتور مانع تخصیص همزمان این مراکز می‌شود؛ هیچ ارتباطی با سامانه کالیبراسیون یا تجهیزات خارجی وجود ندارد.</p>
+ <div class="form-grid">
+  <label>مرکز کاری<select id="aps-tool-center"></select></label>
+  <label>گروه ابزار مشترک (اطلاعات پایه)<select id="aps-tool-code"></select></label>
+  <div class="form-actions"><button id="aps-add-tool" type="button" class="btn-outline">انتساب ابزار به مرکز در سناریو</button></div>
+ </div>
+ <div id="aps-tool-list" aria-live="polite"></div>
+</div>
+<div class="form-actions"><button type="submit" class="btn-main">محاسبه زمان‌بندی محدودیت‌دار</button></div></form>
+<div class="panel"><h3>نمای گانت عملیاتی بر اساس روز و مرکز کاری</h3>
+<div id="aps-gantt"></div>
+</div><div class="panel"><h3>پیش‌نمایش عملیات قابل زمان‌بندی</h3><div id="aps-table"></div></div>
+<div class="panel"><h3>عملیات خارج از ظرفیت</h3><div id="aps-errors"></div></div>
+<div class="panel form-grid">
+ <h3 class="wide">نسخه چاپی زمان‌بندی APS</h3>
+ <label>سناریوی ثبت‌شده<select id="print-aps-select"></select></label>
+ <div class="form-actions"><button id="print-aps-button" type="button" class="btn-outline">چاپ گانت و ردیف‌های سناریوی APS</button></div>
+ <p class="wide">این سند صرفاً خروجی محاسبات زمان‌بندی محدود است و تأیید اجرایی یا رزرو قطعی ماشین نیست.</p>
+</div>
+<div class="panel"><h3>تاریخچه محاسبات APS</h3><div id="aps-runs"></div></div>
+</section>
+<section id="whatif" class="page" hidden>
+<div class="section-title"><h3>بررسی تغییر ظرفیت بدون ثبت برنامه واقعی</h3><small>مقایسه تعداد عملیات قابل زمان‌بندی و دیرکرد در دو وضعیت</small></div>
+<form id="whatif-form" class="panel form-grid">
+<label>نسخه MPS<select name="mpsId" data-mps required></select></label>
+<label>شروع افق<span class="jalali-field"><input name="start" data-jalali-date required><button type="button" data-jalali-trigger class="date-trigger">▣</button></span></label>
+<label>افق (روز)<input name="horizon" type="number" min="1" max="90" value="14" required></label>
+<label>ضریب وضعیت پایه<input name="baseline" type="number" min="0.1" max="2" step="any" value="1" required></label>
+<label>ضریب سناریو<input name="scenario" type="number" min="0.1" max="2" step="any" value="1.25" required></label>
+<div class="form-actions"><button type="submit" class="btn-main">مقایسه سناریوها</button></div></form>
+<div class="panel"><h3>مقایسه نتایج</h3><div id="whatif-table"></div></div>
+<form id="maintenance-whatif-form" class="panel form-grid">
+<h3 class="wide">سناریوی هم‌زمان ظرفیت و عدم‌دسترسی مرکز کاری</h3>
+<label>نسخه مصوب MPS<select name="mpsId" data-mps required></select></label>
+<label>شروع افق<span class="jalali-field"><input name="start" data-jalali-date required><button type="button" data-jalali-trigger class="date-trigger">▣</button></span></label>
+<label>افق (روز)<input name="horizon" type="number" min="1" max="90" value="7" required></label>
+<label>ضریب پایه<input name="baseline" type="number" min="0.1" max="2" step="any" value="1" required></label>
+<label>ضریب سناریو<input name="scenario" type="number" min="0.1" max="2" step="any" value="0.75" required></label>
+<label>مرکز کاری غیرفعال در سناریو (اختیاری)<select id="maintenance-center" name="center"></select></label>
+<label>تاریخ عدم‌دسترسی (اختیاری)<span class="jalali-field"><input name="blackout" data-jalali-date><button type="button" data-jalali-trigger class="date-trigger">▣</button></span></label>
+<label>علت عدم‌دسترسی (اختیاری)<input name="reason" maxlength="180" placeholder="تعمیرات برنامه‌ای"></label>
+<div class="form-actions"><button type="submit" class="btn-main">محاسبه سناریوی ترکیبی</button></div>
+</form>
+<div class="panel"><h3>اثر ظرفیت و تعمیرات بر برنامه</h3><div id="maintenance-whatif-table"></div><div id="maintenance-whatif-errors"></div></div>
+</section>
+<section id="materials" class="page" hidden>
+<div class="section-title"><h3>ثبت مصرف تولیدی پای خط و انحراف BOM</h3><small>فقط مصرف عملیاتی است؛ هیچ حواله یا تغییر موجودی در انبار ایجاد نمی‌کند.</small></div>
+<form id="material-form" class="panel form-grid">
+<label>دستور ساخت فعال<select name="orderId" id="material-order" required></select></label>
+<label>جزء قابل مصرف<select name="componentItemId" id="material-component" required></select></label>
+<label>مقدار مصرف<input name="quantity" type="number" step="any" min="0.0001" required></label>
+<label>مرجع ثبت<input name="reference" required maxlength="200" placeholder="ثبت دستی مصرف در عملیات"></label>
+<div class="form-actions"><button type="submit" class="btn-main">ثبت مصرف داخلی تولید</button></div></form>
+<div class="panel"><h3>مصرف برنامه و واقعی</h3><div id="material-table"></div></div><div class="panel">
+<h3>انحراف مصرف ثبت‌شده نسبت به مقدار خروجی واقعی تولید</h3>
+<p>مصرف ثبت‌نشده «نامشخص» است، نه صفر. این گزارش مقایسه عملیاتی است و موجودی هیچ انباری را تغییر نمی‌دهد.</p>
+<div id="material-reconciliation"></div></div>
+<form id="material-lot-form" class="panel form-grid">
+<h3 class="wide">ثبت مصرف منتسب به بچ واقعی تولید</h3>
+<p class="wide">تنها بچ دارای گزارش عملکرد واقعی قابل انتخاب است. مقدار ثبت‌شده برای هر جزء نباید از ضریب استاندارد BOM منجمد همان بچ فراتر رود؛ اصلاح اشتباه از طریق سند معکوس انجام می‌شود.</p>
+<label>بچ ثبت‌شده<select name="confirmationId" id="material-lot" required></select></label>
+<label>جزء BOM<select name="componentItemId" id="material-lot-component" required></select></label>
+<label>مقدار مصرف بچ<input name="quantity" type="number" min="0.0001" step="any" required></label>
+<label>مرجع ثبت<input name="reference" maxlength="140" required></label>
+<div class="form-actions"><button class="btn-main" type="submit">ثبت مصرف قابل ردیابی بچ</button><button id="material-lot-review" type="button" class="btn-outline">بررسی تراز بچ</button></div>
+</form>
+<div class="panel"><h3>استاندارد و مقدار مصرف بچ انتخابی</h3><div id="material-lot-balances"></div></div>
+<form id="material-reversal-form" class="panel form-grid">
+<h3 class="wide">ابطال ثبت اشتباه بدون پاک‌کردن سابقه</h3>
+<label>سند مصرف قبلی<select id="material-reversal-entry" name="entryId" required></select></label>
+<label>علت اصلاح<input name="reason" maxlength="140" required placeholder="دلیل قابل حسابرسی اصلاح مصرف"></label>
+<div class="form-actions"><button class="btn-outline" type="submit">ثبت سند معکوس مصرف</button></div>
+</form>
+<div class="panel"><h3>دفتر شواهد مصرف؛ اصل و اصلاحات</h3>
+<p>مصرف قدیمی فاقد شناسه بچ، فقط به سطح دستور منتسب است. سند معکوس ثبت قبلی را پاک نمی‌کند و مانده خالص آن را صفر می‌کند.</p>
+<div id="material-evidence-ledger"></div></div>
+</section>
+<section id="cost" class="page" hidden>
+<div class="section-title"><h3>برآورد هزینه تبدیل و ضایعات تولید</h3><small>ریال، مبتنی بر نرخ استاندارد هر مرکز؛ نه ماژول مالی یا حسابداری بهای تمام‌شده</small></div>
+<form id="cost-form" class="panel form-grid">
+<label>مرکز کاری<select name="center" id="cost-center" required></select></label>
+<label>نرخ تبدیل (ریال / دقیقه)<input name="rate" type="number" step="any" min="0" required></label>
+<label>هزینه فرضی هر ضایعه (ریال)<input name="scrap" type="number" step="any" min="0" required></label>
+<label>تاریخ مبنای نرخ<span class="jalali-field"><input name="from" data-jalali-date required><button type="button" data-jalali-trigger class="date-trigger">▣</button></span></label>
+<label>یادداشت<input name="note" maxlength="400"></label>
+<div class="form-actions"><button type="submit" class="btn-main">ثبت نرخ استاندارد تبدیل</button></div></form>
+<div class="panel form-grid"><label>دستور تولید<select id="cost-order"></select></label><div class="form-actions"><button type="button" class="btn-outline" id="cost-review">بررسی هزینه تخمینی</button></div></div>
+<div class="panel"><h3>برآورد هزینه تبدیل و ضایعات</h3><div id="cost-table"></div></div><div class="panel">
+  <h3>انحراف هزینه تبدیل براساس ساعت واقعی عملیات</h3>
+  <p>هزینه واقعی صرفاً حاصل دقیقه‌های ثبت‌شده کارکرد و نرخ داخلی مرکز است، نه بهای تمام‌شده مالی. برای زمان یا نرخ ناموجود مقدار «نامشخص» نمایش داده می‌شود.</p>
+  <div id="cost-variance-summary"></div>
+  <div id="cost-variance-table"></div>
+  <h3>سوابق منجمد نرخ‌های هزینه تبدیل هنگام آزادسازی دستور</h3>
+  <p>نرخ مرکز کاری و مبنای تاریخی در لحظه آزادسازی دستور ثبت می‌شود و تغییرات بعدی نرخ باعث بازنویسی هزینه دستور قدیمی نمی‌شود. دستورهای قدیمی بدون سند منجمد، برآورد تاریخی قطعی ندارند.</p>
+  <div id="cost-rate-snapshots"></div>
+</div>
+</section>
+<section id="dashboard" class="page" hidden>
+<div class="section-title"><h3>پایش تولید و تحقق برنامه</h3><small>شاخص‌های اولیه عملیاتی در کنار نسخه MPS انتخابی</small></div>
+<div class="panel"><h3>وضعیت عملیاتی</h3><div id="overview-table"></div></div>
+<form class="panel form-grid" id="production-alert-form">
+<h3 class="wide">هشدارهای زنده اجرای تولید و اقدام اصلاحی</h3>
+<label>تاریخ مرجع<span class="jalali-field"><input name="date" data-jalali-date required placeholder="تاریخ شمسی"><button type="button" data-jalali-trigger class="date-trigger">▣</button></span></label>
+<label>افق هشدار (روز)<input name="days" type="number" min="1" max="30" value="7" required></label>
+<div class="form-actions"><button class="btn-outline" type="submit">به‌روزرسانی هشدارها</button></div>
+</form>
+<div class="panel"><h3>خلاصه هشدارها</h3><div id="production-alert-totals"></div></div>
+<div class="panel"><h3>دستورات معوق، قرنطینه باز و اقدامات اصلاحی</h3>
+<p>فقط اطلاعات ثبت‌شده در IPPCS نمایش داده می‌شود؛ هیچ پیام یا اقدامی به سامانه‌های دیگر ارسال نمی‌شود.</p>
+<div id="production-alert-table"></div></div>
+
+<form id="adherence-form" class="panel form-grid">
+<label>نسخه MPS<select name="mpsId" data-all-mps required></select></label>
+<label>از تاریخ<span class="jalali-field"><input name="from" data-jalali-date required><button type="button" data-jalali-trigger class="date-trigger">▣</button></span></label>
+<label>تا تاریخ<span class="jalali-field"><input name="through" data-jalali-date required><button type="button" data-jalali-trigger class="date-trigger">▣</button></span></label>
+<div class="form-actions"><button type="submit" class="btn-main">محاسبه تحقق MPS</button></div></form>
+<div class="panel"><h3>انحراف برنامه</h3><div id="adherence-table"></div></div>
+<form id="mps-peg-adherence-form" class="panel form-grid">
+  <h3 class="wide">تحقق هر ردیف برنامه مصوب براساس دستورهای تولید تخصیص‌یافته</h3>
+  <label>نسخه MPS مصوب<select name="mpsId" data-mps required></select></label>
+  <div class="form-actions"><button class="btn-outline" type="submit">بررسی تحقق، دیرکرد و کسری ردیف‌ها</button></div>
+</form>
+<form id="mps-audit-form" class="panel form-grid">
+<h3 class="wide">ممیزی پوشش تقاضای قطعی در برنامه اصلی تولید</h3>
+<label>نسخه مصوب MPS<select name="mpsId" data-mps required></select></label>
+<div class="form-actions"><button type="submit" class="btn-outline">بررسی مراجع ثبت تقاضا</button></div>
+</form>
+<div class="panel"><h3>نیاز قطعی، ردیف‌های مرجع‌دار و کسری مستند</h3><div id="mps-audit-summary"></div><div id="mps-audit-lines"></div></div>
+<form id="mrp-risk-form" class="panel form-grid">
+<h3 class="wide">ممیزی فرضیات عرضه در MRP خالص</h3>
+<label>نسخه مصوب MPS<select name="mpsId" data-mps required></select></label>
+<div class="form-actions"><button type="submit" class="btn-outline">تحلیل پوشش فرضی مواد و بچ‌ها</button></div>
+</form>
+<div class="panel"><h3>منشأ تأمین فرضی، کمبود زمان و آزادسازی‌های قبل از مبنا</h3><div id="mrp-risk-summary"></div><div id="mrp-risk-lines"></div></div>
+<form id="mrp-capacity-preview-form" class="panel form-grid">
+<h3 class="wide">پیش‌نمایش زمان‌بندی بچ‌های پیشنهادی MRP با ظرفیت محدود</h3>
+<p class="wide">این گزارش بچ‌های ساخت پیشنهادی MRP خالص را با مسیر ساخت، شیفت، ظرفیت مراکز، دستورهای فعال، رزروهای داخلی و ساعت‌های ثبت‌شده تطبیق می‌دهد. نتیجه فقط شبیه‌سازی است و دستور ساخت یا رزرو واقعی ایجاد نمی‌کند.</p>
+<label>نسخه مصوب MPS<select name="mpsId" data-mps required></select></label>
+<label>افق زمان‌بندی (روز)<input name="horizon" type="number" min="1" max="90" value="30" required></label>
+<label>ضریب ظرفیت سناریو<input name="capacity" type="number" min="0.1" max="2" step="any" value="1" required></label>
+<div class="form-actions"><button type="submit" class="btn-outline">محاسبه زمان‌بندی بچ‌های MRP</button></div>
+</form>
+<div class="panel"><h3>خلاصه امکان‌پذیری بچ‌ها</h3><div id="mrp-capacity-summary"></div></div>
+<div class="panel"><h3>مبنای نرخ ظرفیت هر محصول و عملیات</h3>
+<p>نرخ استاندارد Routing، نرخ مؤثر استفاده‌شده در پیش‌نمایش و منبع آن (ظرفیت اختصاصی محصول یا بازگشت به Routing) برای مسیرهای استفاده‌شده نمایش داده می‌شود.</p>
+<div id="mrp-capacity-evidence"></div></div>
+<div class="panel"><h3>وضعیت و موعد بچ‌های پیشنهادی</h3><div id="mrp-capacity-lots"></div></div>
+<div class="panel"><h3>عملیات تخصیص‌یافته به شیفت و مرکز کاری</h3><div id="mrp-capacity-allocations"></div></div>
+<div class="panel"><h3>عملیات تخصیص‌نیافته و علت</h3><div id="mrp-capacity-unscheduled"></div></div>
+<form id="crp-stress-form" class="panel form-grid">
+<h3 class="wide">گلوگاه‌های مراکز کاری بر اساس CRP</h3>
+<label>نسخه مصوب MPS<select name="mpsId" data-mps required></select></label>
+<div class="form-actions"><button type="submit" class="btn-outline">نمایش اشباع و اضافه‌بار مراکز</button></div>
+</form>
+<div class="panel"><h3>بار موردنیاز، دقایق شیفت و روزهای دارای کمبود ظرفیت</h3><div id="crp-stress-table"></div></div>
+<div class="panel"><h3>ظرفیت خروجی وابسته به محصول و عملیات</h3>
+<p>زمان آماده‌سازی، زمان استاندارد هر واحد، بازده و شیفت هر مرکز جداگانه محاسبه می‌شود. «ظرفیت مستقل محصول» فرض می‌کند محصول دیگری از همان مرکز استفاده نکند و ظرفیت ترکیبی قابل‌تعهد نیست.</p>
+<div id="crp-product-capacity-table"></div></div>
+<div class="panel"><h3>تخصیص، تولید سالم به‌موقع، دیرکرد و کسری برنامه</h3>
+  <div id="peg-adherence-summary"></div><div id="peg-adherence-table"></div>
+</div>
+</section>
+</main><footer class="footer">IPPCS • مستقل از انبار، فروش، خرید و منابع انسانی<span>نسخه توسعه 0.7</span></footer>
+</div></div></body></html>

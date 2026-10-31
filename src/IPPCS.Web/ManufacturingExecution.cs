@@ -1,0 +1,468 @@
+using Microsoft.EntityFrameworkCore;
+using System.Data;
+using Microsoft.Data.SqlClient;
+using System.Text.Json.Serialization;
+
+// Factory execution only; this is NOT warehouse inventory, purchasing, sales, or HR.
+public enum ManufacturingOrderStatus { Draft, Released, InProgress, OnHold, Completed, Cancelled }
+public enum ManufacturingOrderKind { SemiFinished, FinalAssembly }
+
+public sealed class ManufacturingOrder
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public string Number { get; set; } = "";
+    public Guid ItemId { get; set; }
+    public ManufacturingOrderKind Kind { get; set; }
+    public Guid RoutingRevisionId { get; set; }
+    public Guid BomRevisionId { get; set; }
+    public decimal PlannedQuantity { get; set; }
+    public DateOnly PlannedStart { get; set; }
+    public DateOnly DueOn { get; set; }
+    public ManufacturingOrderStatus Status { get; set; } = ManufacturingOrderStatus.Draft;
+    public ManufacturingOrderStatus ResumeStatus { get; set; } = ManufacturingOrderStatus.Released;
+    public string? HoldReason { get; set; }
+    public DateTime CreatedUtc { get; set; } = DateTime.UtcNow;
+    public DateTime? ReleasedUtc { get; set; }
+    public DateTime? CompletedUtc { get; set; }
+    public DateTime UpdatedUtc { get; set; } = DateTime.UtcNow;
+    [JsonIgnore] public byte[] RowVersion { get; set; } = [];
+    public List<ManufacturingOrderOperation> Operations { get; set; } = new();
+}
+public sealed class ManufacturingOrderOperation
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid OrderId { get; set; }
+    [JsonIgnore] public ManufacturingOrder Order { get; set; } = null!;
+    public int Sequence { get; set; }
+    public Guid WorkCenterId { get; set; }
+    public string Name { get; set; } = "";
+    public decimal SetupMinutes { get; set; }
+    public decimal RunMinutesPerUnit { get; set; }
+    public decimal GoodQuantity { get; set; }
+    public decimal ScrapQuantity { get; set; }
+    public decimal ReworkQuantity { get; set; }
+    // Local factory quality-gate quantities; not inventory balances.
+    public decimal QualityPendingQuantity { get; set; }
+    public decimal QualityRejectedQuantity { get; set; }
+    public bool IsComplete { get; set; }
+    public List<ManufacturingConfirmation> Confirmations { get; set; } = new();
+    public List<ManufacturingInspectionRequirement> InspectionRequirements { get; set; } = new();
+}
+public sealed class ManufacturingConfirmation
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid OperationId { get; set; }
+    [JsonIgnore] public ManufacturingOrderOperation Operation { get; set; } = null!;
+    public decimal GoodQuantity { get; set; }
+    public decimal ScrapQuantity { get; set; }
+    public decimal ReworkQuantity { get; set; }
+    public string? LotCode { get; set; }
+    public string? Note { get; set; }
+    public string RecordedBy { get; set; } = "unknown";
+    public DateTime OccurredUtc { get; set; } = DateTime.UtcNow;
+}
+public sealed class ManufacturingDowntime
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid OrderId { get; set; }
+    public Guid OperationId { get; set; }
+    public string Reason { get; set; } = "";
+    public int DurationMinutes { get; set; }
+    public DateTime OccurredUtc { get; set; } = DateTime.UtcNow;
+}
+public sealed class ManufacturingOrderAudit
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid OrderId { get; set; }
+    public string Action { get; set; } = "";
+    public string? Details { get; set; }
+    public DateTime AtUtc { get; set; } = DateTime.UtcNow;
+}
+public record ManufacturingOrderInput(string Number, Guid ItemId, decimal PlannedQuantity, string PlannedStartJalali, string DueOnJalali);
+public record ManufacturingConfirmationInput(decimal GoodQuantity, decimal ScrapQuantity, decimal ReworkQuantity, string? LotCode, string? Note);
+public record ManufacturingHoldInput(string Reason);
+public record ManufacturingDowntimeInput(Guid OperationId, string Reason, int DurationMinutes,string? ReasonCode=null);
+
+public static class ManufacturingExecutionEndpoints
+{
+    public static void ConfigureModel(ModelBuilder model)
+    {
+        model.Entity<ManufacturingOrder>().HasIndex(x=>x.Number).IsUnique();
+        model.Entity<ManufacturingOrder>().Property(x=>x.Number).HasMaxLength(64);
+        model.Entity<ManufacturingOrder>().Property(x=>x.HoldReason).HasMaxLength(500);
+        model.Entity<ManufacturingOrder>().Property(x=>x.PlannedQuantity).HasPrecision(18,4);
+        model.Entity<ManufacturingOrder>().Property(x=>x.RowVersion).IsRowVersion();
+        model.Entity<ManufacturingOrder>().HasOne<PlanningItem>().WithMany().HasForeignKey(x=>x.ItemId).OnDelete(DeleteBehavior.Restrict);
+        model.Entity<ManufacturingOrder>().HasOne<RoutingRevision>().WithMany().HasForeignKey(x=>x.RoutingRevisionId).OnDelete(DeleteBehavior.Restrict);
+        model.Entity<ManufacturingOrder>().HasOne<ManufacturingBomRevision>().WithMany().HasForeignKey(x=>x.BomRevisionId).OnDelete(DeleteBehavior.Restrict);
+        model.Entity<ManufacturingOrderOperation>().HasOne(x=>x.Order).WithMany(x=>x.Operations).HasForeignKey(x=>x.OrderId).OnDelete(DeleteBehavior.Cascade);
+        model.Entity<ManufacturingOrderOperation>().HasIndex(x=>new{x.OrderId,x.Sequence}).IsUnique();
+        model.Entity<ManufacturingOrderOperation>().Property(x=>x.Name).HasMaxLength(180);
+        foreach(var prop in new[]{nameof(ManufacturingOrderOperation.SetupMinutes),nameof(ManufacturingOrderOperation.RunMinutesPerUnit),
+            nameof(ManufacturingOrderOperation.GoodQuantity),nameof(ManufacturingOrderOperation.ScrapQuantity),
+            nameof(ManufacturingOrderOperation.ReworkQuantity),nameof(ManufacturingOrderOperation.QualityPendingQuantity),
+            nameof(ManufacturingOrderOperation.QualityRejectedQuantity)})
+            model.Entity<ManufacturingOrderOperation>().Property<decimal>(prop).HasPrecision(18,4);
+        model.Entity<ManufacturingOrderOperation>().HasOne<WorkCenter>().WithMany().HasForeignKey(x=>x.WorkCenterId).OnDelete(DeleteBehavior.Restrict);
+        model.Entity<ManufacturingConfirmation>().HasOne(x=>x.Operation).WithMany(x=>x.Confirmations).HasForeignKey(x=>x.OperationId).OnDelete(DeleteBehavior.Cascade);
+        foreach(var prop in new[]{nameof(ManufacturingConfirmation.GoodQuantity),nameof(ManufacturingConfirmation.ScrapQuantity),nameof(ManufacturingConfirmation.ReworkQuantity)})
+            model.Entity<ManufacturingConfirmation>().Property<decimal>(prop).HasPrecision(18,4);
+        model.Entity<ManufacturingConfirmation>().Property(x=>x.LotCode).HasMaxLength(100);
+        model.Entity<ManufacturingConfirmation>().Property(x=>x.Note).HasMaxLength(500);
+        model.Entity<ManufacturingConfirmation>().Property(x=>x.RecordedBy).HasMaxLength(256);
+        model.Entity<ManufacturingDowntime>().Property(x=>x.Reason).HasMaxLength(180);
+        model.Entity<ManufacturingDowntime>().HasOne<ManufacturingOrder>().WithMany().HasForeignKey(x=>x.OrderId).OnDelete(DeleteBehavior.Restrict);
+        model.Entity<ManufacturingDowntime>().HasOne<ManufacturingOrderOperation>().WithMany().HasForeignKey(x=>x.OperationId).OnDelete(DeleteBehavior.Restrict);
+        model.Entity<ManufacturingOrderAudit>().Property(x=>x.Action).HasMaxLength(64);
+        model.Entity<ManufacturingOrderAudit>().Property(x=>x.Details).HasMaxLength(2000);
+        model.Entity<ManufacturingOrderAudit>().HasOne<ManufacturingOrder>().WithMany().HasForeignKey(x=>x.OrderId).OnDelete(DeleteBehavior.Restrict);
+    }
+
+    public static bool IsActive(ManufacturingOrderStatus status) =>
+        status is ManufacturingOrderStatus.Released or ManufacturingOrderStatus.InProgress;
+
+    // Locks the order's routing and BOM revision at creation; op snapshot is created only at release.
+    public static bool TryApplyConfirmation(ManufacturingOrder order, Guid operationId, ManufacturingConfirmationInput input, out string error)
+    {
+        error="";
+        if(!IsActive(order.Status)){error="دستور در وضعیت قابل ثبت عملکرد نیست.";return false;}
+        if(input.GoodQuantity<0||input.ScrapQuantity<0||input.ReworkQuantity<0
+            ||input.GoodQuantity+input.ScrapQuantity+input.ReworkQuantity<=0)
+        {error="مقادیر تولید سالم، ضایعات و دوباره‌کاری نامعتبر است.";return false;}
+        if(input.GoodQuantity+input.ScrapQuantity+input.ReworkQuantity>1_000_000_000m)
+        {error="مقدار ثبت بیش از حد مجاز است.";return false;}
+        var ordered=order.Operations.OrderBy(x=>x.Sequence).ToList();
+        var ix=ordered.FindIndex(x=>x.Id==operationId);
+        if(ix<0){error="عملیات به دستور تعلق ندارد.";return false;}
+        var op=ordered[ix];
+        if(op.IsComplete){error="عملیات تکمیل شده و قابل ثبت دوباره نیست.";return false;}
+        if(ix>0 && !ordered[ix-1].IsComplete){error="عملیات قبلی هنوز تکمیل نشده است.";return false;}
+        if(ix>0 && ordered[ix-1].QualityPendingQuantity>0){error="عدم‌انطباق عملیات قبلی تعیین تکلیف نشده است.";return false;}
+        if(ix>0 && !ManufacturingInspectionRules.GatePassed(ordered[ix-1])){
+            error="کنترل‌های اجباری عملیات قبلی هنوز تأیید نشده‌اند.";return false;
+        }
+        var allowed=ix==0?order.PlannedQuantity:ordered[ix-1].GoodQuantity-ordered[ix-1].QualityRejectedQuantity;
+        if(allowed<=0){error="ورودی قابل‌استفاده در عملیات بعدی وجود ندارد.";return false;}
+        var total=op.GoodQuantity+op.ScrapQuantity+op.ReworkQuantity+
+            input.GoodQuantity+input.ScrapQuantity+input.ReworkQuantity;
+        if(total>allowed){error="مجموع خروجی از ورودی مجاز عملیات بیشتر است.";return false;}
+        op.GoodQuantity+=input.GoodQuantity;
+        op.ScrapQuantity+=input.ScrapQuantity;
+        op.ReworkQuantity+=input.ReworkQuantity;
+        op.IsComplete=total==allowed;
+        CloseZeroInputOperations(order);
+        if(order.Status==ManufacturingOrderStatus.Released)order.Status=ManufacturingOrderStatus.InProgress;
+        if(ManufacturingInspectionRules.CanComplete(order))
+        {
+            order.Status=ManufacturingOrderStatus.Completed;
+            order.CompletedUtc=DateTime.UtcNow;
+        }
+        order.UpdatedUtc=DateTime.UtcNow;
+        return true;
+    }
+    public static void CloseZeroInputOperations(ManufacturingOrder order)
+    {
+        var sorted=order.Operations.OrderBy(x=>x.Sequence).ToArray();
+        for(var i=1;i<sorted.Length;i++)
+        {
+            var source=sorted[i-1];
+            if(source.IsComplete && source.QualityPendingQuantity==0
+               && source.GoodQuantity-source.QualityRejectedQuantity==0
+               && sorted[i].GoodQuantity+sorted[i].ScrapQuantity+sorted[i].ReworkQuantity==0)
+                sorted[i].IsComplete=true;
+        }
+    }
+    public static IEndpointRouteBuilder MapManufacturingExecution(this IEndpointRouteBuilder routes)
+    {
+        var api=routes.MapGroup("/api/v1").RequireAuthorization("IpProductionUser");
+        var planningApi=routes.MapGroup("/api/v1").RequireAuthorization("IpPlanningWrite");
+        var floorApi=routes.MapGroup("/api/v1").RequireAuthorization("IpShopFloorWrite");
+        var holdApi=routes.MapGroup("/api/v1").RequireAuthorization("IpProductionHold");
+        api.MapGet("/manufacturing-orders",async(ProductionDb db,CancellationToken ct)=>{
+            var orders=await db.ManufacturingOrders.AsNoTracking().Include(x=>x.Operations)
+                .OrderByDescending(x=>x.CreatedUtc).Take(200).ToListAsync(ct);
+            return Results.Ok(orders.Select(x=>ToDto(x)));
+        });
+        api.MapGet("/manufacturing-orders/{id:guid}",async(Guid id,ProductionDb db,CancellationToken ct)=>{
+            var order=await db.ManufacturingOrders.AsNoTracking().Include(x=>x.Operations)
+                .ThenInclude(x=>x.Confirmations).SingleOrDefaultAsync(x=>x.Id==id,ct);
+            return order is null?Results.NotFound():Results.Ok(ToDto(order));
+        });
+        planningApi.MapPost("/manufacturing-orders",async(ManufacturingOrderInput input,ProductionDb db,CancellationToken ct)=>{
+            if(string.IsNullOrWhiteSpace(input.Number)||input.Number.Trim().Length>64||input.PlannedQuantity<=0
+                ||input.PlannedQuantity>1_000_000_000m
+                ||!PersianPlanningDates.TryParse(input.PlannedStartJalali,out var start)
+                ||!PersianPlanningDates.TryParse(input.DueOnJalali,out var due)||due<start)
+                return Results.BadRequest(new{message="شماره دستور، مقدار و تاریخ‌ها معتبر نیستند."});
+            var item=await db.Items.AsNoTracking().SingleOrDefaultAsync(x=>x.Id==input.ItemId,ct);
+            if(item is null||item.Type is not (PlanningItemType.Finished or PlanningItemType.SemiFinished))
+                return Results.BadRequest(new{message="دستور باید برای محصول نهایی یا نیمه‌ساخته باشد."});
+            var number=input.Number.Trim();
+            if(await db.ManufacturingOrders.AnyAsync(x=>x.Number==number,ct))
+                return Results.Conflict(new{message="شماره دستور تکراری است."});
+            var routes=await db.RoutingRevisions.AsNoTracking().Include(x=>x.Operations)
+                .Where(x=>x.ItemId==input.ItemId && x.State==RoutingState.Approved
+                    && x.EffectiveFrom<=start && (x.EffectiveTo==null||start<=x.EffectiveTo)).ToListAsync(ct);
+            var boms=await db.ManufacturingBomRevisions.AsNoTracking()
+                .Where(x=>x.ParentItemId==input.ItemId && x.State==ManufacturingRevisionState.Approved
+                    && x.ValidFrom<=start && (x.ValidUntil==null||start<=x.ValidUntil)).ToListAsync(ct);
+            if(routes.Count!=1||routes[0].Operations.Count==0||boms.Count!=1)
+                return Results.Conflict(new{message="یک مسیر ساخت و یک BOM مصوب و معتبر برای تاریخ شروع دستور لازم است."});
+            var order=new ManufacturingOrder{
+                Number=number,ItemId=input.ItemId,Kind=item.Type==PlanningItemType.SemiFinished?
+                ManufacturingOrderKind.SemiFinished:ManufacturingOrderKind.FinalAssembly,
+                PlannedQuantity=input.PlannedQuantity,PlannedStart=start,DueOn=due,
+                RoutingRevisionId=routes[0].Id,BomRevisionId=boms[0].Id
+            };
+            db.ManufacturingOrders.Add(order);
+            db.ManufacturingOrderAudits.Add(new ManufacturingOrderAudit{OrderId=order.Id,Action="Created"});
+            await db.SaveChangesAsync(ct);
+            return Results.Created($"/api/v1/manufacturing-orders/{order.Id}",ToDto(order));
+        });
+        planningApi.MapPost("/manufacturing-orders/{id:guid}/release",async(Guid id,ProductionDb db,ILogger<ManufacturingOrder> logger,CancellationToken ct)=>{
+            await using var tx=await db.Database.BeginTransactionAsync(IsolationLevel.Serializable,ct);
+            try{await FactoryCapacityReservations.LockOrder(db,id,ct);}
+            catch(SqlException){return Results.Conflict(new{message="قفل دستور ساخت برای آزادسازی در دسترس نیست."});}
+            var order=await db.ManufacturingOrders.Include(x=>x.Operations).SingleOrDefaultAsync(x=>x.Id==id,ct);
+            if(order is null)return Results.NotFound();
+            if(order.Status!=ManufacturingOrderStatus.Draft)
+                return Results.Conflict(new{message="فقط دستور پیش‌نویس قابل آزادسازی است."});
+            var route=await db.RoutingRevisions.AsNoTracking().Include(x=>x.Operations).SingleOrDefaultAsync(x=>x.Id==order.RoutingRevisionId,ct);
+            var bom=await db.ManufacturingBomRevisions.AsNoTracking().Include(x=>x.Lines)
+                .SingleOrDefaultAsync(x=>x.Id==order.BomRevisionId,ct);
+            var pegs=await db.ManufacturingOrderPegs.AsNoTracking()
+                .Where(x=>x.OrderId==id).ToListAsync(ct);
+            var pegIds=pegs.Select(x=>x.MpsLineId).ToArray();
+            var pegLines=await db.MpsDemandLines.AsNoTracking()
+                .Where(x=>pegIds.Contains(x.Id)).ToListAsync(ct);
+            var releaseIssues=FactoryRevisionGovernance.ReleaseIssues(
+                order,route,bom,pegs,pegLines);
+            if(releaseIssues.Count>0)
+                return Results.Conflict(new{message="پیش‌شرط‌های آزادسازی دستور برقرار نیست.",issues=releaseIssues});
+            var materialAllocations=await db.Set<ManufacturingOrderMaterialAllocation>().AsNoTracking()
+                .Where(x=>x.OrderId==id).ToListAsync(ct);
+            var bomLinesById=bom!.Lines.ToDictionary(x=>x.Id);
+            if(materialAllocations.Any(x=>!bomLinesById.TryGetValue(x.BomLineId,out var line)||
+                string.IsNullOrWhiteSpace(line.AlternativeGroupCode)))
+                return Results.Conflict(new{message="تخصیص مواد باید به یک گزینه آلترناتیو از نسخه منجمد BOM تعلق داشته باشد."});
+            foreach(var group in bom.Lines.Where(x=>!string.IsNullOrWhiteSpace(x.AlternativeGroupCode))
+                .GroupBy(x=>x.AlternativeGroupCode!,StringComparer.OrdinalIgnoreCase))
+            {
+                if(group.Count()<2||group.Count(x=>x.IsDefaultAlternative)!=1)
+                    return Results.Conflict(new{message=$"گروه آلترناتیو {group.Key} باید حداقل دو گزینه و دقیقاً یک پیش‌فرض داشته باشد."});
+                var selected=materialAllocations.Where(a=>group.Any(line=>line.Id==a.BomLineId)).ToArray();
+                if(selected.Length>0&&(selected.Any(x=>x.SharePercent<=0||x.SharePercent>100||x.PlannedQuantity<=0)
+                    ||selected.Sum(x=>x.SharePercent)!=100m))
+                    return Results.Conflict(new{message=$"سهم آلترناتیوهای گروه {group.Key} باید دقیقاً ۱۰۰٪ باشد."});
+            }
+            var controlPlans=await db.ManufacturingControlPlans.AsNoTracking()
+                .Include(x=>x.Characteristics)
+                .Where(x=>x.RoutingRevisionId==order.RoutingRevisionId && x.State==ControlPlanState.Approved
+                    && x.ValidFrom<=order.PlannedStart
+                    && (x.ValidUntil==null || order.PlannedStart<=x.ValidUntil)).ToListAsync(ct);
+            if(!ManufacturingInspectionRules.ExactlyOneApplicableControlPlan(controlPlans.Count))
+                return Results.Conflict(new{message=controlPlans.Count==0
+                    ?"برای تاریخ شروع برنامه‌ریزی‌شده دستور، یک کنترل پلن مصوب و معتبر الزامی است."
+                    :"برای این دستور چند کنترل پلن مصوب هم‌زمان معتبر است."});
+            if(route?.State!=RoutingState.Approved||bom?.State!=ManufacturingRevisionState.Approved
+                ||route.EffectiveFrom>order.PlannedStart||(route.EffectiveTo.HasValue&&route.EffectiveTo.Value<order.PlannedStart)
+                ||bom.ValidFrom>order.PlannedStart||(bom.ValidUntil.HasValue&&bom.ValidUntil.Value<order.PlannedStart)
+                ||route.Operations.Count==0)
+                return Results.Conflict(new{message="مسیر و BOM معتبر مصوب وجود ندارند."});
+            // Cost assumptions become part of the released manufacturing
+            // evidence, rather than following future overwrites of center rates.
+            try{await FactoryCostRateHistory.LockRateSchedule(db,ct);}
+            catch(SqlException){return Results.Conflict(new{message="قفل نرخ تبدیل داخلی در دسترس نیست."});}
+            var currentRates=await db.FactoryCenterCostRates.AsNoTracking()
+                .ToDictionaryAsync(x=>x.WorkCenterId,ct);
+            // Explicitly mark newly materialized routing steps as Added. Appending a child
+            // with an already-assigned Guid to a tracked collection can make EF infer an
+            // existing entity and issue UPDATE instead of INSERT (false concurrency 409).
+            foreach(var op in route.Operations.OrderBy(x=>x.Sequence))
+            {
+                var releasedOperation=new ManufacturingOrderOperation{
+                    OrderId=id,Sequence=op.Sequence,Name=op.Name,WorkCenterId=op.WorkCenterId,
+                    SetupMinutes=op.SetupMinutes,RunMinutesPerUnit=op.RunMinutesPerUnit
+                };
+                db.ManufacturingOrderOperations.Add(releasedOperation);
+                currentRates.TryGetValue(releasedOperation.WorkCenterId,out var currentRate);
+                var applicable=currentRate is not null&&
+                    currentRate.EffectiveFrom<=order.PlannedStart?currentRate:null;
+                var rateProof=new FactoryCostRateSnapshot(releasedOperation.Id,
+                    releasedOperation.WorkCenterId,
+                    applicable?.ConversionRialsPerMinute,applicable?.ScrapRialsPerUnit,
+                    applicable?.EffectiveFrom);
+                db.ManufacturingOrderAudits.Add(new ManufacturingOrderAudit{
+                    OrderId=id,Action=FactoryCostRateHistory.Action,
+                    Details=FactoryCostRateHistory.Serialize(rateProof)
+                });
+                if(controlPlans.Count==1)
+                {
+                    foreach(var characteristic in controlPlans[0].Characteristics
+                        .Where(x=>x.OperationSequence==op.Sequence))
+                        db.ManufacturingInspectionRequirements.Add(new ManufacturingInspectionRequirement{
+                            OrderOperationId=releasedOperation.Id,SourceCharacteristicId=characteristic.Id,
+                            Code=characteristic.Code,Description=characteristic.Description,Unit=characteristic.Unit,
+                            Minimum=characteristic.Minimum,Maximum=characteristic.Maximum,
+                            Mandatory=characteristic.Mandatory
+                        });
+                }
+            }
+            order.Status=ManufacturingOrderStatus.Released;
+            order.ReleasedUtc=DateTime.UtcNow;order.UpdatedUtc=DateTime.UtcNow;
+            db.ManufacturingOrderAudits.Add(new ManufacturingOrderAudit{OrderId=id,Action="Released"});
+            try{await db.SaveChangesAsync(ct);await tx.CommitAsync(ct);}
+            catch(DbUpdateConcurrencyException ex){
+                logger.LogWarning(ex,"IPPCS_CONCURRENCY_RELEASE entity types: {Types}",
+                    string.Join(",",ex.Entries.Select(x=>x.Metadata.Name)));
+                return Results.Conflict(new{message="دستور هم‌زمان تغییر یافته است."});
+            }
+            return Results.Ok(ToDto(order));
+        });
+        floorApi.MapPost("/manufacturing-orders/{id:guid}/operations/{operationId:guid}/confirm",
+            async(Guid id,Guid operationId,ManufacturingConfirmationInput input,ProductionDb db,HttpContext context,CancellationToken ct)=>{
+            if((input.LotCode?.Length??0)>100||(input.Note?.Length??0)>500)
+                return Results.BadRequest(new{message="شرح یا شناسه بچ بیش از حد مجاز است."});
+            await using var tx=await db.Database.BeginTransactionAsync(IsolationLevel.Serializable,ct);
+            try{await FactoryCapacityReservations.LockOrder(db,id,ct);}
+            catch(SqlException){return Results.Conflict(new{message="قفل دستور ساخت در دسترس نیست."});}
+            var order=await db.ManufacturingOrders.Include(x=>x.Operations)
+                .ThenInclude(x=>x.InspectionRequirements).SingleOrDefaultAsync(x=>x.Id==id,ct);
+            if(order is null)return Results.NotFound();
+            // An active clock must be closed before quantity confirmation can
+            // complete the operation/order, otherwise a dangling running session remains.
+            var clockEvents=await db.ManufacturingOrderAudits.AsNoTracking()
+                .Where(x=>x.OrderId==id &&
+                    (x.Action==FactoryOperationClock.Started ||
+                     x.Action==FactoryOperationClock.Stopped)).ToListAsync(ct);
+            IReadOnlyList<FactoryClockSession> clockHistory;
+            try{clockHistory=FactoryOperationClock.Read(clockEvents);}
+            catch(InvalidOperationException ex){return Results.Conflict(new{message=ex.Message});}
+            if(clockHistory.Any(x=>x.OperationId==operationId&&x.StoppedUtc is null))
+                return Results.Conflict(new{message="پیش از ثبت عملکرد، ساعت کارکرد باز این عملیات را متوقف کنید."});
+            if(!TryApplyConfirmation(order,operationId,input,out var error))
+                return Results.Conflict(new{message=error});
+            // A completed routing step (including quality-safe zero-input auto-close)
+            // relinquishes its future machine slot atomically with the confirmation.
+            var completedIds=order.Operations.Where(x=>x.IsComplete)
+                .Select(x=>x.Id).ToHashSet();
+            try{
+                await FactoryCapacityReservations.ReleaseOperations(db,id,completedIds,
+                    order.Status==ManufacturingOrderStatus.Completed
+                        ?"OrderCompleted":"OperationCompleted",ct);
+            }
+            catch(InvalidOperationException ex){return Results.Conflict(new{message=ex.Message});}
+            catch(SqlException){return Results.Conflict(new{message="قفل رزرو مرکز کاری در دسترس نیست."});}
+            db.ManufacturingConfirmations.Add(new ManufacturingConfirmation{
+                OperationId=operationId,GoodQuantity=input.GoodQuantity,ScrapQuantity=input.ScrapQuantity,
+                ReworkQuantity=input.ReworkQuantity,LotCode=input.LotCode?.Trim(),Note=input.Note?.Trim(),
+                RecordedBy=context.User.Identity?.Name??"unknown"
+            });
+            db.ManufacturingOrderAudits.Add(new ManufacturingOrderAudit{OrderId=id,Action="Confirmed",
+                Details=$"Seq={order.Operations.Single(x=>x.Id==operationId).Sequence};Good={input.GoodQuantity};Scrap={input.ScrapQuantity};Rework={input.ReworkQuantity}"});
+            try{await db.SaveChangesAsync(ct);await tx.CommitAsync(ct);}
+            catch(DbUpdateConcurrencyException){return Results.Conflict(new{message="ثبت هم‌زمان رخ داد؛ داده‌ها را بازخوانی کنید."});}
+            return Results.Ok(ToDto(order));
+        });
+        holdApi.MapPost("/manufacturing-orders/{id:guid}/hold",async(Guid id,ManufacturingHoldInput input,ProductionDb db,CancellationToken ct)=>{
+            if(string.IsNullOrWhiteSpace(input.Reason)||input.Reason.Trim().Length>500)
+                return Results.BadRequest(new{message="علت توقف معتبر نیست."});
+            // All lifecycle mutations share the SAME transaction-owned order app lock
+            // as release/cancel, shop-floor clock and capacity reservations.
+            await using var tx=await db.Database.BeginTransactionAsync(IsolationLevel.Serializable,ct);
+            try{await FactoryCapacityReservations.LockOrder(db,id,ct);}
+            catch(SqlException){return Results.Conflict(new{message="قفل دستور برای تعلیق در دسترس نیست."});}
+            var order=await db.ManufacturingOrders.FindAsync([id],ct);
+            if(order is null)return Results.NotFound();
+            if(!IsActive(order.Status))return Results.Conflict(new{message="وضعیت دستور اجازه تعلیق ندارد."});
+            order.ResumeStatus=order.Status;order.Status=ManufacturingOrderStatus.OnHold;
+            order.HoldReason=input.Reason.Trim();order.UpdatedUtc=DateTime.UtcNow;
+            db.ManufacturingOrderAudits.Add(new ManufacturingOrderAudit{OrderId=id,Action="Held",Details=order.HoldReason});
+            try{await db.SaveChangesAsync(ct);await tx.CommitAsync(ct);}
+            catch(DbUpdateConcurrencyException){return Results.Conflict(new{message="وضعیت دستور هم‌زمان تغییر کرده است."});}
+            return Results.Ok(new{order.Id,order.Status});
+        });
+        planningApi.MapPost("/manufacturing-orders/{id:guid}/resume",async(Guid id,ProductionDb db,CancellationToken ct)=>{
+            await using var tx=await db.Database.BeginTransactionAsync(IsolationLevel.Serializable,ct);
+            try{await FactoryCapacityReservations.LockOrder(db,id,ct);}
+            catch(SqlException){return Results.Conflict(new{message="قفل دستور برای ازسرگیری در دسترس نیست."});}
+            var order=await db.ManufacturingOrders.FindAsync([id],ct);
+            if(order is null)return Results.NotFound();
+            if(order.Status!=ManufacturingOrderStatus.OnHold)return Results.Conflict(new{message="دستور معلق نیست."});
+            if(order.ResumeStatus is not (ManufacturingOrderStatus.Released or ManufacturingOrderStatus.InProgress))
+                return Results.Conflict(new{message="وضعیت پیشین دستور برای ازسرگیری معتبر نیست."});
+            // Active quality holds may not be overridden by a planning resume.
+            if(await db.ManufacturingQualityHolds.AsNoTracking()
+                .AnyAsync(x=>x.OrderId==id&&x.Status==ManufacturingQualityStatus.Open,ct))
+                return Results.Conflict(new{message="تا تعیین‌تکلیف قرنطینه باز، ازسرگیری دستور مجاز نیست."});
+            order.Status=order.ResumeStatus;order.HoldReason=null;order.UpdatedUtc=DateTime.UtcNow;
+            db.ManufacturingOrderAudits.Add(new ManufacturingOrderAudit{OrderId=id,Action="Resumed"});
+            try{await db.SaveChangesAsync(ct);await tx.CommitAsync(ct);}
+            catch(DbUpdateConcurrencyException){return Results.Conflict(new{message="وضعیت دستور هم‌زمان تغییر کرده است."});}
+            return Results.Ok(new{order.Id,order.Status});
+        });
+        planningApi.MapPost("/manufacturing-orders/{id:guid}/cancel",async(Guid id,ProductionDb db,CancellationToken ct)=>{
+            await using var tx=await db.Database.BeginTransactionAsync(IsolationLevel.Serializable,ct);
+            try{await FactoryCapacityReservations.LockOrder(db,id,ct);}
+            catch(SqlException){return Results.Conflict(new{message="قفل دستور ساخت در دسترس نیست."});}
+            var order=await db.ManufacturingOrders.Include(x=>x.Operations).SingleOrDefaultAsync(x=>x.Id==id,ct);
+            if(order is null)return Results.NotFound();
+            if(order.Status is not (ManufacturingOrderStatus.Draft or ManufacturingOrderStatus.Released)
+                ||order.Operations.Any(x=>x.GoodQuantity+x.ScrapQuantity+x.ReworkQuantity>0))
+                return Results.Conflict(new{message="دستور اجراشده را نمی‌توان لغو کرد."});
+            var ids=order.Operations.Select(x=>x.Id).ToHashSet();
+            var history=await db.ManufacturingOrderAudits.AsNoTracking()
+                .Where(x=>x.OrderId==id&&(x.Action==FactoryOperationClock.Started ||
+                    x.Action==FactoryOperationClock.Stopped)).ToListAsync(ct);
+            try{
+                if(FactoryOperationClock.Read(history).Any(x=>x.StoppedUtc is null))
+                    return Results.Conflict(new{message="برای لغو ابتدا زمان عملیات باز را متوقف کنید."});
+                await FactoryCapacityReservations.ReleaseOperations(db,id,ids,"OrderCancelled",ct);
+            }
+            catch(InvalidOperationException ex){return Results.Conflict(new{message=ex.Message});}
+            catch(SqlException){return Results.Conflict(new{message="قفل رزرو مرکز کاری در دسترس نیست."});}
+            order.Status=ManufacturingOrderStatus.Cancelled;order.UpdatedUtc=DateTime.UtcNow;
+            db.ManufacturingOrderAudits.Add(new ManufacturingOrderAudit{OrderId=id,Action="Cancelled"});
+            try{await db.SaveChangesAsync(ct);await tx.CommitAsync(ct);}
+            catch(DbUpdateConcurrencyException){return Results.Conflict(new{message="وضعیت دستور هم‌زمان تغییر کرده است."});}
+            return Results.Ok(new{order.Id,order.Status});
+        });
+        floorApi.MapPost("/manufacturing-orders/{id:guid}/downtime",async(Guid id,ManufacturingDowntimeInput input,ProductionDb db,CancellationToken ct)=>{
+            if(input.DurationMinutes is <=0 or >1440||string.IsNullOrWhiteSpace(input.Reason)||input.Reason.Trim().Length>180)
+                return Results.BadRequest(new{message="مدت توقف (۱ تا ۱۴۴۰ دقیقه) و علت معتبر لازم است."});
+            var categorized=await FactoryMasterData.ResolveReason(db,
+                FactoryMasterData.DowntimeReason,input.ReasonCode,input.Reason,180,ct);
+            if(categorized is null)return Results.Conflict(new{
+                message="علت توقف در اطلاعات پایه معتبر یا فعال نیست."});
+            var order=await db.ManufacturingOrders.AsNoTracking().SingleOrDefaultAsync(x=>x.Id==id,ct);
+            if(order is null)return Results.NotFound();
+            if(!IsActive(order.Status))return Results.Conflict(new{message="دستور فعال نیست."});
+            if(!await db.ManufacturingOrderOperations.AnyAsync(x=>x.OrderId==id&&x.Id==input.OperationId,ct))
+                return Results.BadRequest(new{message="عملیات انتخابی متعلق به این دستور نیست."});
+            var stop=new ManufacturingDowntime{
+                OrderId=id,OperationId=input.OperationId,Reason=categorized,DurationMinutes=input.DurationMinutes};
+            db.ManufacturingDowntimes.Add(stop);
+            db.ManufacturingOrderAudits.Add(new ManufacturingOrderAudit{OrderId=id,Action="Downtime",Details=$"{stop.Reason};{stop.DurationMinutes}m"});
+            await db.SaveChangesAsync(ct);
+            return Results.Created($"/api/v1/manufacturing-orders/{id}/downtimes",new{stop.Id});
+        });
+        api.MapGet("/manufacturing-orders/{id:guid}/history",async(Guid id,ProductionDb db,CancellationToken ct)=>{
+            if(!await db.ManufacturingOrders.AnyAsync(x=>x.Id==id,ct))return Results.NotFound();
+            return Results.Ok(new{
+                events=await db.ManufacturingOrderAudits.AsNoTracking().Where(x=>x.OrderId==id).OrderBy(x=>x.AtUtc).ToListAsync(ct),
+                downtime=await db.ManufacturingDowntimes.AsNoTracking().Where(x=>x.OrderId==id).OrderBy(x=>x.OccurredUtc).ToListAsync(ct)
+            });
+        });
+        return routes;
+    }
+    private static object ToDto(ManufacturingOrder order) => new{
+        order.Id,order.Number,order.ItemId,order.Kind,order.PlannedQuantity,order.Status,
+        plannedStartJalali=PersianPlanningDates.Format(order.PlannedStart),
+        dueOnJalali=PersianPlanningDates.Format(order.DueOn),
+        order.RoutingRevisionId,order.BomRevisionId,order.CreatedUtc,order.ReleasedUtc,order.CompletedUtc,order.HoldReason,
+        operations=order.Operations.OrderBy(x=>x.Sequence).Select(x=>new{
+            x.Id,x.Sequence,x.Name,x.WorkCenterId,x.SetupMinutes,x.RunMinutesPerUnit,
+            x.GoodQuantity,x.ScrapQuantity,x.ReworkQuantity,x.QualityPendingQuantity,x.QualityRejectedQuantity,x.IsComplete
+        }).ToArray()
+    };
+}

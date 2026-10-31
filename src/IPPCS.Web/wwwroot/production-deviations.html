@@ -1,0 +1,61 @@
+<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>IPPCS | انحرافات برنامه تولید</title><link rel="stylesheet" href="/css/production.css"><script defer src="/js/security-client.js"></script><script defer src="/js/jalali-datepicker.js"></script><script defer src="/js/factory-choices.js"></script><script defer src="/js/production-deviations.js"></script></head><body><div class="app-shell"><aside class="sidebar"><div class="brand"><div class="brand-logo">IP</div><div><strong>ایندامین سایپا</strong><small>پایش انحرافات و اقدامات اصلاحی</small></div></div><nav><a class="planning-link" href="/app.html">صفحه اصلی</a><a class="planning-link" href="/mps-pegging.html">تخصیص MPS</a><a class="planning-link" href="/execution.html">دستورات تولید</a><a class="planning-link" href="/factory-master-data.html">اطلاعات پایه و فهرست‌های انتخابی</a></nav></aside><div class="main"><header class="topbar"><div><div class="eyebrow">کنترل یکپارچه برنامه تولید</div><h1>انحرافات و اقدامات اصلاحی</h1></div><button type="button" data-ip-logout class="btn-outline">خروج</button></header><main class="content"><div id="notice" role="status" class="notice" hidden></div><div class="callout">ثبت علت انحراف و مسئول پیگیری مستقل از سیستم منابع انسانی است. فقط ردیف‌های برنامه اصلی تولیدِ تأییدشده و دستورات تخصیص‌یافته قابل ارتباط هستند.</div><nav class="factory-quick-nav" aria-label="مراحل مدیریت انحرافات">
+<a href="#create">ثبت انحراف</a><a href="#deviation-table">جست‌وجو و سوابق</a>
+<a href="#action">اقدام اصلاحی</a><a href="#revise">بازنگری</a>
+<a href="#escalate">تشدید پیگیری</a><a href="#effectiveness-form">بازبینی مستقل</a></nav>
+<form id="create" class="panel form-grid"><h3 class="wide">ثبت انحراف جدید</h3><label>نسخه MPS<select id="version" required></select></label><label>ردیف MPS<select id="line" required></select></label><label>دستور مرتبط (اختیاری)<select id="order"></select></label><label>نوع انحراف از اطلاعات پایه<select id="category" required aria-label="نوع انحراف"></select></label><label class="wide">شرح انحراف<textarea id="description" required maxlength="1000" rows="3"></textarea></label><div class="form-actions"><button type="submit" class="btn-main">ثبت انحراف</button></div></form><div class="panel"><h3>پرونده‌های انحراف</h3>
+<div class="factory-filter-bar">
+<label>جست‌وجوی شرح، علت، اقدام یا مسئول<input id="deviation-search" type="search" placeholder="کد یا عبارت موردنظر"></label>
+<label>وضعیت پرونده<select id="deviation-status"><option value="">همه وضعیت‌ها</option><option value="0">باز</option><option value="1">دارای اقدام</option><option value="2">مختومه</option></select></label>
+<fieldset class="factory-multi-field"><legend>نوع انحراف (انتخاب چند مورد)</legend>
+<div id="deviation-categories"></div></fieldset>
+<label>اندازه صفحه<select id="deviation-page-size"><option value="20">۲۰ ردیف</option><option value="50">۵۰ ردیف</option><option value="100">۱۰۰ ردیف</option></select></label>
+</div>
+<div id="deviation-table"></div>
+<div class="factory-pager"><span id="deviation-count" role="status">—</span>
+<button id="deviation-prev" class="btn-outline" type="button">صفحه قبل</button>
+<span id="deviation-page">۱</span>
+<button id="deviation-next" class="btn-outline" type="button">صفحه بعد</button></div></div><section class="panel"><h3>انتخاب سریع پرونده برای اقدام و پیگیری</h3>
+<div class="factory-filter-bar"><label>جست‌وجو در تمام سوابق، شامل پرونده‌های قدیمی
+<input id="case-search" type="search" autocomplete="off" placeholder="عبارتی از شرح، علت یا مسئول را وارد کنید"></label></div>
+<p id="case-search-count" role="status" aria-live="polite">در حال بارگذاری پرونده‌ها…</p>
+<p>این فهرست ۱۰۰ نتیجهٔ آخر را نمایش می‌دهد. برای پرونده‌های قدیمی‌تر عبارت مرتبط را جست‌وجو کنید تا نتایج مستقیماً از پایگاه داده دریافت شوند.</p>
+</section>
+<form id="action" class="panel form-grid"><h3 class="wide">تعیین علت و اقدام</h3><label>پرونده باز<select id="action-case" required></select></label><label>علت ریشه‌ای<textarea id="cause" required maxlength="1000"></textarea></label><label>اقدام اصلاحی<textarea id="corrective" required maxlength="1000"></textarea></label><label>مسئول پیگیری (اطلاعات پایه)<select id="action-owner" required></select></label>
+<label>طبقه علت ریشه‌ای (اطلاعات پایه)<select id="cause-group" required></select></label><label>تاریخ اقدام<span class="jalali-field"><input id="action-date" data-jalali-date required><button type="button" data-jalali-trigger class="date-trigger">▣</button></span></label><div class="form-actions"><button type="submit" class="btn-main">ثبت اقدام</button></div></form><form id="revise" class="panel form-grid">
+<h3 class="wide">بازنگری کنترل‌شده اقدام اصلاحی</h3>
+<p class="wide">اطلاعات قبلی در تاریخچه باقی می‌ماند. برای تغییر علت، اقدام، مسئول یا موعد باید دلیل بازنگری ثبت شود.</p>
+<label>پرونده دارای اقدام<select id="revise-case" required></select></label>
+<label>علت ریشه‌ای جدید<textarea id="revise-cause" required maxlength="1000"></textarea></label>
+<label>اقدام اصلاحی جدید<textarea id="revise-corrective" required maxlength="1000"></textarea></label>
+<label>مسئول پیگیری جدید<select id="revise-owner" required></select></label>
+<label>طبقه علت ریشه‌ای جدید<select id="revise-cause-group" required></select></label>
+<label>موعد جدید<span class="jalali-field"><input id="revise-date" data-jalali-date required><button type="button" class="date-trigger" data-jalali-trigger>▣</button></span></label>
+<label class="wide">علت مستند بازنگری<textarea id="revise-reason" maxlength="600" required></textarea></label>
+<p class="wide">اگر نقش مسئول در فهرست نبود، مدیر سامانه می‌تواند آن را از <a href="/factory-master-data.html">اطلاعات پایه</a> تعریف کند. برای پرونده‌های قدیمی مقدار قبلی در سوابق باقی می‌ماند.</p>
+<div class="form-actions"><button class="btn-outline" type="submit">ثبت بازنگری همراه تاریخچه</button></div>
+</form>
+<form id="escalate" class="panel form-grid">
+<h3 class="wide">تشدید پیگیری و ثبت هشدار مسئولانه</h3>
+<p class="wide">تشدید پیگیری صرفاً ثبت رویداد داخلی و افزایش اولویت داشبورد است؛ پیامک، ایمیل یا تغییری در سامانه منابع انسانی ایجاد نمی‌کند.</p>
+<label>پرونده باز یا دارای اقدام<select id="escalate-case" required></select></label>
+<label>تاریخ بازبینی بعدی (اختیاری)<span class="jalali-field"><input id="escalate-date" data-jalali-date><button type="button" class="date-trigger" data-jalali-trigger>▣</button></span></label>
+<label class="wide">دلیل تشدید<textarea id="escalate-reason" maxlength="600" required></textarea></label>
+<div class="form-actions"><button class="btn-outline" type="submit">ثبت تشدید پیگیری</button></div>
+</form>
+<div class="panel"><h3>وضعیت پیگیری پرونده منتخب</h3>
+<div class="form-actions"><button id="followup-review" type="button" class="btn-outline">نمایش تعداد پیگیری‌ها و سابقه</button></div><div id="followup-summary"></div></div>
+<form id="close" class="panel form-grid"><h3 class="wide">ثبت تکمیل اقدام و اختتام اولیه</h3><p class="wide">اختتام اولیه به معنی تأیید اثربخشی نیست؛ باید کاربر مستقل با نقش کیفیت، مستندات و نتیجه را بازبینی کند.</p><label>پرونده دارای اقدام<select id="close-case" required></select></label><label class="wide">مستند نتیجه و اثربخشی<textarea id="verification" maxlength="1000" required></textarea></label><div class="form-actions"><button type="submit" class="btn-outline">ثبت اختتام اولیه</button></div></form>
+<section class="panel">
+<h3>تأیید مستقل اثربخشی اقدامات اصلاحی</h3>
+<p>فقط کاربر دارای نقش بازرس کیفیت یا مدیر سامانه که در ایجاد، تعیین اقدام، بازنگری یا اختتام پرونده مشارکت نداشته است می‌تواند نتیجه را ثبت کند. رد اثربخشی، پرونده را با حفظ سوابق برای اصلاح مجدد باز می‌کند؛ هیچ ارتباطی با منابع انسانی ایجاد نمی‌شود.</p>
+<div class="form-actions"><button id="effectiveness-load" class="btn-outline" type="button">بارگذاری پرونده‌های منتظر تأیید</button></div>
+<div id="effectiveness-pending"></div>
+<form id="effectiveness-form" class="form-grid">
+<label>پرونده مختومه در انتظار بازبینی مستقل<select id="effectiveness-case" required></select></label>
+<label>نتیجه بازبینی<select id="effectiveness-result" required><option value="true">مؤثر ـ تأیید</option><option value="false">نامؤثر ـ رد و بازگشایی</option></select></label>
+<label>شناسه سند و مدرک<input id="effectiveness-ref" maxlength="100" minlength="4" required placeholder="QMS-EFF-1405-001"></label>
+<label class="wide">مشاهدات واقعی و دلیل نتیجه<textarea id="effectiveness-observation" minlength="10" maxlength="400" required rows="3"></textarea></label>
+<div class="form-actions"><button type="submit" class="btn-main">ثبت نتیجه بازبینی مستقل</button></div>
+</form>
+<div id="effectiveness-summary" role="status" aria-live="polite"></div>
+</section></main></div></div></body></html>

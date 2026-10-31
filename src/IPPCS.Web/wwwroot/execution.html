@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="fa" dir="rtl"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>IPPCS | دستور ساخت و کنترل عملیات</title>
+<link rel="stylesheet" href="/css/production.css">
+<script defer src="/js/security-client.js"></script>
+<script defer src="/js/jalali-datepicker.js"></script>
+<script defer src="/js/factory-choices.js"></script>
+<script defer src="/js/execution.js"></script>
+<script defer src="/js/quality-oee.js"></script>
+</head><body>
+<div class="app-shell">
+<aside class="sidebar">
+ <div class="brand"><div class="brand-logo">IP</div><div><strong>ایندامین سایپا</strong><small>کنترل تولید نیمه‌ساخته و مونتاژ</small></div></div>
+ <div class="side-caption">اجرای تولید</div>
+ <nav>
+  <a class="planning-link" href="/app.html">صفحه اصلی</a>
+  <a class="planning-link" href="/planning.html">برنامه‌ریزی MRP / CRP</a>
+  <a class="planning-link" href="/control-plan.html">کنترل پلن، بازرسی و شجره بچ</a>
+  <button class="nav-active" data-page="orders">دستورات ساخت</button>
+  <button data-page="materials">آلترناتیوها و شارژ مواد</button>
+  <button data-page="confirmations">ثبت عملکرد عملیات</button>
+  <button data-page="clock">ساعت واقعی کارکرد مرکز</button>
+  <button data-page="slots">رزرو برنامه‌ای ظرفیت مراکز</button>
+  <button data-page="dispatch">تابلوی آمادگی اجرای عملیات APS</button>
+  <button data-page="stops">توقفات تولید</button>
+  <button data-page="timed-stops">توقفات زمان‌دار دقیق</button>
+  <button data-page="history">تاریخچه دستور تولید</button>
+  <button data-page="quality">کنترل کیفیت و WIP</button>
+  <button data-page="oee">توقفات و OEE مقدماتی</button>
+  <button data-page="lottrace">جست‌وجوی بچ تولیدی</button>
+ </nav>
+ <div class="sidebar-foot">نسخه ۰٫۴ آزمایشی<br>اطلاعات عملکرد تولید صرفاً داخل IPPCS ذخیره می‌شود.</div>
+</aside>
+<div class="main">
+ <header class="topbar"><div><div class="eyebrow">مدیریت عملیات تولید کمک‌فنر</div><h1 id="title">دستورات ساخت</h1></div><span class="environment-pill">محیط توسعه</span><button type="button" class="btn-outline" data-ip-logout>خروج از سامانه</button></header>
+ <main class="content">
+ <div id="flash" role="status" aria-live="polite" class="notice" hidden></div>
+ <div class="callout">بخش کنترل اجرای تولید در مرحله آزمایش است. ورود محلی و کنترل دسترسی اولیه فعال شده، اما مجوزهای تفکیکی کاربران و آزمون پذیرش امنیت هنوز کامل نیست؛ صرفاً در محیط Development استفاده شود. هیچ ارتباطی با نرم‌افزار انبار، خرید، فروش یا منابع انسانی وجود ندارد. ثبت کالا و مقادیر تولید در این بخش به معنی ثبت رسید یا حواله انبار نیست.</div>
+ <section class="page" id="orders">
+  <div class="section-title"><h3>ایجاد دستور ساخت یا مونتاژ</h3><small>برای تاریخ شروع، BOM نسخه‌دار و مسیر ساخت مصوب معتبر لازم است.</small></div>
+  <form class="panel form-grid" id="order-form">
+   <label>شماره دستور<input name="number" required maxlength="64" placeholder="WO-1405-0001"></label>
+   <label>محصول نهایی یا نیمه‌ساخته<select name="itemId" id="order-item" required></select></label>
+   <label>مقدار برنامه<input name="quantity" type="number" min="0.0001" step="any" required></label>
+   <label>تاریخ شروع برنامه<span class="jalali-field"><input name="start" data-jalali-date required placeholder="تاریخ شمسی"><button data-jalali-trigger type="button" class="date-trigger">▣</button></span></label>
+   <label>تاریخ پایان برنامه<span class="jalali-field"><input name="due" data-jalali-date required placeholder="تاریخ شمسی"><button data-jalali-trigger type="button" class="date-trigger">▣</button></span></label>
+   <div class="form-actions"><button type="submit" class="btn-main">ثبت دستور پیش‌نویس</button></div>
+  </form>
+  <div class="panel"><h3>فهرست دستورات و وضعیت اجرا</h3><div id="orders-table"></div></div>
+  <form class="panel form-grid" id="draft-replan-form">
+   <h3 class="wide">اصلاح کنترل‌شده دستور پیش‌نویس و نسخه‌های مؤثر BOM/Routing</h3>
+   <p class="wide">فقط پیش از آزادسازی مجاز است. مسیر و BOM برای تاریخ جدید دوباره انتخاب و شناسه‌های قبلی همراه علت در تاریخچه محفوظ می‌مانند؛ انتساب‌های MPS نباید نامعتبر شوند.</p>
+   <label>دستور پیش‌نویس<select name="orderId" id="draft-replan-order" required></select></label>
+   <label>مقدار برنامه اصلاح‌شده<input name="quantity" type="number" step="any" min="0.0001" required></label>
+   <label>شروع جدید<span class="jalali-field"><input name="start" data-jalali-date required><button type="button" data-jalali-trigger class="date-trigger">▣</button></span></label>
+   <label>موعد جدید<span class="jalali-field"><input name="due" data-jalali-date required><button type="button" data-jalali-trigger class="date-trigger">▣</button></span></label>
+   <label>علت اصلاح<input name="reason" maxlength="250" required placeholder="علت و مرجع تصمیم برنامه‌ریزی"></label>
+   <div class="form-actions"><button type="button" class="btn-outline" id="release-check">بررسی پیش‌شرط آزادسازی</button><button type="submit" class="btn-main">ذخیره اصلاح دستور پیش‌نویس</button></div>
+  </form>
+  <div class="panel"><h3>نتیجه کنترل آزادسازی</h3><div id="release-issues"></div></div>
+ </section>
+ <section class="page" id="confirmations" hidden>
+  <div class="section-title"><h3>ثبت تولید سالم، ضایعات و دوباره‌کاری</h3><small>ثبت عملکرد تنها در عملیات باز و با رعایت ترتیب عملیات مجاز است.</small></div>
+  <form class="panel form-grid" id="confirm-form">
+   <label>دستور تولید<select name="orderId" data-order-active required></select></label>
+   <label>مرحله عملیات<select name="operationId" id="confirm-operation" required></select></label>
+   <label>تولید سالم<input name="good" type="number" step="any" min="0" value="0" required></label>
+   <label>ضایعات<input name="scrap" type="number" step="any" min="0" value="0" required></label>
+   <label>دوباره‌کاری کنارگذاری‌شده<input name="rework" type="number" step="any" min="0" value="0" required></label>
+   <label>کد بچ یا سری ساخت<input name="lot" maxlength="100" placeholder="اختیاری"></label>
+   <label>توضیحات<input name="note" maxlength="500"></label>
+   <div class="form-actions"><button type="submit" class="btn-main">ثبت عملکرد عملیات</button></div>
+  </form>
+  <div class="panel"><h3>پیشرفت عملیات دستورات</h3><div id="operation-table"></div></div>
+ </section>
+ <section class="page" id="clock" hidden>
+  <div class="section-title"><h3>ثبت ساعت واقعی شروع و پایان عملیات</h3>
+   <small>زمان از ساعت سرور دریافت و با زمان تهران نمایش داده می‌شود. ثبت دستی تاریخ یا ویرایش سوابق مجاز نیست.</small>
+  </div>
+  <form class="panel form-grid" id="clock-form">
+   <label>دستور تولید<select name="orderId" id="clock-order" required></select></label>
+   <label>عملیات<select name="operationId" id="clock-operation" required></select></label>
+   <div class="form-actions"><button type="button" id="clock-start" class="btn-main">شروع ثبت زمان عملیات</button>
+   <button type="button" id="clock-stop" class="btn-outline">پایان ثبت زمان عملیات</button>
+   <button type="button" id="clock-refresh" class="btn-outline">نمایش سابقه</button></div>
+  </form>
+  <div class="callout">هر مرکز کاری در هر لحظه فقط یک عملیات زمان‌دار باز دارد. برای ثبت خروجی تولید، ابتدا ساعت باز را خاتمه دهید. ثبت ساعت واقعی جایگزین تأیید مقدار تولید یا ثبت توقف کیفی نیست.</div>
+  <div class="panel"><h3>بازه‌های واقعی کارکرد عملیات منتخب</h3><div id="clock-history"></div></div>
+ </section>
+ <section class="page" id="slots" hidden>
+  <div class="section-title"><h3>رزرو زمان اجرای دستور در مرکز کاری</h3><small>برنامه‌ریز یک بازه مشخص داخل شیفت مؤثر را برای عملیات دستور ساخت رزرو می‌کند. رزروها با شروع/پایان واقعی مقایسه می‌شوند.</small></div>
+  <form class="panel form-grid" id="slot-form">
+    <label>دستور تولید<select name="orderId" id="slot-order" required></select></label>
+    <label>عملیات ساخت<select name="operationId" id="slot-operation" required></select></label>
+    <label>تاریخ رزرو<span class="jalali-field"><input name="date" data-jalali-date required placeholder="تاریخ شمسی"><button data-jalali-trigger type="button" class="date-trigger">▣</button></span></label>
+    <label>ساعت شروع<input name="startTime" type="time" step="60" required value="08:00"></label>
+    <label>ساعت پایان<input name="endTime" type="time" step="60" required value="09:00"></label>
+    <label>توضیحات<input name="note" maxlength="130" placeholder="اختیاری"></label>
+    <div class="form-actions"><button class="btn-main" type="submit">ثبت رزرو زمان</button><button id="slot-refresh" type="button" class="btn-outline">بازخوانی رزروها</button></div>
+  </form>
+  <div class="callout">رزرو فقط توسط برنامه‌ریز یا مدیر سامانه انجام می‌شود. بازه‌های یک مرکز کاری نباید همپوشانی داشته باشند. رزروهای لغوشده در تاریخچه ثبت باقی می‌مانند؛ ساعت واقعی را اپراتور جداگانه ثبت می‌کند. این بخش هیچ حواله یا گردش موجودی انبار ایجاد نمی‌کند.</div>
+  <div class="panel"><h3>رزروهای فعال و مقایسه برنامه با اجرای واقعی</h3><div id="slot-table"></div></div>
+ </section>
+ <section class="page" id="dispatch" hidden>
+ <div class="section-title"><h3>تابلوی آمادگی اجرای عملیات، مرحله‌به‌مرحله</h3><small>بررسی ترتیب عملیات، کنترل کیفیت، قرنطینه، ساعت واقعی و رزروهای برنامه‌ای مراکز کاری؛ بدون دستور اجرایی به تجهیزات</small></div>
+ <div class="callout">«قابل شروع» فقط نشان‌دهنده گذر از گیت عملیات/کیفیت IPPCS است. رزرو ماشین در افق انتخابی لزوماً به معنی آماده بودن همین لحظه، موجودی مواد یا مجوز قطعی اپراتور نیست.</div>
+ <form id="dispatch-form" class="panel form-grid">
+ <label>تاریخ مرجع<span class="jalali-field"><input name="from" data-jalali-date required placeholder="انتخاب روز شمسی"><button data-jalali-trigger type="button" class="date-trigger">▣</button></span></label>
+ <label>افق بررسی (روز)<input name="horizon" type="number" min="1" max="30" value="7" required></label>
+ <div class="form-actions"><button type="submit" class="btn-main">کنترل آمادگی عملیات و ظرفیت</button></div>
+ </form>
+ <div class="panel"><h3>شاخص‌های اعزام</h3><div id="dispatch-summary"></div></div>
+ <div class="panel"><h3>صف برنامه عملیاتی و موانع</h3><div id="dispatch-table"></div></div>
+ </section>
+ <section class="page" id="stops" hidden>
+  <div class="section-title"><h3>مدیریت توقفات تولید</h3><small>توقفات این بخش فقط مدت دارند و برای تطبیق دقیق OEE نامطمئن محسوب می‌شوند. برای توقفات جدید از بخش «توقفات زمان‌دار دقیق» استفاده کنید.</small></div>
+  <form class="panel form-grid" id="stop-form">
+   <label>دستور<select name="orderId" data-order-active required></select></label>
+   <label>عملیات<select name="operationId" id="stop-operation" required></select></label>
+   <label>دلیل توقف (اطلاعات پایه)<select name="reasonCode" id="stop-reason-code" required></select></label>
+<label>شرح تکمیلی (اختیاری)<input name="reason" maxlength="110" placeholder="توضیح کوتاه برای این توقف"></label>
+   <label>مدت توقف (دقیقه)<input name="duration" type="number" min="1" max="1440" step="1" required></label>
+   <div class="form-actions"><button class="btn-main" type="submit">ثبت توقف</button></div>
+  </form>
+ </section>
+ <section class="page" id="timed-stops" hidden>
+ <div class="section-title"><h3>توقف زمان‌دار و غیرقابل بازنویسی مراکز کاری</h3>
+ <small>ثبت واقعی شروع/پایان توقف و جلوگیری از تداخل با ساعت کار همان مرکز</small></div>
+ <div class="callout">این ثبت دستی فقط داخل IPPCS انجام می‌شود. ابتدا ساعت کار باز را پایان دهید و سپس شروع توقف را ثبت کنید. پس از پایان توقف، ساعت کار مجدداً قابل آغاز است. این سند جایگزین داده تجهیز، PLC یا سیستم تعمیرات نیست.</div>
+ <div class="panel form-grid">
+  <label>دستور فعال<select id="timed-stop-order"></select></label>
+  <label>عملیات<select id="timed-stop-operation"></select></label>
+  <label>دلیل توقف (اطلاعات پایه)<select id="timed-stop-reason-code" required></select></label>
+<label>شرح تکمیلی<input id="timed-stop-reason" maxlength="80" placeholder="اختیاری"></label>
+  <div class="form-actions">
+   <button id="timed-stop-start" type="button" class="btn-main">شروع توقف زمان‌دار</button>
+   <button id="timed-stop-end" type="button" class="btn-outline">پایان توقف زمان‌دار</button>
+   <button id="timed-stop-review" type="button" class="btn-outline">نمایش سوابق توقف</button>
+  </div>
+ </div>
+ <div class="panel"><h3>سابقه شروع، پایان و مدت توقف</h3><div id="timed-stop-history"></div></div>
+ </section>
+ <section class="page" id="history" hidden>
+  <div class="section-title"><h3>سوابق دستور ساخت</h3><small>تغییر وضعیت، ثبت تولید و توقف‌ها در تاریخچه مستقل نگهداری می‌شوند.</small></div>
+  <div class="panel form-grid"><label>دستور تولید<select id="history-order" data-order-all></select></label><div class="form-actions"><button type="button" class="btn-main" id="show-history">نمایش تاریخچه</button></div></div>
+  <div class="panel"><h3>رویدادها</h3><div id="events-table"></div></div>
+  <div class="panel"><h3>توقفات ثبت‌شده</h3><div id="stops-table"></div></div>
+ </section>
+
+ <section class="page" id="quality" hidden>
+  <div class="section-title"><h3>قرنطینه تولید داخل فرآیند</h3><small>مقادیر تحت بررسی، تا زمان تأیید یا اسقاط قابل عبور به مرحله بعد نیستند؛ این عملیات انبار نیست.</small></div>
+  <form id="quality-form" class="panel form-grid">
+   <label>دستور تولید فعال<select name="orderId" id="quality-order" required></select></label>
+   <label>عملیات محل عدم‌انطباق<select name="operationId" id="quality-operation" required></select></label>
+   <label>مقدار قرنطینه<input name="quantity" required type="number" min="0.0001" step="any"></label>
+   <label>دلیل قرنطینه (اطلاعات پایه)<select name="reasonCode" id="quality-reason-code" required></select></label>
+<label>شرح جزئیات عدم‌انطباق<input name="reason" maxlength="250" placeholder="اختیاری؛ برای بررسی کیفیت"></label>
+   <div class="form-actions"><button type="submit" class="btn-main">ثبت عدم‌انطباق و قرنطینه</button></div>
+  </form>
+  <div class="panel form-grid">
+   <label>نمایش وضعیت دستور<select id="quality-view-order" required></select></label>
+   <div class="form-actions"><button id="quality-refresh" type="button" class="btn-outline">نمایش WIP و سوابق کیفیت</button></div>
+  </div>
+  <div class="panel"><h3>مانده بین عملیات (WIP)</h3>
+   <p>«در انتظار مرحله بعد» از تولید سالم قابل استفاده پس از کسر قرنطینه و ضایعات کیفی محاسبه می‌شود؛ موجودی رسمی انبار نیست.</p>
+   <div id="wip-table"></div>
+  </div>
+  <div class="panel"><h3>موارد عدم‌انطباق و تعیین تکلیف</h3>
+   <p>تعیین تکلیف فقط توسط نقش بازرس کیفیت یا مدیر سامانه مجاز است.</p>
+   <div id="quality-table"></div>
+  </div>
+ </section>
+ <section class="page" id="oee" hidden>
+  <div class="section-title"><h3>محاسبه مقدماتی OEE مراکز کاری</h3>
+   <small>مبنای تجمیع زمان کارخانه: Asia/Tehran. در صورت نبود برنامه زمانی معتبر، شاخص نامشخص می‌ماند.</small>
+  </div>
+  <form id="oee-plan-form" class="panel form-grid">
+   <label>مرکز کاری<select name="workCenterId" id="oee-workcenter" required></select></label>
+   <label>تاریخ تولید<span class="jalali-field"><input name="date" data-jalali-date required placeholder="تاریخ شمسی"><button type="button" data-jalali-trigger class="date-trigger">▣</button></span></label>
+   <label>دقایق برنامه تولید در روز<input name="planned" type="number" min="1" max="1440" step="any" required></label>
+   <label>یادداشت<input name="note" maxlength="400"></label>
+   <div class="form-actions"><button type="submit" class="btn-main">ثبت زمان برنامه روزانه</button></div>
+  </form>
+  <div class="panel form-grid">
+   <label>روز گزارش OEE<span class="jalali-field"><input id="oee-date" data-jalali-date required placeholder="تاریخ شمسی"><button type="button" data-jalali-trigger class="date-trigger">▣</button></span></label>
+   <div class="form-actions"><button id="oee-calculate" type="button" class="btn-outline">محاسبه شاخص‌های روز</button></div>
+  </div>
+  <div class="panel"><h3>تطبیق زمان عملیات و توقفات دارای ساعت دقیق</h3>
+ <p>توقفات جدید با زمان شروع و پایان مستقل ثبت می‌شوند. توقفات قدیمیِ صرفاً دارای مدت، ساعت کار باز، تداخل یا ثبت بیش از ظرفیت روزانه موجب «نامشخص» شدن اعتبار تطبیق خواهد شد. دقایق توقف هرگز دوباره از ساعت کار واقعی کسر نمی‌شوند.</p>
+ <div class="form-actions"><button id="oee-reconciliation-review" type="button" class="btn-outline">بررسی تطبیق زمان و توقفات روز</button></div>
+ <div id="oee-reconciliation-table"></div></div>
+ <div class="panel"><h3>نتایج OEE مراکز کاری</h3>
+   <p>Availability = زمان عملیاتی ÷ زمان برنامه؛ Performance = زمان سیکل استاندارد تولید ÷ زمان عملیاتی؛ Quality = تعداد سالم ÷ کل گزارش‌شده. ثبت دوباره‌کاری و مغایرت زمان می‌تواند باعث هشدار شود. هنوز اندازه‌گیری مستقیم PLC یا ثبت دقیق بازه توقف فعال نیست.</p>
+   <div id="oee-table"></div>
+  </div>
+  <div class="panel"><h3>OEE مبتنی بر ساعت واقعی ثبت‌شده</h3>
+   <p>این گزارش فقط زمان شروع/پایان ثبت‌شده عملیات و خروجی‌های ثبت‌شده را استفاده می‌کند. ساعت باز، داده ناقص یا نبود برنامه روزانه باعث نمایش شاخص نامشخص می‌شود؛ اطلاعات زمان‌سنج PLC نیست.</p>
+   <div class="form-actions"><button type="button" id="oee-clock-calculate" class="btn-outline">محاسبه براساس ساعت واقعی</button></div>
+   <div id="oee-clock-table"></div>
+  </div>
+ </section>
+ <section class="page" id="lottrace" hidden>
+  <div class="section-title"><h3>مرور سوابق تولید بر اساس کد بچ</h3>
+  <small>ردیابی سوابق ثبت تولید داخل IPPCS است، نه شجره کامل مواد اولیه و محصول یا اطلاعات انبار.</small></div>
+  <form id="lot-trace-form" class="panel form-grid">
+   <label>کد بچ ثبت‌شده<input name="lotCode" maxlength="100" required placeholder="مثلاً CI-LOT-001"></label>
+   <div class="form-actions"><button type="submit" class="btn-main">جست‌وجوی سابقه بچ</button></div>
+  </form>
+  <div class="panel"><h3>عملیات و گزارش‌های مرتبط</h3><div id="lot-trace-table"></div></div>
+ </section>
+ <section class="page" id="materials" hidden>
+  <div class="section-title"><h3>انتخاب آلترناتیوها و ثبت مصرف مواد دستور</h3><small>ترکیب قطعات تا پیش از اولین مصرف واقعی از همان گروه قابل اصلاح است؛ مصرف واقعی پس از آزادسازی ثبت می‌شود.</small></div>
+  <div class="callout">این بخش سوابق مصرف و ردیابی داخلی تولید را ثبت می‌کند و هیچ حواله، رسید یا تغییر موجودی در نرم‌افزار انبار ایجاد نمی‌کند. ترکیب هر گروه باید دقیقاً ۱۰۰٪ باشد. پس از ثبت نخستین مصرف واقعی از هر قطعه گروه، تغییر ترکیب همان گروه قفل می‌شود.</div>
+  <div class="panel form-grid">
+   <label>دستور تولید<select id="material-order" required></select></label>
+   <div class="form-actions"><button type="button" class="btn-outline" id="material-options-load">بارگذاری آلترناتیوها و مقادیر برنامه</button></div>
+   <div class="wide" id="material-options-container"></div>
+   <div class="form-actions"><button type="button" class="btn-main" id="material-options-save">ذخیره ترکیب آلترناتیوها</button></div>
+  </div>
+  <form id="material-usage-form" class="panel form-grid">
+   <h3 class="wide">ثبت شارژ/مصرف واقعی قطعه برای دستور</h3>
+   <label>بچ تولید ثبت‌شده<select name="confirmationId" id="material-usage-lot" required></select></label>
+   <label>قطعه انتخاب‌شده در ترکیب BOM<select name="componentItemId" id="material-usage-line" required></select></label>
+   <label>مقدار مصرف واقعی<input name="quantity" type="number" min="0.0001" step="any" required></label>
+   <label>مرجع / توضیح مصرف<input name="reference" maxlength="140" required placeholder="اپراتور، محل مصرف یا علت انحراف"></label>
+   <div class="form-actions"><button type="submit" class="btn-main">ثبت مصرف واقعی</button></div>
+  </form>
+  <div class="panel"><h3>مقادیر برنامه‌ریزی‌شده و مصرف تجمعی</h3><div id="material-options-summary"></div></div>
+  <div class="panel"><h3>سوابق ثبت مصرف واقعی و ردیابی اپراتور/بچ</h3><div id="material-usage-history"></div></div>
+ </section>
+ </main>
+ <footer class="footer">IPPCS • اجرای تولید نیمه‌ساخته و مونتاژ<span>Build 0.4.0 • Draft</span></footer>
+</div></div></body></html>

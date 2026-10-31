@@ -1,0 +1,94 @@
+name: IPPCS SQL manual diagnostic (fallback)
+on:
+  workflow_dispatch:
+jobs:
+  sqlserver-schema:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Start disposable SQL Server with generated credential
+        shell: bash
+        run: |
+          password="Ci_Aa1!$(openssl rand -hex 18)"
+          echo "::add-mask::$password"
+          echo "CI_DB_PASSWORD=$password" >> "$GITHUB_ENV"
+          admin_password="Ci_Aa1!$(openssl rand -hex 18)"
+          echo "::add-mask::$admin_password"
+          echo "CI_ADMIN_PASSWORD=$admin_password" >> "$GITHUB_ENV"
+          docker run -d --name ippcs-ci-sql \
+            -e ACCEPT_EULA=Y -e MSSQL_PID=Developer \
+            -e MSSQL_SA_PASSWORD="$password" -p 1433:1433 \
+            mcr.microsoft.com/mssql/server:2022-latest
+      - name: Build and apply checked-in EF Core migration
+        shell: bash
+        run: |
+          export ASPNETCORE_ENVIRONMENT=Development
+          export ConnectionStrings__Production="Server=127.0.0.1,1433;Database=IPPCS_CI;User Id=sa;Password=${CI_DB_PASSWORD};Encrypt=True;TrustServerCertificate=True;"
+          dotnet restore src/IPPCS.Web/IPPCS.Web.csproj
+          dotnet build src/IPPCS.Web/IPPCS.Web.csproj -c Release --no-restore
+          dotnet tool install --global dotnet-ef --version 10.0.0
+          success=0
+          for attempt in $(seq 1 8); do
+            if dotnet ef database update --project src/IPPCS.Web/IPPCS.Web.csproj --startup-project src/IPPCS.Web/IPPCS.Web.csproj --configuration Release > /tmp/ippcs-migrate.log 2>&1; then
+              success=1
+              break
+            fi
+            echo "Schema attempt $attempt/8"
+            sleep 8
+          done
+          if [ "$success" -ne 1 ]; then
+            echo "SQL migration failed; inspect model and database configuration."
+            exit 1
+          fi
+          echo "PASS: versioned EF schema applied to disposable SQL Server."
+      - name: Authenticate and verify protected SQL writes
+        shell: bash
+        run: |
+          set -euo pipefail
+          export ASPNETCORE_ENVIRONMENT=Development
+          export ConnectionStrings__Production="Server=127.0.0.1,1433;Database=IPPCS_CI;User Id=sa;Password=${CI_DB_PASSWORD};Encrypt=True;TrustServerCertificate=True;"
+          export Bootstrap__AdminUsername="ci-admin"
+          export Bootstrap__AdminPassword="$CI_ADMIN_PASSWORD"
+          dotnet run --project src/IPPCS.Web/IPPCS.Web.csproj --no-build -c Release --no-launch-profile --urls http://127.0.0.1:5295 > /tmp/ippcs-web.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          ready=0
+          for attempt in $(seq 1 25); do
+            if curl -fsS http://127.0.0.1:5295/health >/dev/null 2>&1; then ready=1; break; fi
+            sleep 2
+          done
+          if [ "$ready" -ne 1 ]; then echo "Web host failed health check"; exit 1; fi
+          unauthorized=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:5295/api/v1/items)
+          test "$unauthorized" = "401"
+          python3 -c 'import json,os;open("/tmp/ippcs-login.json","w").write(json.dumps({"username":"ci-admin","password":os.environ["CI_ADMIN_PASSWORD"]}))'
+          curl --fail --silent --show-error -c /tmp/ippcs-cookie \
+            -H 'Content-Type: application/json' --data-binary @/tmp/ippcs-login.json \
+            http://127.0.0.1:5295/auth/login > /tmp/ippcs-login-response.json
+          csrf_status=$(curl -s -o /dev/null -w '%{http_code}' -b /tmp/ippcs-cookie \
+            -H 'Content-Type: application/json' -d '{"code":"NO-CSRF","name":"Denied","unit":"PCS","type":2}' \
+            http://127.0.0.1:5295/api/v1/items)
+          test "$csrf_status" = "400"
+          curl --fail --silent --show-error -b /tmp/ippcs-cookie -c /tmp/ippcs-cookie \
+            http://127.0.0.1:5295/auth/csrf > /tmp/ippcs-token.json
+          token=$(python3 -c 'import json;print(json.load(open("/tmp/ippcs-token.json"))["token"])')
+          test -n "$token"
+          curl --fail --silent --show-error -b /tmp/ippcs-cookie -c /tmp/ippcs-cookie \
+            -H "X-IPPCS-CSRF: $token" -H 'Content-Type: application/json' \
+            -d '{"code":"SHOCK-CI-001","name":"CI Shock Absorber","unit":"PCS","type":2}' \
+            http://127.0.0.1:5295/api/v1/items > /tmp/ippcs-item-created.json
+          curl --fail --silent --show-error -b /tmp/ippcs-cookie \
+            http://127.0.0.1:5295/api/v1/items > /tmp/ippcs-items.json
+          python3 -c 'import json;assert any(x["code"]=="SHOCK-CI-001" for x in json.load(open("/tmp/ippcs-items.json")))'
+          if ! python3 tests/production_e2e_smoke.py; then
+            echo "Production E2E failed; application warnings:"
+            grep -E "IPPCS_CONCURRENCY_RELEASE|DbUpdateConcurrencyException|fail:|warn:" /tmp/ippcs-web.log | tail -n 50 || true
+            exit 1
+          fi
+          echo "PASS: unauthorized=401, CSRF denied=400, login successful, protected SQL Server insert and read round trip."
+      - name: Cleanup
+        if: always()
+        run: docker rm -f ippcs-ci-sql || true

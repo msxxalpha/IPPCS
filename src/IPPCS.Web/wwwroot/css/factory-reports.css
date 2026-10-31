@@ -1,0 +1,30 @@
+/* Reports: dense management data remains legible without horizontal page scrolling. */
+#report-filters .form-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+#report-filters .form-grid label{min-width:0;overflow-wrap:anywhere}
+#report-filters input,#report-filters select{max-width:100%}
+#rpt-orders,#rpt-centers,#rpt-daily,#rpt-capa{max-width:100%;overflow:hidden}
+#rpt-orders table,#rpt-centers table,#rpt-daily table,#rpt-capa table{table-layout:fixed;width:100%;font-size:11px;white-space:normal}
+#rpt-orders th,#rpt-orders td,#rpt-centers th,#rpt-centers td,
+#rpt-daily th,#rpt-daily td,#rpt-capa th,#rpt-capa td{
+ overflow-wrap:anywhere;word-break:normal;white-space:normal;vertical-align:top;padding:9px 6px
+}
+#rpt-orders th,#rpt-centers th,#rpt-daily th,#rpt-capa th{font-weight:700}
+#report-definitions{padding-right:23px;line-height:2.1}
+@media(max-width:1120px){#report-filters .form-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:850px){
+ #rpt-orders table,#rpt-centers table,#rpt-daily table,#rpt-capa table{display:block;width:100%;border:0}
+ #rpt-orders thead,#rpt-centers thead,#rpt-daily thead,#rpt-capa thead{display:none}
+ #rpt-orders tbody,#rpt-centers tbody,#rpt-daily tbody,#rpt-capa tbody{display:grid;gap:12px}
+ #rpt-orders tr,#rpt-centers tr,#rpt-daily tr,#rpt-capa tr{
+  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;
+  padding:12px;background:#fff;border:1px solid #dbe5ec;border-radius:10px
+ }
+ #rpt-orders td,#rpt-centers td,#rpt-daily td,#rpt-capa td{display:block;border:0;padding:7px 9px;background:#f6f9fb}
+ #rpt-orders td:before,#rpt-centers td:before,#rpt-daily td:before,#rpt-capa td:before{
+  content:attr(data-label);display:block;font-weight:700;font-size:11px;color:#244c66
+ }
+}
+@media(max-width:520px){
+ #report-filters .form-grid{grid-template-columns:1fr}
+ #rpt-orders tr,#rpt-centers tr,#rpt-daily tr,#rpt-capa tr{grid-template-columns:1fr}
+}

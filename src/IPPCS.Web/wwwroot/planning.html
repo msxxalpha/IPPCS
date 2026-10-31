@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="fa" dir="rtl"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>IPPCS | برنامه‌ریزی MPS، MRP و CRP</title>
+<link rel="stylesheet" href="/css/production.css">
+<script defer src="/js/security-client.js"></script>
+<script defer src="/js/jalali-datepicker.js"></script>
+<script defer src="/js/factory-choices.js"></script>
+<script defer src="/js/planning-stage3.js"></script>
+<script defer src="/js/excel-csv-import.js"></script>
+</head><body>
+<div class="app-shell">
+<aside class="sidebar">
+  <div class="brand"><div class="brand-logo">IP</div><div><strong>ایندامین سایپا</strong><small>برنامه‌ریزی و کنترل تولید</small></div></div>
+  <div class="side-caption">توسعه فاز برنامه‌ریزی</div>
+  <nav>
+    <a class="planning-link" href="/app.html">بازگشت به صفحه اصلی</a>
+    <a class="planning-link" href="/planning-advanced.html">زمان‌بندی پیشرفته و تحلیل‌ها</a>
+    <a class="planning-link" href="/factory-analytical-verification.html">آزمون MRP، CRP و دیگر ماژول‌های محاسباتی</a>
+    <button data-section="bomversion" class="nav-active">نسخه‌بندی BOM</button>
+    <button data-section="mps">برنامه اصلی تولید (MPS)</button>
+    <button data-section="assumptions">موجودی و دریافت‌های برنامه‌ای</button>
+    <button data-section="mrp">محاسبات MRP و CRP</button>
+  </nav>
+  <div class="sidebar-foot">فاز سوم • نسخه آزمایشی<br>تمام داده‌ها صرفاً ورودی مستقل برنامه‌ریزی‌اند.</div>
+</aside>
+<div class="main"><header class="topbar"><div><div class="eyebrow">هسته برنامه‌ریزی و کنترل تولید</div><h1 id="title">نسخه‌بندی BOM</h1></div><span class="environment-pill">نسخه توسعه 0.3.0</span><button type="button" class="btn-outline" data-ip-logout>خروج از سامانه</button></header>
+<main class="content">
+<div class="notice" id="alert" hidden role="status" aria-live="polite"></div>
+<div class="callout">این بخش مستقل از نرم‌افزارهای انبار، خرید، فروش و منابع انسانی است. موجودی و رسیدهای این صفحه فقط <strong>فرضیات محاسباتی</strong> هستند و هیچ عملیات انباری یا خرید انجام نمی‌دهند. نتایج MRP/CRP در این مرحله پیش‌نمایش تخصصی و نیازمند اعتبارسنجی عملیاتی هستند.</div>
+<section class="page" id="bomversion">
+  <div class="section-title"><h3>ساختار مواد نسخه‌دار و تاریخ‌دار</h3><small>فقط نسخه تأییدشده در محاسبات MRP جدید استفاده می‌شود.</small></div>
+  <form id="bom-version-form" class="panel form-grid">
+    <label>کالای تولیدی والد<select name="parentItemId" data-item required></select></label>
+    <label>کد نسخه<input name="revision" required maxlength="32" placeholder="A-01"></label>
+    <label>تاریخ شروع اعتبار<span class="jalali-field"><input data-jalali-date name="from" required placeholder="انتخاب تاریخ"><button type="button" class="date-trigger" data-jalali-trigger>▣</button></span></label>
+    <label>تاریخ پایان اعتبار (اختیاری)<span class="jalali-field"><input data-jalali-date name="until" placeholder="بدون پایان"><button type="button" class="date-trigger" data-jalali-trigger>▣</button></span></label>
+    <div class="form-actions"><button class="btn-main" type="submit">ایجاد نسخه پیش‌نویس BOM</button></div>
+  </form>
+  <form id="bom-line-form" class="panel form-grid">
+    <h3 class="wide">افزودن ماده یا قطعه به نسخه پیش‌نویس</h3>
+    <label>نسخه BOM<select name="revisionId" id="bom-revision-select" required></select></label>
+    <label>قطعه زیرمجموعه<select name="componentItemId" data-item required></select></label>
+    <label>ضریب مصرف<input name="quantityPer" type="number" step="any" min="0.000001" required></label>
+    <label>درصد ضایعات استاندارد<input name="scrapPercent" type="number" step="any" min="0" max="99.99" value="0" required></label>
+    <label>شماره ترتیب جزء<input name="sequence" type="number" min="1" value="10" required></label>
+    <label>کد گروه آلترناتیو (اختیاری)<input name="alternativeGroupCode" maxlength="32" placeholder="مثلاً MAT-A"></label>
+    <label>اولویت آلترناتیو<input name="alternativePriority" type="number" min="1" step="1" value="1" required></label>
+    <label class="checkbox-label"><input name="isDefaultAlternative" type="checkbox"> قطعه پیش‌فرض این گروه</label>
+    <p class="wide hint">قطعاتی که کد گروه یکسان دارند، گزینه‌های جایگزین یک نیاز مشترک‌اند. برای هر گروه حداقل دو قطعه و دقیقاً یک پیش‌فرض تعیین کنید؛ اعضا باید ترتیب یکسان داشته باشند. در MRP پایه فقط پیش‌فرض محاسبه می‌شود.</p>
+    <div class="form-actions"><button class="btn-main" type="submit">افزودن جزء</button></div>
+  </form>
+  <div class="panel form-grid">
+    <h3 class="wide">چاپ صورت ساختار BOM</h3>
+    <label>نسخه BOM<select id="print-bom-select"></select></label>
+    <div class="form-actions"><button id="print-bom-button" type="button" class="btn-outline">چاپ ساختار مواد و اجزای محصول</button></div>
+  </div>
+  <div class="panel"><h3>سوابق نسخه‌های BOM</h3><div id="bom-table"></div></div>
+  <div class="panel"><h3>کنترل پیش از تصویب نسخه‌های BOM و Routing</h3>
+   <p>این بررسی وضعیت نسخه پیش‌نویس، بازه تاریخی، اجزای تکراری، عملیات و چرخه BOM را نمایش می‌دهد. تصمیم نهایی تصویب در سمت سرور با قفل تراکنشی دوباره ارزیابی می‌شود.</p>
+   <div class="form-grid">
+    <label>نسخه BOM<select id="revision-bom-check"></select></label>
+    <label>نسخه مسیر ساخت Routing<select id="revision-routing-check"></select></label>
+    <div class="form-actions">
+     <button id="revision-check-bom" type="button" class="btn-outline">بررسی تصویب BOM</button>
+     <button id="revision-check-routing" type="button" class="btn-outline">بررسی تصویب Routing</button>
+    </div>
+   </div><div id="revision-preflight-table"></div>
+  </div>
+  <div class="panel"><h3>تحلیل اثر تغییر مهندسی ECO بر BOM و Routing</h3>
+ <p>تفاوت نسخه پیشنهادی با نسخه مصوب و دستورهای متأثر از تاریخ اجرای تغییر را بررسی کنید. این تحلیل فقط پیش‌نمایش است و خودکار نسخه مصوب را بازنشست یا دستوری را بازنویسی نمی‌کند.</p>
+ <div class="form-grid">
+  <label>نسخه BOM مصوب مبنا<select id="eco-bom-baseline"></select></label>
+  <label>نسخه BOM پیش‌نویس<select id="eco-bom-candidate"></select></label>
+  <label>نسخه Routing مصوب مبنا<select id="eco-route-baseline"></select></label>
+  <label>نسخه Routing پیش‌نویس<select id="eco-route-candidate"></select></label>
+  <div class="form-actions">
+   <button id="eco-bom-review" class="btn-outline" type="button">تحلیل تغییرات BOM</button>
+   <button id="eco-routing-review" class="btn-outline" type="button">تحلیل تغییرات Routing</button>
+  </div>
+ </div>
+ <div id="eco-impact-summary"></div>
+ <h3>موانع تصویب و تاریخ‌های مؤثر</h3><div id="eco-impact-issues"></div>
+ <h3>اختلاف قطعات و عملیات</h3><div id="eco-impact-changes"></div>
+ <h3>دستورات دارای نسخه منجمد که ممکن است تحت تأثیر قرار گیرند</h3><div id="eco-impact-orders"></div>
+ </div>
+ <div class="panel"><h3>جزئیات اجزای BOM پیش‌نویس (قابل اصلاح)</h3><div id="bom-lines-table"></div></div>
+</section>
+<section class="page" id="mps" hidden>
+  <div class="section-title"><h3>برنامه اصلی تولید (MPS)</h3><small>نسخه پیش‌نویس، ردیف‌های برنامه و تأیید قطعی آن.</small></div>
+  <form id="mps-form" class="panel form-grid">
+    <label>شناسه نسخه برنامه<input name="code" required maxlength="64" placeholder="MPS-1405-W32"></label>
+    <div class="form-actions"><button class="btn-main" type="submit">ایجاد نسخه برنامه</button></div>
+  </form>
+  <form id="mps-line-form" class="panel form-grid">
+    <h3 class="wide">افزودن ردیف برنامه</h3>
+    <label>نسخه MPS پیش‌نویس<select name="mpsId" id="mps-draft-select" required></select></label>
+    <label>محصول نهایی<select name="itemId" data-finished required></select></label>
+    <label>مقدار تولید<input name="quantity" type="number" step="any" min="0.0001" required></label>
+    <label>تاریخ نیاز<span class="jalali-field"><input name="due" data-jalali-date placeholder="انتخاب تاریخ" required><button type="button" class="date-trigger" data-jalali-trigger>▣</button></span></label>
+    <label>مرجع داخلی برنامه<input name="reference" maxlength="120" placeholder="برنامه هفتگی"></label>
+    <div class="form-actions"><button class="btn-main" type="submit">ثبت ردیف برنامه</button></div>
+  </form>
+  <div class="panel form-grid">
+   <h3 class="wide">نسخه چاپی حرفه‌ای MPS</h3>
+   <p class="wide">خروجی A4، شامل نسخه واقعی، وضعیت تصویب، ردیف‌های برنامه، سررسیدهای شمسی و محل امضا است. نسخه پیش‌نویس با واترمارک مشخص می‌شود.</p>
+   <label>نسخه برنامه برای چاپ<select id="print-mps-select"></select></label>
+   <div class="form-actions"><button id="print-mps-button" type="button" class="btn-outline">پیش‌نمایش و چاپ برنامه MPS</button></div>
+  </div>
+  <div class="panel"><h3>نسخه‌ها و ردیف‌های برنامه اصلی تولید</h3><div id="mps-table"></div></div>
+  <div class="panel"><h3>ردیف‌های برنامه پیش‌نویس (قابل اصلاح)</h3><div id="mps-lines-table"></div></div>
+<form id="mps-controlled-revision-form" class="panel form-grid">
+ <h3 class="wide">بازنگری کنترل‌شده MPS مصوب — ایجاد پیش‌نویس مجزا</h3>
+ <p class="wide">نسخه مصوب و ردیف‌های آن تغییر نمی‌کنند. نسخه پیشنهادی با کد و علت مستقل، تصویر ثابت ردیف‌های مبنا و نام ثبت‌کننده ایجاد می‌شود.</p>
+ <label>نسخه مصوب مبنا<select name="sourceId" id="mps-revision-source" required></select></label>
+ <label>کد نسخه جدید<input name="code" maxlength="64" required placeholder="MPS-1405-W32-R1"></label>
+ <label class="wide">علت بازنگری<textarea name="reason" maxlength="500" required placeholder="مثلاً تغییر اولویت برنامه به تأیید برنامه‌ریزی"></textarea></label>
+ <div class="form-actions"><button class="btn-main" type="submit">ایجاد پیش‌نویس قابل برگشت از برنامه مصوب</button></div>
+</form>
+<form id="mps-change-impact-form" class="panel form-grid">
+ <h3 class="wide">مقایسه تأثیر تغییر MPS بر تقاضا، مواد و ظرفیت</h3>
+ <label>نسخه اصلی مصوب<select name="sourceId" id="mps-comparison-source" required></select></label>
+ <label>نسخه تغییر یافته<select name="candidateId" id="mps-comparison-candidate" required></select></label>
+ <div class="form-actions"><button class="btn-outline" type="submit">تحلیل تغییر برنامه و نمایش شواهد</button></div>
+</form>
+<div class="panel"><h3>شواهد نسخه و امضای تصویب</h3><div id="mps-change-evidence"></div></div>
+<div class="panel"><h3>خلاصه مقدار قبل و بعد برنامه</h3><div id="mps-impact-summary"></div></div>
+<div class="panel"><h3>مغایرت مقدار به تفکیک کالا و موعد</h3><div id="mps-impact-demand"></div></div>
+<div class="panel"><h3>تغییر بار و اضافه‌بار مراکز کاری CRP</h3><div id="mps-impact-capacity"></div></div>
+<div class="panel"><h3>اثر بر ناخالص و دریافت‌های پیشنهادی MRP</h3><div id="mps-impact-material"></div></div>
+</section>
+<section class="page" id="assumptions" hidden>
+  <div class="section-title"><h3>فرضیات تأمین و موجودی برنامه‌ریزی</h3><small>بدون ارتباط با پایگاه داده انبار یا خرید.</small></div>
+  <form id="balance-form" class="panel form-grid">
+    <label>کالا<select name="itemId" data-item required></select></label>
+    <label>موجودی فیزیکی فرضی<input name="physical" type="number" step="any" min="0" value="0" required></label>
+    <label>موجودی رزروشده<input name="reserved" type="number" step="any" min="0" value="0" required></label>
+    <label>موجودی قرنطینه<input name="quarantined" type="number" step="any" min="0" value="0" required></label>
+    <label>موجودی اطمینان<input name="safety" type="number" step="any" min="0" value="0" required></label>
+    <label>زمان تأمین/ساخت (روز)<input name="lead" type="number" min="0" max="3650" value="1" required></label>
+    <label>حداقل بچ<input name="min" type="number" min="0.0001" step="any" value="1" required></label>
+    <label>مضرب بچ<input name="multiple" type="number" min="0.0001" step="any" value="1" required></label>
+    <label>تاریخ مبنای موجودی<span class="jalali-field"><input name="snapshot" data-jalali-date required><button type="button" class="date-trigger" data-jalali-trigger>▣</button></span></label>
+    <div class="form-actions"><button class="btn-main" type="submit">ثبت یا به‌روزرسانی فرضیات</button></div>
+  </form>
+  <div class="panel"><h3>مانده‌های برنامه‌ریزی</h3><div id="balance-table"></div></div>
+  <form id="receipt-form" class="panel form-grid">
+    <h3 class="wide">ثبت دریافت برنامه‌ریزی‌شده (نه رسید انبار)</h3>
+    <label>کالا<select name="itemId" data-item required></select></label>
+    <label>مقدار دریافت<input name="quantity" type="number" min="0.0001" step="any" required></label>
+    <label>تاریخ دسترس‌پذیری<span class="jalali-field"><input name="date" data-jalali-date required><button type="button" class="date-trigger" data-jalali-trigger>▣</button></span></label>
+    <label>مرجع ورودی فرضی<input name="reference" maxlength="120"></label>
+    <div class="form-actions"><button class="btn-main" type="submit">افزودن دریافت برنامه‌ای</button></div>
+  </form>
+  <div class="panel"><h3>دریافت‌های برنامه‌ریزی‌شده</h3><div id="receipt-table"></div></div>
+</section>
+<section class="page" id="mrp" hidden>
+  <div class="section-title"><h3>محاسبات برنامه‌ریزی مواد و ظرفیت</h3><small>MRP خالص با ردیابی منشأ و پیشنهاد بچ؛ CRP مستقل و پیش‌نمایش ظرفیت محدود بچ‌ها در بخش جداگانه.</small></div>
+  <div class="panel form-grid">
+    <label>نسخه MPS تأییدشده<select id="calculate-mps" required></select></label>
+    <div class="form-actions"><button id="mrp-run" class="btn-main" type="button">محاسبه MRP خالص</button><button id="crp-run" class="btn-outline" type="button">نمایش بارگذاری ظرفیت CRP</button><button id="product-capacity-run" class="btn-outline" type="button">ظرفیت محصول‌محور به تفکیک عملیات</button><button id="gross-trace-run" class="btn-outline" type="button">ردیابی منشأ ناخالص مواد از MPS</button><button id="phased-pegging-run" class="btn-outline" type="button">تخصیص زمانی موجودی و دریافت‌ها</button><button id="net-pegging-run" class="btn-outline" type="button">ردیابی پیشنهادهای خالص ساخت و مواد</button><button id="lot-capacity-run" class="btn-outline" type="button">کنترل محدودیت ظرفیت بچ‌های پیشنهادی MRP</button></div>
+  </div>
+  <div class="panel"><h3>پیش‌نمایش ظرفیت محدود ساخت بچ‌های پیشنهادی MRP</h3><p class="callout">این پیش‌نمایش هر بچ ساخت خالص را با مسیر مصوب در تاریخ آزادسازی آن و شیفت‌های مراکز کاری می‌سنجد؛ کنترل عدم تداخل ظرفیت و تقدم عملیات انجام می‌شود. موجودی فرضی و پیشنهادهای تأمین قطعی نیستند و زمان‌بندی دستورهای واقعی، وابستگی بین بچ‌ها، نگهداری، نیروی انسانی و ابزار در آن محاسبه نشده‌اند.</p><div class="form-grid"><label>افق بررسی (روز از تاریخ مبنای موجودی)<input id="lot-capacity-days" type="number" min="1" max="90" step="1" value="30"></label><label>ضریب ظرفیت فرضی<input id="lot-capacity-multiplier" type="number" min="0.1" max="2" step="0.05" value="1"></label></div><div id="lot-capacity-summary" class="notice" hidden role="status"></div><h4>وضعیت بچ‌ها</h4><div id="lot-capacity-lots"></div><h4>تخصیص زمانی عملیات به مراکز کاری</h4><div id="lot-capacity-operations"></div><h4>عملیات غیرقابل زمان‌بندی</h4><div id="lot-capacity-unscheduled"></div></div><div class="panel"><h3>ردیابی خالص MRP؛ پیشنهادهای بچ ساخت و منشأ مواد</h3><p class="callout">تمام داده‌های این بخش صرفاً محاسبات داخلی هستند. برای ردیابی، «شناسه منشأ» هر تخصیص را با «شناسه بچ پیشنهادی» و «بچ بالادست» در جدول نیازها تطبیق دهید؛ پیشنهاد قطعی تولید یا دریافت کالا صادر نمی‌شود.</p><h4>بچ‌های پیشنهادی و مازاد بچ</h4><div id="net-pegging-lots"></div><h4>نیازهای ایجادشده (MPS و اجزای بچ‌های پیشنهادی)</h4><div id="net-pegging-demands"></div><h4>تخصیص منابع تأمین به نیازها</h4><div id="net-pegging-allocations"></div></div><div class="panel"><h3>منشأ تأمین نیاز ناخالص بر مبنای زمان</h3><div id="phased-allocations"></div><h3>کسری‌های تأمین‌نشده</h3><div id="phased-shortages"></div></div><div class="panel"><h3>مسیر منشأ نیاز ناخالص مواد (متمایز از Pegging خالص)</h3><div id="gross-trace-table"></div></div><div class="panel"><h3>جزئیات پیشنهادهای ساخت و هشدار زمان آزادسازی</h3><div id="mrp-suggestions"></div></div><div class="panel"><h3 id="calculation-title">نتایج محاسبه</h3><div id="calculation-table"></div></div>
+  <div class="panel"><h3>ظرفیت مستقل به تفکیک محصول و عملیات (CRP محصول‌محور)</h3><p class="callout">گزارش، بار لازم و ظرفیت مستقل هر محصول را از روی مسیر ساخت مصوب، زمان آماده‌سازی، زمان هر واحد و بازده تجمعی عملیات محاسبه می‌کند. ظرفیت مستقل هر ردیف فرض می‌کند محصول دیگری از دقایق همان مرکز استفاده نمی‌کند؛ برای تعهد ظرفیت ترکیبی و رفع تداخل زمانی، نتیجه APS را نیز بررسی کنید.</p><div id="product-capacity-summary" class="notice" hidden role="status"></div><div id="product-capacity-table"></div></div>
+  <div class="callout">محاسبه MRP با موجودی مبنای برنامه‌ریزی، رزرو، قرنطینه، حداقل موجودی، دریافت‌های فرضی، حداقل/مضرب بچ و Lead Time انجام می‌شود. «تخصیص زمانی» ردیابی نیازها در برابر عرضه‌های موجود و «ردیابی خالص» منشأ پیشنهادهای بچ و نیاز اجزا را جداگانه نشان می‌دهد؛ این دو گزارش، پیشنهادهای برنامه‌ریزی‌اند نه سفارش قطعی یا تراکنش انبار/خرید. زمان آزادسازی گذشته نیازمند تصمیم برنامه‌ریز است. پیش‌نمایش ظرفیت بچ‌ها کنترل محدودیت‌های تعریف‌شده را انجام می‌دهد، اما جایگزین APS کامل با تمام قیود اجرایی کارخانه و آزمون میدانی نیست.</div>
+</section>
+</main><footer class="footer">IPPCS • طراحی مستقل مدیریت تولید<span>مرحله ۳ • توسعه</span></footer></div></div>
+</body></html>
