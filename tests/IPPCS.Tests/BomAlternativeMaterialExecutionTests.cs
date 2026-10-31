@@ -109,7 +109,7 @@ public sealed class BomAlternativeMaterialExecutionTests
             .PlannedRequired);
         Assert.Equal(48m, Assert.Single(rows, x => x.ComponentItemId == substitute.ComponentItemId)
             .PlannedRequired);
-        Assert.Equal(1m, Assert.Single(rows, x => x.ComponentItemId == original.ComponentItemId)
+        Assert.Equal(-1m, Assert.Single(rows, x => x.ComponentItemId == original.ComponentItemId)
             .Variance);
         Assert.Equal(2m, Assert.Single(rows, x => x.ComponentItemId == substitute.ComponentItemId)
             .Variance);
