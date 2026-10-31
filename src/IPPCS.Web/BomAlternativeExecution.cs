@@ -122,9 +122,10 @@ public static class BomAlternativeExecution
                             line.AlternativePriority, line.IsDefaultAlternative,
                             sharePercent = allocationByLine.GetValueOrDefault(line.Id)?.SharePercent
                                 ?? (line.IsDefaultAlternative && !allocations.Any(a => g.Any(gl => gl.Id == a.BomLineId)) ? 100m : 0m),
-                            plannedQuantity = allocationByLine.GetValueOrDefault(line.Id)?.PlannedQuantity
-                                ?? (line.IsDefaultAlternative && !allocations.Any(a => g.Any(gl => gl.Id == a.BomLineId))
-                                    ? CalculatePlannedComponentQuantity(order.PlannedQuantity, line) : 0m),
+                            plannedQuantity = CalculatePlannedComponentQuantity(order.PlannedQuantity, line,
+                                allocationByLine.GetValueOrDefault(line.Id)?.SharePercent
+                                    ?? (line.IsDefaultAlternative && !allocations.Any(a => g.Any(gl => gl.Id == a.BomLineId))
+                                        ? 100m : 0m)),
                             actualQuantity = usedByComponent.GetValueOrDefault(line.ComponentItemId)
                         })
                     }),
@@ -233,6 +234,16 @@ public static class BomAlternativeExecution
                         requested.Where((x, i) => x.BomLineId != effectivePrior[i].BomLineId ||
                             x.SharePercent != effectivePrior[i].SharePercent).Any())
                         return Results.Conflict(new { message = $"پس از ثبت مصرف واقعی، ترکیب گروه {groupCode} قفل شده است." });
+                    auditCurrent.AddRange(requested.Select(x => $"{groupCode}:{x.BomLineId}:{x.SharePercent}%"));
+                    continue;
+                }
+
+                var sameAsPrior = requested.Length == priorGroup.Length &&
+                    requested.Where((x, i) => x.BomLineId != priorGroup
+                        .OrderBy(p => p.BomLineId).ElementAt(i).BomLineId ||
+                        x.SharePercent != priorGroup.OrderBy(p => p.BomLineId).ElementAt(i).SharePercent).Any() == false;
+                if (sameAsPrior)
+                {
                     auditCurrent.AddRange(requested.Select(x => $"{groupCode}:{x.BomLineId}:{x.SharePercent}%"));
                     continue;
                 }
