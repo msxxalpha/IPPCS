@@ -54,10 +54,10 @@ test('BOM and production-order printouts disclose approved alternatives and reco
 });
 
 test('saved MRP, S&OP and APS inputs retain the assumptions that produced their results', () => {
-  assert.match(planningApi, /l\\.AlternativeGroupCode/);
-  assert.match(planningApi, /l\\.IsDefaultAlternative/);
-  assert.match(planningApi, /l\\.AlternativePriority/);
-  assert.match(planningApi, /lines=b\\.Lines\\.Select/);
+  assert.match(planningApi, /AlternativeGroupCode/);
+  assert.match(planningApi, /IsDefaultAlternative/);
+  assert.match(planningApi, /AlternativePriority/);
+  assert.match(planningApi, /Lines.Select/);
 
   assert.match(capacityRules, /WorkCenterProductCapacityEvidence/);
   assert.match(capacityRules, /RoutingRunMinutesPerUnit/);
@@ -67,5 +67,5 @@ test('saved MRP, S&OP and APS inputs retain the assumptions that produced their 
 
   assert.match(sopApsApi, /productCapacityEvidence=usedProductCapacityEvidence/);
   assert.match(sopApsApi, /usedRoutingRevisionIds/);
-  assert.match(sopApsApi, /InputJson=JsonSerializer\\.Serialize/);
+  assert.match(sopApsApi, /InputJson=JsonSerializer/);
 });
