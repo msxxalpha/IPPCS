@@ -21,7 +21,7 @@ test("net MRP lot capacity preview is reachable from the planning workspace",()=
 
 test("MRP capacity preview displays lot-level status, dates, allocations and unscheduled reasons",()=>{
  assert.match(html,/id="mrp-capacity-evidence"/);
- for(const text of ["r.productCapacityEvidence","x.routingRevisionCode","x.routingRunMinutesPerUnit",
+ for(const text of ["r.productCapacityEvidence","routingRevisionCode","x.routingRunMinutesPerUnit",
   "x.effectiveRunMinutesPerUnit","x.capacityUnitsPerHour","x.hasProductCapacityOverride",
   "r.onTimeLots","r.lateLots","r.blockedLots","r.activeCapacityReservations",
   "r.runningOperationClockSessions","r.lots","r.allocations","r.unscheduled",
