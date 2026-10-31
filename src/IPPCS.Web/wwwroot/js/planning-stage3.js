@@ -1,7 +1,7 @@
 (()=>{
 "use strict";
 const $=s=>document.querySelector(s), $$=s=>Array.from(document.querySelectorAll(s));
-const state={items:[],centers:[],bom:[],routings:[],mps:[],balances:[],receipts:[]};
+const state={items:[],centers:[],bom:[],routings:[],mps:[],balances:[],receipts:[],mrpRuns:[]};
 const val=(form,k)=>new FormData(form).get(k);
 const number=(form,k)=>Number(IPPCSJalali.toLatin(val(form,k)));
 const fmt=v=>Number(v).toLocaleString("fa-IR",{maximumFractionDigits:4});
@@ -49,6 +49,7 @@ function render(){
  options($("#mps-comparison-source"),state.mps.filter(x=>x.state===1),x=>x.code);
  options($("#mps-comparison-candidate"),state.mps,x=>x.code+" / "+(x.state===1?"مصوب":"پیش‌نویس"));
  options($("#calculate-mps"),state.mps.filter(x=>x.state===1),x=>x.code);
+ options($("#mrp-run-history"),state.mrpRuns,x=>new Date(x.calculatedUtc).toLocaleString("fa-IR-u-ca-persian")+" | "+x.algorithmVersion);
  options($("#print-mps-select"),state.mps,x=>x.code+" | "+stateName(x.state));
  options($("#print-bom-select"),state.bom,x=>x.revision+" | "+name(x.parentItemId)+" | "+stateName(x.state));
  table("#bom-table",[
@@ -103,6 +104,14 @@ async function load(){
  ]);
  ["items","centers","bom","routings","mps","balances","receipts"].forEach((k,i)=>state[k]=resources[i]);
  render();
+ await loadMrpRuns();
+}
+async function loadMrpRuns(){
+ const mpsId=$("#calculate-mps").value;
+ state.mrpRuns=mpsId?await call("/mrp/"+mpsId+"/runs"):[];
+ options($("#mrp-run-history"),state.mrpRuns,
+  x=>new Date(x.calculatedUtc).toLocaleString("fa-IR-u-ca-persian")+" | "+x.algorithmVersion);
+ if(state.mrpRuns.length)$("#mrp-run-history").value=state.mrpRuns[0].id;
 }
 function register(formId,fn){const form=$(formId);form.addEventListener("submit",async e=>{
  e.preventDefault();if(!form.reportValidity())return;
@@ -269,6 +278,7 @@ function boot(){
  register("#receipt-form",f=>call("/planning-receipts","POST",{
   itemId:val(f,"itemId"),availableOnJalali:val(f,"date"),quantity:number(f,"quantity"),reference:val(f,"reference")||null
  }));
+ $("#calculate-mps").addEventListener("change",()=>loadMrpRuns().catch(e=>alertText(e.message,true)));
  $("#mrp-run").onclick=async()=>{
   const id=$("#calculate-mps").value;if(!id){alertText("نسخه تأییدشده MPS را انتخاب کنید.",true);return;}
   const btn=$("#mrp-run");btn.disabled=true;
@@ -290,7 +300,8 @@ function boot(){
      ["تاریخ آزادسازی",x=>x.releaseJalali||"—"],
      ["هشدار",x=>x.warning||"—"]
    ],result.explanations||[]);
-   alertText("نتیجه MRP با تاریخچه ورودی/خروجی ذخیره شد.");
+   await loadMrpRuns();$("#mrp-run-history").value=result.runId;
+   alertText("نتیجه MRP با تصویر ثابت ورودی و خروجی ذخیره شد؛ از فهرست اجرای ذخیره‌شده می‌توانید همان مبنا را دوباره بررسی کنید.");
   }catch(e){alertText(e.message,true);}finally{btn.disabled=false;}
  };
  $("#lot-capacity-run").onclick=async()=>{
@@ -335,11 +346,11 @@ function boot(){
   }catch(e){alertText(e.message,true);}finally{button.disabled=false;}
  };
  $("#net-pegging-run").onclick=async()=>{
-  const id=$("#calculate-mps").value;
-  if(!id){alertText("نسخه مصوب MPS را انتخاب کنید.",true);return;}
+  const runId=$("#mrp-run-history").value;
+  if(!runId){alertText("ابتدا برای نسخه MPS انتخاب‌شده، یک اجرای MRP ذخیره‌شده ایجاد یا انتخاب کنید.",true);return;}
   const button=$("#net-pegging-run");button.disabled=true;
   try{
-   const result=await call("/mrp/"+id+"/net-demand-pegging");
+   const result=await call("/mrp/runs/"+runId+"/net-demand-pegging");
    table("#net-pegging-lots",[
     ["بچ پیشنهادی","lotKey"],
     ["قطعه",x=>name(x.itemId)],
