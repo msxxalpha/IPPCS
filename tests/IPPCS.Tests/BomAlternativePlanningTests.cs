@@ -74,6 +74,54 @@ public sealed class BomAlternativePlanningTests
     }
 
     [Fact]
+    public void Net_MRP_pegging_tracks_only_the_default_alternative_as_baseline_demand()
+    {
+        var today = new DateOnly(2026, 10, 29);
+        var product = Guid.NewGuid();
+        var preferred = Guid.NewGuid();
+        var substitute = Guid.NewGuid();
+        var demand = new MpsDemandLine
+        {
+            Id = Guid.NewGuid(), ItemId = product, NeededOn = today.AddDays(2), Quantity = 10
+        };
+        var bom = new ManufacturingBomRevision
+        {
+            ParentItemId = product, Revision = "ALT-NET", State = ManufacturingRevisionState.Approved,
+            ValidFrom = today,
+            Lines =
+            [
+                new ManufacturingBomLine
+                {
+                    ComponentItemId = preferred, QuantityPer = 2, Sequence = 10,
+                    AlternativeGroupCode = "A", IsDefaultAlternative = true, AlternativePriority = 1
+                },
+                new ManufacturingBomLine
+                {
+                    ComponentItemId = substitute, QuantityPer = 2, Sequence = 10,
+                    AlternativeGroupCode = "A", IsDefaultAlternative = false, AlternativePriority = 2
+                }
+            ]
+        };
+        var balances = new[]
+        {
+            new PlanningBalance { ItemId = product, SnapshotDate = today, PhysicalQuantity = 0, LeadDays = 1 },
+            new PlanningBalance { ItemId = preferred, SnapshotDate = today, PhysicalQuantity = 0 },
+        };
+        var types = new Dictionary<Guid, PlanningItemType>
+        {
+            [product] = PlanningItemType.Finished,
+            [preferred] = PlanningItemType.RawMaterial,
+            [substitute] = PlanningItemType.RawMaterial
+        };
+
+        var rows = PlanningCalculators.RunMrp([demand], [bom], balances, [], types);
+        var report = NetMrpDemandPegging.Build([demand], [bom], balances, [], types, rows);
+
+        Assert.Contains(report.Demands, x => x.ItemId == preferred && x.Quantity == 20);
+        Assert.DoesNotContain(report.Demands, x => x.ItemId == substitute);
+    }
+
+    [Fact]
     public void Bom_approval_requires_two_options_and_exactly_one_default_per_group()
     {
         var parent = Guid.NewGuid();
