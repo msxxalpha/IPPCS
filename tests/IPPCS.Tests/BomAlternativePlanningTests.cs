@@ -122,6 +122,28 @@ public sealed class BomAlternativePlanningTests
     }
 
     [Fact]
+    public void Mixed_alternative_shares_apply_to_planned_finished_quantity_with_each_components_own_ratio()
+    {
+        var original = new ManufacturingBomLine
+        {
+            ComponentItemId = Guid.NewGuid(), QuantityPer = 1m, ScrapPercent = 0,
+            AlternativeGroupCode = "SEAL", IsDefaultAlternative = true
+        };
+        var substitute = new ManufacturingBomLine
+        {
+            ComponentItemId = Guid.NewGuid(), QuantityPer = 1.2m, ScrapPercent = 0,
+            AlternativeGroupCode = "SEAL", IsDefaultAlternative = false
+        };
+
+        var originalNeed = BomAlternativeExecution.CalculatePlannedComponentQuantity(100m, original, 60m);
+        var substituteNeed = BomAlternativeExecution.CalculatePlannedComponentQuantity(100m, substitute, 40m);
+
+        Assert.Equal(60m, originalNeed);
+        Assert.Equal(48m, substituteNeed);
+        Assert.Equal(100m, originalNeed + substituteNeed);
+    }
+
+    [Fact]
     public void Bom_approval_requires_two_options_and_exactly_one_default_per_group()
     {
         var parent = Guid.NewGuid();
