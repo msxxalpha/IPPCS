@@ -19,22 +19,24 @@ test('BOM authoring exposes group, default, and priority fields', () => {
   assert.match(planningJs, /alternativePriority:/);
 });
 
-test('order UI can allocate alternatives and record actual material usage', () => {
+test('order UI saves alternative groups atomically and records real usage history', () => {
   assert.match(execution, /id="materials"/);
   assert.match(execution, /id="material-options-save"/);
   assert.match(execution, /id="material-usage-form"/);
-  assert.match(executionJs, /\/material-options\//);
+  assert.match(execution, /id="material-usage-history"/);
+  assert.match(executionJs, /\/material-options["]/);
+  assert.match(executionJs, /groups\.push\(\{groupCode,shares:active\}\)/);
   assert.match(executionJs, /\/material-usage/);
-  assert.match(service, /SharePercent/);
-  assert.match(service, /ComponentItemId = line.ComponentItemId/);
   assert.match(service, /RecordedBy = context\.User\.Identity/);
-  assert.match(execution, /material-usage-history/);
+  assert.match(service, /CalculatePlannedComponentQuantity/);
+  assert.match(service, /پس از ثبت مصرف واقعی، ترکیب گروه/);
   assert.match(executionJs, /x\.recordedBy/);
-  assert.match(service, /مصرف تجمعی از مقدار برنامه‌ریزی‌شده بیشتر است/);
 });
 
-test('alternative allocation is exact-100 percent and never creates warehouse transactions', () => {
-  assert.match(service, /input\.Shares\.Sum\(x => x\.SharePercent\) != 100m/);
-  assert.match(service, /never posts warehouse stock|never posts warehouse stock/i);
+test('alternative allocations validate 100 percent, preserve used groups, and never post stock', () => {
+  assert.match(service, /g\.Shares\.Sum\(x => x\.SharePercent\) != 100m/);
+  assert.match(service, /var hasUsage = await usage\.AnyAsync/);
+  assert.match(service, /effectivePrior/);
+  assert.match(service, /never posts warehouse stock/i);
   assert.doesNotMatch(service, /Warehouse|InventoryTransaction|StockLedger/);
 });
