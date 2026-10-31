@@ -47,11 +47,31 @@ public static class MrpLotCapacityPreview
         if(graph.Demands.Any(x=>string.IsNullOrWhiteSpace(x.DemandKey)) ||
             graph.Demands.Select(x=>x.DemandKey).Distinct(StringComparer.Ordinal).Count()!=graph.Demands.Count)
             throw new InvalidOperationException("نیازهای گراف MRP باید کلید غیرخالی و یکتا داشته باشند.");
-        var demandKeys=graph.Demands.Select(x=>x.DemandKey).ToHashSet(StringComparer.Ordinal);
+        var demandMap=graph.Demands.ToDictionary(x=>x.DemandKey,StringComparer.Ordinal);
+        if(graph.Demands.Any(x=>x.ItemId==Guid.Empty || x.Quantity<=0 || string.IsNullOrWhiteSpace(x.Path)))
+            throw new InvalidOperationException("نیاز گراف MRP دارای قلم، مقدار یا مسیر نامعتبر است.");
         if(graph.Allocations.Any(x=>string.IsNullOrWhiteSpace(x.DemandKey) ||
-                !demandKeys.Contains(x.DemandKey) || x.ItemId==Guid.Empty || x.Quantity<=0 ||
-                string.IsNullOrWhiteSpace(x.SourceType) || string.IsNullOrWhiteSpace(x.SourceKey)))
-            throw new InvalidOperationException("تخصیص گراف MRP دارای منشأ نامعتبر، قلم نامعتبر یا مقدار غیرمثبت است.");
+                !demandMap.TryGetValue(x.DemandKey,out var demand) || x.ItemId==Guid.Empty || x.Quantity<=0 ||
+                string.IsNullOrWhiteSpace(x.SourceType) || string.IsNullOrWhiteSpace(x.SourceKey) ||
+                x.ItemId!=demand.ItemId || x.NeededOn!=demand.NeededOn || x.AvailableOn>x.NeededOn ||
+                x.SourceType is not ("PlanningOpeningBalance" or "ExpectedReceipt" or
+                    "ProposedManufacturingReceipt" or "ProposedExternalReceipt")))
+            throw new InvalidOperationException("تخصیص گراف MRP با قلم/تاریخ نیاز همخوانی ندارد یا منشأ و تاریخ تأمین آن نامعتبر است.");
+        foreach(var group in graph.Allocations.GroupBy(x=>x.DemandKey,StringComparer.Ordinal))
+            if(group.Sum(x=>x.Quantity)>demandMap[group.Key].Quantity)
+                throw new InvalidOperationException("مجموع تخصیص‌های یک نیاز از مقدار ناخالص آن بیشتر است.");
+        var lotMap=graph.PlannedLots.ToDictionary(x=>x.LotKey,StringComparer.Ordinal);
+        foreach(var allocation in graph.Allocations.Where(x=>
+            x.SourceType is "ProposedManufacturingReceipt" or "ProposedExternalReceipt"))
+        {
+            if(!lotMap.TryGetValue(allocation.SourceKey,out var sourceLot) ||
+                sourceLot.ItemId!=allocation.ItemId || sourceLot.ReceiptOn!=allocation.AvailableOn ||
+                (allocation.SourceType=="ProposedManufacturingReceipt" &&
+                    sourceLot.ProposalType!="Manufacturing") ||
+                (allocation.SourceType=="ProposedExternalReceipt" &&
+                    sourceLot.ProposalType!="ExternalPlanningOnly"))
+                throw new InvalidOperationException("منشأ دریافت پیشنهادی با بچ، قلم یا تاریخ در گراف MRP تطابق ندارد.");
+        }
         var end=baseline.AddDays(horizonDays);
         var tasks=new List<ApsTask>();
         var earliest=new Dictionary<Guid,DateOnly>();
