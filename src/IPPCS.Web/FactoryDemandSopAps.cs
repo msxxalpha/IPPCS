@@ -488,10 +488,12 @@ public static class FactoryDemandApsEndpoints
             var routes=await db.RoutingRevisions.AsNoTracking().Include(x=>x.Operations)
                 .Where(x=>x.State==RoutingState.Approved).ToListAsync(ct);
             var capacityRates=await WorkCenterProductCapacityRules.LoadActiveRates(db,ct);
+            var productCapacityEvidence=WorkCenterProductCapacityRules.BuildEvidence(routes,capacityRates);
             WorkCenterProductCapacityRules.ApplyToRoutes(routes,capacityRates);
             var shifts=await db.WorkShifts.AsNoTracking().ToListAsync(ct);
             var workCenterLoad=new Dictionary<Guid,decimal>();
             var warnings=new List<string>();
+            var usedRoutingRevisionIds=new HashSet<Guid>();
             foreach(var demand in demands)
             {
                 var selected=routes.Where(x=>x.ItemId==demand.ItemId&&x.EffectiveFrom<=demand.DueOn
@@ -503,6 +505,7 @@ public static class FactoryDemandApsEndpoints
                 {warnings.Add($"زمان، مرکز یا بازده مسیر {demand.Reference} نامعتبر است.");continue;}
                 if(operations.Select(x=>x.Sequence).Distinct().Count()!=operations.Length)
                 {warnings.Add($"شماره عملیات مسیر {demand.Reference} یکتا نیست.");continue;}
+                usedRoutingRevisionIds.Add(selected[0].Id);
                 for(var i=0;i<operations.Length;i++)
                 {
                     decimal cumulativeYield=1m;
@@ -532,8 +535,12 @@ public static class FactoryDemandApsEndpoints
             var load=byCenter.Sum(x=>x.requiredMinutes);
             var capacity=byCenter.Sum(x=>x.availableMinutes);
             var overload=byCenter.Sum(x=>x.overloadMinutes);
+            var usedProductCapacityEvidence=productCapacityEvidence
+                .Where(x=>usedRoutingRevisionIds.Contains(x.RoutingRevisionId)).ToArray();
             var snapshot=new{demands=demands.Select(x=>new{x.ItemId,x.Quantity,x.DueOn,x.Reference}),
-                routingVersions=routes.Select(x=>new{x.Id,x.ItemId,x.RevisionCode}),warnings,
+                routingVersions=routes.Where(x=>usedRoutingRevisionIds.Contains(x.Id))
+                    .Select(x=>new{x.Id,x.ItemId,x.RevisionCode,x.EffectiveFrom,x.EffectiveTo}),
+                productCapacityEvidence=usedProductCapacityEvidence,warnings,
                 shiftCount=shifts.Count,byCenter,load,capacity,overload};
             var record=new FactorySopReview{Code=input.Code.Trim(),From=from,Through=through,
                 DemandQuantity=demands.Sum(x=>x.Quantity),RoughCutMinutes=load,
@@ -541,7 +548,8 @@ public static class FactoryDemandApsEndpoints
                 SnapshotJson=JsonSerializer.Serialize(snapshot)};
             db.FactorySopReviews.Add(record);await db.SaveChangesAsync(ct);
             return Results.Ok(new{record.Id,record.Code,record.DemandQuantity,record.RoughCutMinutes,
-                record.AvailableMinutes,record.OverloadMinutes,byCenter,warnings,
+                record.AvailableMinutes,record.OverloadMinutes,byCenter,
+                productCapacityEvidence=usedProductCapacityEvidence,warnings,
                 note="اضافه‌بار مراکز کاری جداگانه محاسبه شده است؛ بار روزانه، مواد و توالی عملیات در APS بررسی می‌شوند."});
         }).RequireAuthorization("IpPlanningWrite");
 
@@ -570,6 +578,7 @@ public static class FactoryDemandApsEndpoints
             var routes=await db.RoutingRevisions.AsNoTracking().Include(x=>x.Operations)
                 .Where(x=>x.State==RoutingState.Approved).ToListAsync(ct);
             var capacityRates=await WorkCenterProductCapacityRules.LoadActiveRates(db,ct);
+            var productCapacityEvidence=WorkCenterProductCapacityRules.BuildEvidence(routes,capacityRates);
             WorkCenterProductCapacityRules.ApplyToRoutes(routes,capacityRates);
             var shifts=await db.WorkShifts.AsNoTracking().ToListAsync(ct);
             var unavailable=new HashSet<(Guid WorkCenterId,DateOnly Date)>();
@@ -713,9 +722,12 @@ public static class FactoryDemandApsEndpoints
             catch(Exception ex)when(ex is ArgumentException or InvalidOperationException
                 or OverflowException)
             {return Results.UnprocessableEntity(new{message=ex.Message});}
+            var usedRoutingRevisionIds=tasks.Select(x=>x.RoutingRevisionId).ToHashSet();
+            var usedProductCapacityEvidence=productCapacityEvidence
+                .Where(x=>usedRoutingRevisionIds.Contains(x.RoutingRevisionId)).ToArray();
             var snapshot=new FactoryApsRun{MpsVersionId=plan.Id,StartOn=start,HorizonDays=input.HorizonDays,
                 InputJson=JsonSerializer.Serialize(new{mps=plan.Lines.Select(x=>new{x.ItemId,x.Quantity,x.NeededOn}),
-                    tasks,materialFeasibility=material,shifts=shifts.Select(x=>new{x.WorkCenterId,x.DayOfWeek,x.StartTime,x.EndTime,
+                    tasks,productCapacityEvidence=usedProductCapacityEvidence,materialFeasibility=material,shifts=shifts.Select(x=>new{x.WorkCenterId,x.DayOfWeek,x.StartTime,x.EndTime,
                         x.EffectiveCapacityPercent}),input.CapacityMultiplier,
                         executionEvidence=new{evidence.ActiveOrders,evidence.ActiveReservations,
                             evidence.OpenClocks,evidence.BlockedOperations,
@@ -728,6 +740,7 @@ public static class FactoryDemandApsEndpoints
                 OutputJson=JsonSerializer.Serialize(result)};
             db.FactoryApsRuns.Add(snapshot);await db.SaveChangesAsync(ct);
             return Results.Ok(new{runId=snapshot.Id,snapshot.Algorithm,
+                productCapacityEvidence=usedProductCapacityEvidence,
                 allocations=result.Allocations.Select(x=>new{x.ItemId,x.WorkCenterId,x.Sequence,
                     x.Quantity,x.OperationName,x.DurationMinutes,x.Late,
                     startDateIso=x.StartDate.ToString("yyyy-MM-dd",CultureInfo.InvariantCulture),
