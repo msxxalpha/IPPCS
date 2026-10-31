@@ -24,6 +24,19 @@ public static class TimePhasedMaterialPegging
         IReadOnlyList<PlanningBalance> balances,
         IReadOnlyList<PlanningExpectedReceipt> receipts)
     {
+        ArgumentNullException.ThrowIfNull(origins);
+        ArgumentNullException.ThrowIfNull(balances);
+        ArgumentNullException.ThrowIfNull(receipts);
+        if(origins.Any(x=>x.MpsLineId==Guid.Empty||x.ComponentItemId==Guid.Empty||
+                x.GrossQuantity<=0||string.IsNullOrWhiteSpace(x.Path)))
+            throw new InvalidOperationException("نیاز مواد دارای شناسه، مقدار یا مسیر نامعتبر است.");
+        if(balances.Any(x=>x.ItemId==Guid.Empty||x.PhysicalQuantity<0||
+                x.ReservedQuantity<0||x.QuarantinedQuantity<0||x.SafetyQuantity<0)||
+            balances.Select(x=>x.ItemId).Distinct().Count()!=balances.Count)
+            throw new InvalidOperationException("موجودی مبنا دارای قلم تکراری یا مقادیر نامعتبر است.");
+        if(receipts.Any(x=>x.Id==Guid.Empty||x.ItemId==Guid.Empty||x.Quantity<=0)||
+            receipts.Select(x=>x.Id).Distinct().Count()!=receipts.Count)
+            throw new InvalidOperationException("دریافت برنامه‌ای دارای شناسه تکراری یا مقادیر نامعتبر است.");
         var allocations=new List<TimePhasedAllocation>();
         var shortages=new List<TimePhasedShortage>();
         var balanceMap=balances.ToDictionary(x=>x.ItemId);
@@ -31,9 +44,6 @@ public static class TimePhasedMaterialPegging
         {
             if(!balanceMap.TryGetValue(itemGroup.Key,out var balance))
                 throw new InvalidOperationException("برای قطعه موردنیاز موجودی مبنای برنامه‌ریزی ثبت نشده است.");
-            if(balance.PhysicalQuantity<0||balance.ReservedQuantity<0||
-               balance.QuarantinedQuantity<0||balance.SafetyQuantity<0)
-                throw new InvalidOperationException("اقلام موجودی و رزرو نمی‌توانند منفی باشند.");
             var lots=new List<SupplyLot>{
                 new(balance.SnapshotDate,Math.Max(0m,balance.PhysicalQuantity-
                     balance.ReservedQuantity-balance.QuarantinedQuantity-balance.SafetyQuantity),
