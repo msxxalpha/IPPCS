@@ -122,10 +122,10 @@ public static class BomAlternativeExecution
                             line.AlternativePriority, line.IsDefaultAlternative,
                             sharePercent = allocationByLine.GetValueOrDefault(line.Id)?.SharePercent
                                 ?? (line.IsDefaultAlternative && !allocations.Any(a => g.Any(gl => gl.Id == a.BomLineId)) ? 100m : 0m),
-                            plannedQuantity = CalculatePlannedComponentQuantity(order.PlannedQuantity, line,
-                                allocationByLine.GetValueOrDefault(line.Id)?.SharePercent
-                                    ?? (line.IsDefaultAlternative && !allocations.Any(a => g.Any(gl => gl.Id == a.BomLineId))
-                                        ? 100m : 0m)),
+                            plannedQuantity = (allocationByLine.GetValueOrDefault(line.Id)?.SharePercent
+                                ?? (line.IsDefaultAlternative && !allocations.Any(a => g.Any(gl => gl.Id == a.BomLineId))
+                                    ? 100m : 0m)) is var share && share > 0
+                                ? CalculatePlannedComponentQuantity(order.PlannedQuantity, line, share) : 0m,
                             actualQuantity = usedByComponent.GetValueOrDefault(line.ComponentItemId)
                         })
                     }),
@@ -238,10 +238,11 @@ public static class BomAlternativeExecution
                     continue;
                 }
 
-                var sameAsPrior = requested.Length == priorGroup.Length &&
-                    requested.Where((x, i) => x.BomLineId != priorGroup
-                        .OrderBy(p => p.BomLineId).ElementAt(i).BomLineId ||
-                        x.SharePercent != priorGroup.OrderBy(p => p.BomLineId).ElementAt(i).SharePercent).Any() == false;
+                var orderedPrior = priorGroup.OrderBy(p => p.BomLineId).ToArray();
+                var sameAsPrior = requested.Length == orderedPrior.Length &&
+                    requested.Zip(orderedPrior).All(pair =>
+                        pair.First.BomLineId == pair.Second.BomLineId &&
+                        pair.First.SharePercent == pair.Second.SharePercent);
                 if (sameAsPrior)
                 {
                     auditCurrent.AddRange(requested.Select(x => $"{groupCode}:{x.BomLineId}:{x.SharePercent}%"));
