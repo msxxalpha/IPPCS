@@ -120,6 +120,32 @@ public sealed class FactoryStageFiftyThreeProductCapacityTests
     }
 
     [Fact]
+    public void Capacity_evidence_keeps_routing_standard_separate_from_effective_product_rate()
+    {
+        var (route, firstId, secondId, _, _) = Route();
+        var evidence = WorkCenterProductCapacityRules.BuildEvidence([route],
+            new Dictionary<Guid, decimal> { [firstId] = 30m });
+
+        var overridden = evidence.Single(x => x.RoutingOperationId == firstId);
+        Assert.Equal(route.Id, overridden.RoutingRevisionId);
+        Assert.Equal(route.ItemId, overridden.ItemId);
+        Assert.Equal(4m, overridden.RoutingRunMinutesPerUnit);
+        Assert.Equal(2m, overridden.EffectiveRunMinutesPerUnit);
+        Assert.Equal(30m, overridden.CapacityUnitsPerHour);
+        Assert.True(overridden.HasProductCapacityOverride);
+
+        var standard = evidence.Single(x => x.RoutingOperationId == secondId);
+        Assert.Equal(6m, standard.RoutingRunMinutesPerUnit);
+        Assert.Equal(6m, standard.EffectiveRunMinutesPerUnit);
+        Assert.Null(standard.CapacityUnitsPerHour);
+        Assert.False(standard.HasProductCapacityOverride);
+
+        // Capturing evidence must not mutate approved Routing inputs.
+        Assert.Equal(4m, route.Operations.Single(x => x.Id == firstId).RunMinutesPerUnit);
+        Assert.Equal(6m, route.Operations.Single(x => x.Id == secondId).RunMinutesPerUnit);
+    }
+
+    [Fact]
     public void Invalid_zero_throughput_never_produces_an_infinite_or_zero_duration()
     {
         var (route, firstId, _, _, _) = Route();
