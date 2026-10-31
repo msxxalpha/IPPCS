@@ -323,6 +323,12 @@ public static class PlanningStageThreeEndpoints
         model.Entity<ManufacturingBomLine>().HasOne(x=>x.Revision).WithMany(x=>x.Lines).HasForeignKey(x=>x.RevisionId).OnDelete(DeleteBehavior.Cascade);
         model.Entity<ManufacturingBomLine>().HasOne<PlanningItem>().WithMany().HasForeignKey(x=>x.ComponentItemId).OnDelete(DeleteBehavior.Restrict);
         model.Entity<ManufacturingBomLine>().HasIndex(x=>new{x.RevisionId,x.ComponentItemId}).IsUnique();
+        model.Entity<ManufacturingBomLine>().HasIndex(x=>new{x.RevisionId,x.AlternativeGroupCode,x.AlternativePriority})
+            .IsUnique().HasFilter("[AlternativeGroupCode] IS NOT NULL");
+        model.Entity<ManufacturingBomLine>().HasIndex(x=>new{x.RevisionId,x.AlternativeGroupCode})
+            .IsUnique().HasFilter("[AlternativeGroupCode] IS NOT NULL AND [IsDefaultAlternative] = 1");
+        model.Entity<ManufacturingBomLine>().ToTable(t=>t.HasCheckConstraint(
+            "CK_ManufacturingBomLines_AlternativePriority_Positive","[AlternativePriority] >= 1"));
         model.Entity<ManufacturingBomLine>().Property(x=>x.AlternativeGroupCode).HasMaxLength(32);
         model.Entity<ManufacturingBomLine>().Property(x=>x.QuantityPer).HasPrecision(18,6);
         model.Entity<ManufacturingBomLine>().Property(x=>x.ScrapPercent).HasPrecision(8,4);
