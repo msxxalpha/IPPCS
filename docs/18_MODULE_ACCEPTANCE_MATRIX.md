@@ -210,3 +210,12 @@ These rows are implementation evidence, **not an attestation of successfully run
 - The BOM/MPS/MRP workbench now lets the planner select a historical saved run and review its net demand, planned lots and supply allocations from the immutable snapshot introduced in Stage 65.
 - A newly calculated MRP run is selected automatically; switching the MPS version refreshes the run list. The review no longer silently recalculates against today's edited planning inputs.
 - The result remains a planning simulation. Conversion to released orders, stock reservation and warehouse transactions are intentionally separate approval steps.
+
+
+## Stage 67 — lot capacity preview from saved MRP run
+
+- Added `GET /api/v1/mrp/runs/{runId}/lot-capacity-preview`.
+- The endpoint restores MPS lines, BOM revisions/lines, planning balances, expected receipts, item types and MRP rows from the selected calculation snapshot; it does not rebuild MRP from current master/planning data.
+- Current approved routings, product-dependent capacity rates, shifts, active order reservations and operation-clock evidence are read at preview time. The response explicitly distinguishes the frozen MRP input basis from current capacity evidence.
+- The planning workbench now uses the selected saved MRP run for both net pegging and lot-capacity preview. The old MPS-based preview remains for compatibility.
+- This is still a preview. It does not release orders or reserve material/capacity. The end-to-end MRP-to-order conversion and factory UAT acceptance remain open.
