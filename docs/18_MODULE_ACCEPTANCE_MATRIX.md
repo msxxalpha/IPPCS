@@ -137,3 +137,11 @@ These rows are implementation evidence, **not an attestation of successfully run
 - Modules 08/09/13: order create/release/cancel/resume are planner/admin actions; shop-floor quantity and downtime writes are operator/admin; hold reporting permits the proper floor/quality roles; release of quality holds remains quality/admin. Authorization tests were extended in the disposable SQL chain.
 - Added `FactoryStageTwentyThreeEffectivenessTests.cs`, `stage23_deviation_effectiveness_checks.py`, additional role assertions in `production_e2e_smoke.py`, and Persian review controls. Additive schema migration for Stage 23/24 is **not** required; the existing event journal is used.
 - Full factory UAT cases and individual release evidence requirements are in `docs/FACTORY_UAT_RELEASE_CHECKLIST.md`. No factory owner signoff or exact-head successful CI is available for Stages 19–24. Do not merge/deploy.
+
+
+## Stage 58 — time-phased material gate and pegging input integrity (implementation committed; CI pending)
+- Module 05 / 07: APS material-feasibility preview now evaluates approved BOM revision validity against each demand line's actual need date, rather than the horizon start. Expected receipts are counted only when available by that demand date; earlier demand priority remains cumulative so infeasible demand cannot silently release the same material to later demand.
+- Module 05: time-phased gross-material pegging now rejects null inputs, invalid demand rows, duplicate or empty balance item identities, negative balance buckets, and invalid/duplicate expected receipt identities before attempting allocations. This prevents ambiguous source provenance and invalid unused balances from being silently ignored.
+- Regression coverage adds demand-date BOM revision selection, receipt arrival before/after need date, duplicate receipt IDs, and invalid unrelated balance records.
+- No schema migration and no external warehouse, purchasing, sales or HR integration. These are planning assumptions and previews only; they do not reserve or issue physical stock.
+- GitHub Actions was observed running for the latest committed head at the time of this note. Do not treat the commit as green until the exact-head workflow finishes successfully; factory UAT and all 18 sign-offs remain separate.
