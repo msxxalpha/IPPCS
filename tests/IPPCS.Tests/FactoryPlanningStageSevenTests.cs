@@ -92,7 +92,7 @@ public sealed class FactoryPlanningStageSevenTests
         var bom=new[]{new ManufacturingBomLine{RevisionId=Guid.NewGuid(),ComponentItemId=material,
             QuantityPer=2m,ScrapPercent=0m}};
         var usage=new[]{new FactoryMaterialUsage{ComponentItemId=material,QuantityConsumed=19}};
-        var result=Assert.Single(FactoryOperationalMetrics.MaterialVariances(10,bom,usage));
+        var result=Assert.Single(FactoryOperationalMetrics.MaterialVariances(10,bom,usage,[]));
         Assert.Equal(20m,result.PlannedRequired);
         Assert.Equal(19m,result.RecordedConsumed);
         Assert.Equal(-1m,result.Variance);
