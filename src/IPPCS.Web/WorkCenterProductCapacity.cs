@@ -18,6 +18,28 @@ public sealed class WorkCenterProductCapacity
 public sealed record WorkCenterProductCapacityInput(
     Guid RoutingOperationId, decimal CapacityUnitsPerHour, bool IsActive = true);
 
+/// <summary>
+/// Immutable calculation evidence for the exact product/routing operation input.
+/// Both the approved Routing standard and the effective product-specific rate are
+/// retained so historical S&OP and APS scenarios remain explainable after master edits.
+/// </summary>
+public sealed record WorkCenterProductCapacityEvidence(
+    Guid RoutingRevisionId,
+    Guid ItemId,
+    string RoutingRevisionCode,
+    DateOnly RoutingEffectiveFrom,
+    DateOnly? RoutingEffectiveTo,
+    Guid RoutingOperationId,
+    Guid WorkCenterId,
+    int OperationSequence,
+    string OperationName,
+    decimal SetupMinutes,
+    decimal RoutingRunMinutesPerUnit,
+    decimal EffectiveRunMinutesPerUnit,
+    decimal YieldPercent,
+    decimal? CapacityUnitsPerHour,
+    bool HasProductCapacityOverride);
+
 public static class WorkCenterProductCapacityRules
 {
     public static void ConfigureModel(ModelBuilder model)
@@ -45,6 +67,34 @@ public static class WorkCenterProductCapacityRules
             .Select(x => new { x.RoutingOperationId, x.CapacityUnitsPerHour })
             .ToListAsync(ct);
         return rows.ToDictionary(x => x.RoutingOperationId, x => x.CapacityUnitsPerHour);
+    }
+
+    /// <summary>
+    /// Capture the baseline Routing standard and effective product rate before
+    /// ApplyToRoutes mutates the calculation-only in-memory objects.
+    /// </summary>
+    public static IReadOnlyList<WorkCenterProductCapacityEvidence> BuildEvidence(
+        IEnumerable<RoutingRevision> routes,
+        IReadOnlyDictionary<Guid, decimal> activeRates)
+    {
+        return routes.SelectMany(route => route.Operations.Select(operation =>
+        {
+            var hasOverride = activeRates.TryGetValue(operation.Id, out var unitsPerHour);
+            if (hasOverride && unitsPerHour <= 0m)
+                throw new InvalidOperationException("ظرفیت محصول‌محور باید مثبت باشد.");
+
+            var routingStandard = operation.RunMinutesPerUnit;
+            var effectiveRunMinutes = hasOverride ? 60m / unitsPerHour : routingStandard;
+            return new WorkCenterProductCapacityEvidence(
+                route.Id, route.ItemId, route.RevisionCode, route.EffectiveFrom, route.EffectiveTo,
+                operation.Id, operation.WorkCenterId, operation.Sequence, operation.Name,
+                operation.SetupMinutes, routingStandard, effectiveRunMinutes, operation.YieldPercent,
+                hasOverride ? unitsPerHour : null, hasOverride);
+        }))
+        .OrderBy(x => x.ItemId)
+        .ThenBy(x => x.RoutingRevisionId)
+        .ThenBy(x => x.OperationSequence)
+        .ToArray();
     }
 
     /// <summary>
