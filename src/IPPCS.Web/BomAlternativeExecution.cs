@@ -147,10 +147,11 @@ public static class BomAlternativeExecution
             Guid id, ManufacturingOrderMaterialAllocationInput input, ProductionDb db, CancellationToken ct) =>
         {
             if (input.Groups is null || input.Groups.Count is < 1 or > 100 ||
+                input.Groups.Any(g => g is null || g.Shares is null) ||
                 input.Groups.Select(x => x.GroupCode?.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).Count() != input.Groups.Count ||
                 input.Groups.Any(g => string.IsNullOrWhiteSpace(g.GroupCode) || g.GroupCode.Trim().Length > 32 ||
-                    g.Shares is null || g.Shares.Count is < 1 or > 100 ||
-                    g.Shares.Any(x => x.BomLineId == Guid.Empty || x.SharePercent <= 0 || x.SharePercent > 100) ||
+                    g.Shares.Count is < 1 or > 100 ||
+                    g.Shares.Any(x => x is null || x.BomLineId == Guid.Empty || x.SharePercent <= 0 || x.SharePercent > 100) ||
                     g.Shares.Select(x => x.BomLineId).Distinct().Count() != g.Shares.Count ||
                     g.Shares.Sum(x => x.SharePercent) != 100m))
                 return Results.BadRequest(new { message = "برای تمام گروه‌ها، قطعات بدون تکرار و سهم‌های مثبت لازم است که مجموع هر گروه دقیقاً ۱۰۰٪ باشد." });
