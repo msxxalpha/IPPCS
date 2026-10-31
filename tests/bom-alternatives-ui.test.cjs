@@ -10,6 +10,9 @@ const execution = fs.readFileSync(path.join(root, 'execution.html'), 'utf8');
 const executionJs = fs.readFileSync(path.join(root, 'js', 'execution.js'), 'utf8');
 const service = fs.readFileSync(path.join(__dirname, '..', 'src', 'IPPCS.Web', 'BomAlternativeExecution.cs'), 'utf8');
 const printDocs = fs.readFileSync(path.join(__dirname, '..', 'src', 'IPPCS.Web', 'FactoryPrintDocuments.cs'), 'utf8');
+const planningApi = fs.readFileSync(path.join(__dirname, '..', 'src', 'IPPCS.Web', 'PlanningStageThree.cs'), 'utf8');
+const sopApsApi = fs.readFileSync(path.join(__dirname, '..', 'src', 'IPPCS.Web', 'FactoryDemandSopAps.cs'), 'utf8');
+const capacityRules = fs.readFileSync(path.join(__dirname, '..', 'src', 'IPPCS.Web', 'WorkCenterProductCapacity.cs'), 'utf8');
 
 test('BOM authoring exposes group, default, and priority fields', () => {
   assert.match(planning, /name="alternativeGroupCode"/);
@@ -48,4 +51,21 @@ test('BOM and production-order printouts disclose approved alternatives and reco
   assert.match(printDocs, /سوابق شارژ و مصرف واقعی مواد/);
   assert.match(printDocs, /RecordedBy/);
   assert.match(printDocs, /این گزارش تراکنش انبار نیست/);
+});
+
+test('saved MRP, S&OP and APS inputs retain the assumptions that produced their results', () => {
+  assert.match(planningApi, /l\\.AlternativeGroupCode/);
+  assert.match(planningApi, /l\\.IsDefaultAlternative/);
+  assert.match(planningApi, /l\\.AlternativePriority/);
+  assert.match(planningApi, /lines=b\\.Lines\\.Select/);
+
+  assert.match(capacityRules, /WorkCenterProductCapacityEvidence/);
+  assert.match(capacityRules, /RoutingRunMinutesPerUnit/);
+  assert.match(capacityRules, /EffectiveRunMinutesPerUnit/);
+  assert.match(capacityRules, /HasProductCapacityOverride/);
+  assert.match(capacityRules, /BuildEvidence/);
+
+  assert.match(sopApsApi, /productCapacityEvidence=usedProductCapacityEvidence/);
+  assert.match(sopApsApi, /usedRoutingRevisionIds/);
+  assert.match(sopApsApi, /InputJson=JsonSerializer\\.Serialize/);
 });
