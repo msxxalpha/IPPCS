@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Xunit;
 
 public sealed class FactoryStageSixtyThreeHostingSecurityTests
@@ -13,5 +14,13 @@ public sealed class FactoryStageSixtyThreeHostingSecurityTests
     {
         Assert.Equal(expected,IpDevelopmentBootstrap.ShouldRunInitialAdminBootstrap(
             isDevelopment,explicitlyEnabled,administratorExists));
+    }
+    [Theory]
+    [InlineData(true,CookieSecurePolicy.SameAsRequest)]
+    [InlineData(false,CookieSecurePolicy.Always)]
+    public void Authentication_cookie_is_secure_only_outside_development(
+        bool isDevelopment,CookieSecurePolicy expected)
+    {
+        Assert.Equal(expected,IpSecuritySetup.AuthenticationCookieSecurePolicy(isDevelopment));
     }
 }
