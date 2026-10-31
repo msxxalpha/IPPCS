@@ -140,7 +140,7 @@ public sealed class BomAlternativePlanningTests
 
         Assert.Equal(60m, originalNeed);
         Assert.Equal(48m, substituteNeed);
-        Assert.Equal(100m, originalNeed + substituteNeed);
+        Assert.Equal(108m, originalNeed + substituteNeed); // Different approved components may have different usage ratios.
     }
 
     [Fact]
