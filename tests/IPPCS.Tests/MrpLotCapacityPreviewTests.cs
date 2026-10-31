@@ -180,13 +180,14 @@ public sealed class MrpLotCapacityPreviewTests
     public void Cyclic_lot_dependencies_are_rejected()
     {
         var a=Lot(Guid.NewGuid(),Monday,Monday);var b=Lot(Guid.NewGuid(),Monday,Monday);
-        NetPegDemand Need(NetPegPlannedLot parent)=>
-            new("COMP:"+parent.LotKey,parent.ItemId,Monday,1,null,parent.LotKey,null,"loop",1);
-        var d1=Need(a);var d2=Need(b);
+        NetPegDemand Need(NetPegPlannedLot parent,NetPegPlannedLot component)=>
+            new("COMP:"+parent.LotKey,component.ItemId,Monday,1,
+                null,parent.LotKey,null,"loop",1);
+        var d1=Need(a,b);var d2=Need(b,a);
         var graph=new NetPeggingReport([d1,d2],[
-            new NetPegAllocation(d1.DemandKey,a.ItemId,Monday,
+            new NetPegAllocation(d1.DemandKey,b.ItemId,Monday,
                 "ProposedManufacturingReceipt",b.LotKey,Monday,1,false),
-            new NetPegAllocation(d2.DemandKey,b.ItemId,Monday,
+            new NetPegAllocation(d2.DemandKey,a.ItemId,Monday,
                 "ProposedManufacturingReceipt",a.LotKey,Monday,1,false)
         ],[a,b]);
         var center=Guid.NewGuid();
