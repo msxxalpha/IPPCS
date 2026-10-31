@@ -59,8 +59,8 @@ public static class MaterialConstrainedPlanning
                     stack.Remove(item);return;
                 }
                 var found=approved.Where(x=>x.ParentItemId==item &&
-                    x.ValidFrom<=horizonStart &&
-                    (x.ValidUntil==null||horizonStart<=x.ValidUntil.Value)).ToList();
+                    x.ValidFrom<=line.NeededOn &&
+                    (x.ValidUntil==null||line.NeededOn<=x.ValidUntil.Value)).ToList();
                 if(found.Count!=1||found[0].Lines.Count==0)
                 {
                     causes.Add("BOM مصوب معتبر برای کالای ساختنی موجود نیست.");
