@@ -609,7 +609,8 @@ public static class PlanningStageThreeEndpoints
                     mps=new{version.Id,version.Code,version.State,lines=version.Lines.Select(l=>new{
                         l.Id,l.ItemId,l.NeededOn,l.Quantity,l.Reference})},
                     bom=bom.Select(b=>new{b.Id,b.ParentItemId,b.Revision,b.State,b.ValidFrom,b.ValidUntil,
-                        lines=b.Lines.Select(l=>new{l.ComponentItemId,l.QuantityPer,l.ScrapPercent,l.Sequence})}),
+                        lines=b.Lines.Select(l=>new{l.Id,l.ComponentItemId,l.QuantityPer,l.ScrapPercent,
+                            l.Sequence,l.AlternativeGroupCode,l.IsDefaultAlternative,l.AlternativePriority})}),
                     balances,receipts,types}),
                 ResultSnapshotJson=JsonSerializer.Serialize(result)};
             db.PlanningCalculations.Add(snapshot);await db.SaveChangesAsync(ct);
