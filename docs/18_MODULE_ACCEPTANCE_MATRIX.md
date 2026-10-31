@@ -161,3 +161,11 @@ These rows are implementation evidence, **not an attestation of successfully run
 - Regression tests cover item/date mismatches, late supply, over-allocation and proposed-lot provenance mismatch.
 - No database schema changes and no physical reservation/order creation. Existing product-specific run rates, setup/yield calculations and finite scheduling behavior are unchanged.
 - This is a read-only planning integrity control, not factory acceptance. Validate the exact-head build, unit tests and SQL Server workflow before marking this stage green.
+
+
+## Stage 61 — order-level alternative mix consistency
+
+- The manufacturing-order material-options read model now derives each alternative's planned quantity from the order's current planned output and the saved share percentage. A quantity reschedule therefore cannot leave the displayed alternative quantities at the previous order quantity.
+- An unchanged alternative mix is now idempotent: resubmitting the same group shares does not delete/reinsert allocation rows or append a misleading revision audit event. Groups with actual consumption retain their existing immutable-mix guard; unused groups can still be adjusted independently.
+- Added regression coverage proving that a 60/40 mix recalculates to 120 and 100 component units when planned output changes to 200, even when stored historical planned quantities remain 60 and 50.
+- Scope remains order planning and shop-floor evidence only. No warehouse issue, stock reservation, inventory valuation or external ERP integration is created. This is not factory acceptance; API concurrency, SQL integration and line-side UAT remain release gates.
