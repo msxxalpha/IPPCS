@@ -16,6 +16,23 @@ public sealed class MaterialConstrainedPlanningTests
         return(line,bom,raw,new(){{product,PlanningItemType.Finished},{raw,PlanningItemType.RawMaterial}});
     }
     [Fact]
+    public void Uses_bom_revision_effective_on_each_demand_need_date()
+    {
+        var x=Setup();
+        x.bom.ValidUntil=Start.AddDays(2);
+        var futureRevision=new ManufacturingBomRevision
+        {
+            ParentItemId=x.line.ItemId,Revision="B",State=ManufacturingRevisionState.Approved,
+            ValidFrom=Start.AddDays(3),
+            Lines=[new ManufacturingBomLine{ComponentItemId=x.raw,QuantityPer=3,ScrapPercent=0}]
+        };
+        var balance=new PlanningBalance{ItemId=x.raw,PhysicalQuantity=25,SnapshotDate=Start};
+        var result=Assert.Single(MaterialConstrainedPlanning.Check(
+            [x.line],[x.bom,futureRevision],[balance],[],x.types,Start));
+        Assert.False(result.Feasible);
+    }
+
+    [Fact]
     public void Adequate_manual_material_balance_allows_finite_schedule_preview()
     {
         var x=Setup();var b=new PlanningBalance{ItemId=x.raw,PhysicalQuantity=25,SnapshotDate=Start};
