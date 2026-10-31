@@ -9,6 +9,7 @@ const planningJs = fs.readFileSync(path.join(root, 'js', 'planning-stage3.js'), 
 const execution = fs.readFileSync(path.join(root, 'execution.html'), 'utf8');
 const executionJs = fs.readFileSync(path.join(root, 'js', 'execution.js'), 'utf8');
 const service = fs.readFileSync(path.join(__dirname, '..', 'src', 'IPPCS.Web', 'BomAlternativeExecution.cs'), 'utf8');
+const printDocs = fs.readFileSync(path.join(__dirname, '..', 'src', 'IPPCS.Web', 'FactoryPrintDocuments.cs'), 'utf8');
 
 test('BOM authoring exposes group, default, and priority fields', () => {
   assert.match(planning, /name="alternativeGroupCode"/);
@@ -39,4 +40,12 @@ test('alternative allocations validate 100 percent, preserve used groups, and ne
   assert.match(service, /effectivePrior/);
   assert.match(service, /never posts warehouse stock/i);
   assert.doesNotMatch(service, /Warehouse|InventoryTransaction|StockLedger/);
+});
+
+test('BOM and production-order printouts disclose approved alternatives and recorded consumption', () => {
+  assert.match(printDocs, /گروه آلترناتیو/);
+  assert.match(printDocs, /سهم تولید/);
+  assert.match(printDocs, /سوابق شارژ و مصرف واقعی مواد/);
+  assert.match(printDocs, /RecordedBy/);
+  assert.match(printDocs, /این گزارش تراکنش انبار نیست/);
 });
