@@ -57,7 +57,7 @@ public static class BomAlternativeExecution
         model.Entity<ManufacturingOrderMaterialUsage>().Property(x => x.Quantity).HasPrecision(18, 4);
         model.Entity<ManufacturingOrderMaterialUsage>().Property(x => x.LotCode).HasMaxLength(100);
         model.Entity<ManufacturingOrderMaterialUsage>().Property(x => x.Note).HasMaxLength(500);
-        model.Entity<ManufacturingOrderMaterialUsage>().Property(x => x.RecordedBy).HasMaxLength(256);
+        model.Entity<ManufacturingOrderMaterialUsage>().Property(x => x.RecordedBy).HasMaxLength(256).HasDefaultValue("unknown");
         model.Entity<ManufacturingOrderMaterialUsage>().HasIndex(x => new { x.OrderId, x.BomLineId, x.OccurredUtc });
         model.Entity<ManufacturingOrderMaterialUsage>().HasOne<ManufacturingOrder>()
             .WithMany().HasForeignKey(x => x.OrderId).OnDelete(DeleteBehavior.Restrict);
