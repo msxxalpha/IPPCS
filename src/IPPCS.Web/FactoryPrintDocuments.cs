@@ -72,21 +72,27 @@ public static class FactoryPrintDocuments
                         .OrderBy(x=>x.Sequence).ThenBy(x=>x.AlternativePriority).ToListAsync(ct);
                     var materialAllocations=await db.Set<ManufacturingOrderMaterialAllocation>().AsNoTracking()
                         .Where(x=>x.OrderId==o.Id).ToListAsync(ct);
-                    var materialUsage=await db.Set<ManufacturingOrderMaterialUsage>().AsNoTracking()
-                        .Where(x=>x.OrderId==o.Id).OrderBy(x=>x.OccurredUtc).ThenBy(x=>x.Id).ToListAsync(ct);
+                    var materialUsageRecords=await db.FactoryMaterialUsages.AsNoTracking()
+                        .Where(x=>x.OrderId==o.Id).OrderBy(x=>x.RecordedUtc).ThenBy(x=>x.Id).ToListAsync(ct);
+                    IReadOnlyList<FactoryConsumptionLedgerRow> materialUsage;
+                    try{materialUsage=FactoryLineSideCorrections.Ledger(materialUsageRecords);}
+                    catch(InvalidOperationException){
+                        return Results.Conflict(new{message="دفتر مصرف مواد دستور ناسازگار است؛ ابتدا تاریخچه اصلاحات بررسی شود."});
+                    }
                     var materialItemIds=bomLines.Select(x=>x.ComponentItemId)
                         .Concat(materialUsage.Select(x=>x.ComponentItemId)).Distinct().ToArray();
                     var materialItems=await db.Items.AsNoTracking().Where(x=>materialItemIds.Contains(x.Id))
                         .ToDictionaryAsync(x=>x.Id,ct);
                     var allocationByLine=materialAllocations.ToDictionary(x=>x.BomLineId);
-                    var usageByLine=materialUsage.GroupBy(x=>x.BomLineId)
-                        .ToDictionary(x=>x.Key,x=>x.Sum(y=>y.Quantity));
+                    var usageByComponent=materialUsage.GroupBy(x=>x.ComponentItemId)
+                        .ToDictionary(x=>x.Key,x=>x.Sum(y=>y.NetQuantity));
                     var ids=o.Operations.Select(x=>x.WorkCenterId).Distinct().ToArray();
                     var centers=await db.WorkCenters.AsNoTracking().Where(x=>ids.Contains(x.Id))
                         .ToDictionaryAsync(x=>x.Id,ct);
                     var ops=o.Operations.OrderBy(x=>x.Sequence).ToArray();
                     var lots=ops.SelectMany(x=>x.Confirmations.Select(c=>new{x.Sequence,c}))
                         .OrderBy(x=>x.Sequence).ThenBy(x=>x.c.OccurredUtc).ToArray();
+                    var lotsById=lots.ToDictionary(x=>x.c.Id,x=>x.c);
                     var requirements=ops.SelectMany(x=>x.InspectionRequirements.Select(q=>new{x.Sequence,q}))
                         .OrderBy(x=>x.Sequence).ThenBy(x=>x.q.Code).ToArray();
                     result=Document(kind,"برگه دستور ساخت و پیگیری عملیات",o.Number,
@@ -139,22 +145,36 @@ public static class FactoryPrintDocuments
                                     Value(materialItems.GetValueOrDefault(line.ComponentItemId)?.Name),
                                     Value(materialItems.GetValueOrDefault(line.ComponentItemId)?.Unit),
                                     Qty(line.QuantityPer),Qty(line.ScrapPercent),
-                                    alternative?Qty(share):"—",Qty(planned),Qty(usageByLine.GetValueOrDefault(line.Id))
+                                    alternative?Qty(share):"—",Qty(planned),Qty(usageByComponent.GetValueOrDefault(line.ComponentItemId))
                                 };
                             }).ToArray(),
                             "سهم آلترناتیو درصدی از مقدار تولید برنامه‌ریزی‌شده است؛ قطعات هر گروه هم‌نیاز و غیرتجمعی‌اند. این گزارش تراکنش انبار نیست."),
                         new("سوابق شارژ و مصرف واقعی مواد",
-                            ["تاریخ / ساعت","گروه","کد قطعه","مقدار","بچ قطعه","ثبت‌کننده","شرح / علت"],
+                            ["تاریخ / ساعت","گروه","کد قطعه","مقدار اولیه / خالص","بچ تولید","ثبت‌کننده","مرجع / وضعیت"],
                             materialUsage.Select(x=>{
-                                var groupCode=bomLines.SingleOrDefault(l=>l.Id==x.BomLineId)?.AlternativeGroupCode;
+                                var componentLine=bomLines.SingleOrDefault(l=>l.ComponentItemId==x.ComponentItemId);
+                                var lotCode=x.ConfirmationId is Guid confirmationId &&
+                                    lotsById.TryGetValue(confirmationId,out var lot)
+                                    ?Value(lot.LotCode??("بچ "+confirmationId.ToString("N")[..8]))
+                                    :x.IsLegacyUnattributed?"قدیمی / بدون انتساب بچ":"—";
+                                var reference=x.Reference;
+                                if(x.ConfirmationId is Guid linkedConfirmationId){
+                                    var prefix=FactoryLineSideCorrections.LotPrefix+
+                                        linkedConfirmationId.ToString("N")+"|";
+                                    if(reference.StartsWith(prefix,StringComparison.Ordinal))
+                                        reference=reference[prefix.Length..];
+                                }
+                                if(x.ReversedById.HasValue)reference+=" • اصلاح‌شده";
                                 return new[]{
-                                    Stamp(x.OccurredUtc),
-                                    string.IsNullOrWhiteSpace(groupCode)?"اجباری":groupCode,
+                                    Stamp(x.RecordedUtc),
+                                    string.IsNullOrWhiteSpace(componentLine?.AlternativeGroupCode)
+                                        ?"اجباری":componentLine!.AlternativeGroupCode!,
                                     Value(materialItems.GetValueOrDefault(x.ComponentItemId)?.Code),
-                                    Qty(x.Quantity),Value(x.LotCode),Value(x.RecordedBy),Value(x.Note)
+                                    Qty(x.RecordedQuantity)+" / "+Qty(x.NetQuantity),lotCode,
+                                    Value(x.RecordedBy),Value(reference)
                                 };
                             }).ToArray(),
-                            "مصرف واقعی داخلی IPPCS با شناسه بچ و ثبت‌کننده؛ بدون ثبت حواله یا کاهش موجودی انبار."),
+                            "دفتر واحد مصرف تولید شامل مقدار اولیه، خالص، انتساب بچ و اصلاحات حسابرسی‌شده است؛ حواله یا کاهش موجودی انبار ایجاد نمی‌کند."),
                         new("کنترل‌های بازرسی نسخه منجمد دستور",
                             ["عملیات","مشخصه","شرح","حداقل","حداکثر","واحد","اجباری","آخرین وضعیت"],
                             requirements.Select(x=>new[]{
