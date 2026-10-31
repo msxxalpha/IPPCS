@@ -57,13 +57,13 @@ public sealed class MaterialConstrainedPlanningTests
         Assert.False(r.Feasible);
     }
     [Fact]
-    public void Later_receipt_is_not_assumed_available_at_schedule_start()
+    public void Expected_receipt_available_before_demand_date_counts_in_time_phased_material_gate()
     {
         var x=Setup();var b=new PlanningBalance{ItemId=x.raw,PhysicalQuantity=5,SnapshotDate=Start.AddDays(-1)};
-        var late=new PlanningExpectedReceipt{ItemId=x.raw,Quantity=20,AvailableOn=Start.AddDays(1)};
-        Assert.False(Assert.Single(MaterialConstrainedPlanning.Check([x.line],[x.bom],[b],[late],x.types,Start)).Feasible);
-        late.AvailableOn=Start;
-        Assert.True(Assert.Single(MaterialConstrainedPlanning.Check([x.line],[x.bom],[b],[late],x.types,Start)).Feasible);
+        var receipt=new PlanningExpectedReceipt{ItemId=x.raw,Quantity=20,AvailableOn=Start.AddDays(2)};
+        Assert.True(Assert.Single(MaterialConstrainedPlanning.Check([x.line],[x.bom],[b],[receipt],x.types,Start)).Feasible);
+        receipt.AvailableOn=x.line.NeededOn.AddDays(1);
+        Assert.False(Assert.Single(MaterialConstrainedPlanning.Check([x.line],[x.bom],[b],[receipt],x.types,Start)).Feasible);
     }
     [Fact]
     public void Two_finished_demands_cannot_double_allocate_the_same_raw_parts()
