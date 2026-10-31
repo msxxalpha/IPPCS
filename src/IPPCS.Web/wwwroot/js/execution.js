@@ -207,33 +207,46 @@ async function boot(){
   const editableStatus=[0,1,2].includes(materialSnapshot.orderStatus);
   const usageStatus=[1,2].includes(materialSnapshot.orderStatus);
   for(const panel of $("#material-options-container [data-material-group]")){
-   const hasUsage=materialSnapshot.groups.find(g=>g.groupCode===panel.dataset.materialGroup)
-     ?.options.some(x=>x.actualQuantity>0)||false;
+   const group=materialSnapshot.groups.find(g=>g.groupCode===panel.dataset.materialGroup);
+   const groupComponentIds=group.options.map(x=>x.componentItemId);
+   const hasUsage=usageHistory.rows.some(x=>groupComponentIds.includes(x.componentItemId));
    panel.dataset.materialLocked=hasUsage?"true":"false";
    panel.querySelectorAll("[data-material-share]").forEach(el=>el.disabled=!editableStatus||hasUsage);
   }
   $("#material-options-save").disabled=!editableStatus||materialSnapshot.groups.length===0||
-    materialSnapshot.groups.every(g=>g.options.some(x=>x.actualQuantity>0));
-  $("#material-usage-form").querySelectorAll("input,select,button").forEach(el=>el.disabled=!usageStatus);
-  if(!usageStatus)flash("ثبت مصرف واقعی فقط برای دستور آزادشده یا در حال اجرا مجاز است.");
+    $("#material-options-container [data-material-group]").length===0||
+    Array.from($("#material-options-container [data-material-group]")).every(p=>p.dataset.materialLocked==="true");
+  const lots=materialSnapshot.lots.filter(x=>x.goodQuantity+x.scrapQuantity+x.reworkQuantity>0)
+    .map(x=>({...x,label:(x.lotCode||("بچ "+x.id.slice(0,8)))+" • عملیات "+x.operationSequence+
+      " • مقدار "+num(x.goodQuantity+x.scrapQuantity+x.reworkQuantity)}));
+  select($("#material-usage-lot"),lots,x=>x.label);
+  $("#material-usage-lot").disabled=!usageStatus||lots.length===0;
   const choices=[];
-  for(const line of materialSnapshot.mandatoryComponents)choices.push({...line,label:itemName(line.componentItemId)+" • اجباری"});
+  for(const line of materialSnapshot.mandatoryComponents)
+   if(line.plannedQuantity>0)choices.push({...line,id:line.componentItemId,label:itemName(line.componentItemId)+" • اجباری"});
   for(const group of materialSnapshot.groups)for(const line of group.options)
-   if(line.plannedQuantity>0)choices.push({...line,label:itemName(line.componentItemId)+" • "+group.groupCode});
+   if(line.plannedQuantity>0)choices.push({...line,id:line.componentItemId,label:itemName(line.componentItemId)+" • "+group.groupCode});
   select($("#material-usage-line"),choices,x=>x.label);
+  $("#material-usage-line").disabled=!usageStatus||choices.length===0;
+  $("#material-usage-form").querySelectorAll("input,button").forEach(el=>el.disabled=!usageStatus||lots.length===0||choices.length===0);
+  if(!usageStatus)flash("ثبت مصرف واقعی فقط برای دستور آزادشده یا در حال اجرا مجاز است.");
+  else if(!lots.length)flash("برای ثبت شارژ مواد، ابتدا گزارش عملکرد یک بچ تولیدی دارای شناسه بچ ثبت کنید.");
   table("#material-options-summary",[
    ["گروه",x=>x.groupCode||"اجباری"],["قطعه",x=>itemName(x.componentItemId)],
-   ["برنامه",x=>num(x.plannedQuantity)],["مصرف واقعی",x=>num(x.actualQuantity)],
+   ["برنامه",x=>num(x.plannedQuantity)],["مصرف خالص واقعی",x=>num(x.actualQuantity)],
    ["باقی‌مانده برنامه",x=>num(Math.max(0,x.plannedQuantity-x.actualQuantity))]
   ],[
    ...materialSnapshot.mandatoryComponents.map(x=>({...x,groupCode:""})),
    ...materialSnapshot.groups.flatMap(g=>g.options.map(x=>({...x,groupCode:g.groupCode})))
   ]);
+  const lotNames=new Map(lots.map(x=>[x.id,x.label]));
   table("#material-usage-history",[
-   ["زمان ثبت",x=>new Date(x.occurredUtc).toLocaleString("fa-IR-u-ca-persian",{timeZone:"Asia/Tehran"})],
-   ["قطعه",x=>itemName(x.componentItemId)],["مقدار",x=>num(x.quantity)],
-   ["بچ",x=>x.lotCode||"—"],["ثبت‌کننده",x=>x.recordedBy],
-   ["شرح / علت انحراف",x=>x.note||"—"]
+   ["زمان ثبت",x=>new Date(x.recordedUtc).toLocaleString("fa-IR-u-ca-persian",{timeZone:"Asia/Tehran"})],
+   ["قطعه",x=>itemName(x.componentItemId)],["مقدار اولیه",x=>num(x.recordedQuantity)],
+   ["مقدار خالص",x=>num(x.netQuantity)],
+   ["بچ",x=>x.confirmationId?(lotNames.get(x.confirmationId)||x.confirmationId.slice(0,8)):"قدیمی / بدون انتساب بچ"],
+   ["ثبت‌کننده",x=>x.recordedBy],["مرجع / علت",x=>x.reference||"—"],
+   ["وضعیت",x=>x.reversedById?"اصلاح‌شده":"فعال"]
   ],usageHistory.rows);
  }
  $("#material-options-load").onclick=()=>loadMaterialOptions().catch(e=>flash(e.message,true));
@@ -263,11 +276,11 @@ async function boot(){
  register("#material-usage-form",async f=>{
   const id=$("#material-order").value;
   if(!id)throw Error("ابتدا دستور تولید را انتخاب کنید.");
-  await request("/manufacturing-orders/"+id+"/material-usage","POST",{
-   bomLineId:fval(f,"bomLineId"),quantity:numeric(f,"quantity"),
-   lotCode:fval(f,"lotCode")||null,note:fval(f,"note")||null
+  await request("/factory-material/"+id+"/lot-consumption","POST",{
+   confirmationId:fval(f,"confirmationId"),componentItemId:fval(f,"componentItemId"),
+   quantity:numeric(f,"quantity"),reference:fval(f,"reference").trim()
   });
-  f.reset();await loadMaterialOptions();flash("مصرف واقعی قطعه برای دستور ثبت شد.");
+  await loadMaterialOptions();flash("مصرف واقعی قطعه برای بچ تولیدی ثبت شد.");
  });
  async function releaseCheck(){
   const id=$("#draft-replan-order").value;
