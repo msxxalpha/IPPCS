@@ -283,4 +283,48 @@ public sealed class MrpLotCapacityPreviewTests
         Assert.Throws<ArgumentNullException>(()=>MrpLotCapacityPreview.Evaluate(
             Graph(),[],null!,Monday,1));
     }
+
+    [Fact]
+    public void Allocation_must_match_demand_item_and_need_date_and_cannot_arrive_late()
+    {
+        var item=Guid.NewGuid();var other=Guid.NewGuid();
+        var demand=new NetPegDemand("D",item,Monday,5,null,null,null,"test",0);
+        NetPegAllocation Allocation(Guid allocationItem,DateOnly needed,DateOnly available)=>
+            new("D",allocationItem,needed,"ExpectedReceipt","R",available,2,true);
+        Assert.Throws<InvalidOperationException>(()=>MrpLotCapacityPreview.Evaluate(
+            new NetPeggingReport([demand],[Allocation(other,Monday,Monday)],[]),[],[],Monday,1));
+        Assert.Throws<InvalidOperationException>(()=>MrpLotCapacityPreview.Evaluate(
+            new NetPeggingReport([demand],[Allocation(item,Monday.AddDays(1),Monday)],[]),[],[],Monday,1));
+        Assert.Throws<InvalidOperationException>(()=>MrpLotCapacityPreview.Evaluate(
+            new NetPeggingReport([demand],[Allocation(item,Monday,Monday.AddDays(1))],[]),[],[],Monday,1));
+    }
+
+    [Fact]
+    public void Allocations_cannot_exceed_demand_quantity()
+    {
+        var item=Guid.NewGuid();
+        var demand=new NetPegDemand("D",item,Monday,5,null,null,null,"test",0);
+        var allocations=new[]{
+            new NetPegAllocation("D",item,Monday,"ExpectedReceipt","R1",Monday,3,true),
+            new NetPegAllocation("D",item,Monday,"ExpectedReceipt","R2",Monday,3,true)
+        };
+        Assert.Throws<InvalidOperationException>(()=>MrpLotCapacityPreview.Evaluate(
+            new NetPeggingReport([demand],allocations,[]),[],[],Monday,1));
+    }
+
+    [Fact]
+    public void Proposed_receipt_allocation_must_reference_matching_lot_item_and_receipt_date()
+    {
+        var item=Guid.NewGuid();var other=Guid.NewGuid();
+        var demand=new NetPegDemand("D",item,Monday,5,null,null,null,"test",0);
+        var lot=new NetPegPlannedLot("PLAN:1",item,Monday,Monday,5,5,0,
+            "Manufacturing",Guid.NewGuid(),false,0);
+        var wrongItem=new NetPegAllocation("D",other,Monday,"ProposedManufacturingReceipt",
+            lot.LotKey,Monday,2,false);
+        Assert.Throws<InvalidOperationException>(()=>MrpLotCapacityPreview.Evaluate(
+            new NetPeggingReport([demand],[wrongItem],[lot]),[],[],Monday,1));
+        var wrongDate=wrongItem with { ItemId=item, AvailableOn=Monday.AddDays(-1) };
+        Assert.Throws<InvalidOperationException>(()=>MrpLotCapacityPreview.Evaluate(
+            new NetPeggingReport([demand],[wrongDate],[lot]),[],[],Monday,1));
+    }
 }
