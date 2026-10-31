@@ -177,7 +177,9 @@ public static class BomAlternativeExecution
             var allocations = db.Set<ManufacturingOrderMaterialAllocation>();
             var usage = db.Set<ManufacturingOrderMaterialUsage>();
             var prior = await allocations.Where(x => x.OrderId == id).ToListAsync(ct);
-            var priorByLine = prior.ToDictionary(x => x.BomLineId);
+            var allAlternativeIds = groupMap.Values.SelectMany(g => g).Select(x => x.Id).ToHashSet();
+            if (prior.Any(x => !allAlternativeIds.Contains(x.BomLineId)))
+                return Results.Conflict(new { message = "تخصیص ذخیره‌شده به نسخه آلترناتیو جاری دستور تعلق ندارد." });
             var auditPrevious = prior.OrderBy(x => x.BomLineId)
                 .Select(x => $"{x.BomLineId}:{x.SharePercent}%").ToArray();
             var auditCurrent = new List<string>();
