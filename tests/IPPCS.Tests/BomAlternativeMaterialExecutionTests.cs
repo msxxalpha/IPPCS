@@ -114,4 +114,39 @@ public sealed class BomAlternativeMaterialExecutionTests
         Assert.Equal(2m, Assert.Single(rows, x => x.ComponentItemId == substitute.ComponentItemId)
             .Variance);
     }
+
+    [Fact]
+    public void Selected_alternative_quantities_follow_current_order_output_not_stale_saved_quantity()
+    {
+        var preferred = new ManufacturingBomLine
+        {
+            Id = Guid.NewGuid(), ComponentItemId = Guid.NewGuid(),
+            QuantityPer = 1m, ScrapPercent = 0,
+            AlternativeGroupCode = "SEAL", IsDefaultAlternative = true
+        };
+        var substitute = new ManufacturingBomLine
+        {
+            Id = Guid.NewGuid(), ComponentItemId = Guid.NewGuid(),
+            QuantityPer = 1.25m, ScrapPercent = 0,
+            AlternativeGroupCode = "SEAL", IsDefaultAlternative = false
+        };
+        var allocations = new[]
+        {
+            new ManufacturingOrderMaterialAllocation
+            {
+                BomLineId = preferred.Id, SharePercent = 60m, PlannedQuantity = 60m
+            },
+            new ManufacturingOrderMaterialAllocation
+            {
+                BomLineId = substitute.Id, SharePercent = 40m, PlannedQuantity = 50m
+            }
+        };
+
+        Assert.Equal(120m, BomAlternativeExecution.CalculateSelectedComponentQuantity(
+            200m, preferred, [preferred, substitute], allocations));
+        Assert.Equal(100m, BomAlternativeExecution.CalculateSelectedComponentQuantity(
+            200m, substitute, [preferred, substitute], allocations));
+    }
+
+
 }
