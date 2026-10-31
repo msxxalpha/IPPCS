@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Http;
 using Xunit;
 
 public sealed class FactoryStageSixtyThreeHostingSecurityTests
