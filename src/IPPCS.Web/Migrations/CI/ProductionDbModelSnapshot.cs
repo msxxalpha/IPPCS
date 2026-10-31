@@ -463,10 +463,22 @@ namespace IPPCS.Web.Migrations.CI
 
                     b.HasIndex("ComponentItemId");
 
+                    b.HasIndex("RevisionId", "AlternativeGroupCode", "AlternativePriority")
+                        .IsUnique()
+                        .HasFilter("[AlternativeGroupCode] IS NOT NULL");
+
+                    b.HasIndex("RevisionId", "AlternativeGroupCode")
+                        .IsUnique()
+                        .HasFilter("[AlternativeGroupCode] IS NOT NULL AND [IsDefaultAlternative] = 1");
+
                     b.HasIndex("RevisionId", "ComponentItemId")
                         .IsUnique();
 
-                    b.ToTable("ManufacturingBomLines");
+                    b.ToTable("ManufacturingBomLines", t =>
+                        {
+                            t.HasCheckConstraint("CK_ManufacturingBomLines_AlternativePriority_Positive",
+                                "[AlternativePriority] >= 1");
+                        });
                 });
 
             modelBuilder.Entity("ManufacturingBomRevision", b =>
@@ -915,7 +927,13 @@ namespace IPPCS.Web.Migrations.CI
                     b.HasIndex("OrderId", "BomLineId")
                         .IsUnique();
 
-                    b.ToTable("ManufacturingOrderMaterialAllocations");
+                    b.ToTable("ManufacturingOrderMaterialAllocations", t =>
+                        {
+                            t.HasCheckConstraint("CK_ManufacturingOrderMaterialAllocations_SharePercent",
+                                "[SharePercent] > 0 AND [SharePercent] <= 100");
+                            t.HasCheckConstraint("CK_ManufacturingOrderMaterialAllocations_PlannedQuantity",
+                                "[PlannedQuantity] > 0");
+                        });
                 });
 
             modelBuilder.Entity("ManufacturingOrderMaterialUsage", b =>
@@ -956,7 +974,11 @@ namespace IPPCS.Web.Migrations.CI
 
                     b.HasIndex("OrderId", "BomLineId", "OccurredUtc");
 
-                    b.ToTable("ManufacturingOrderMaterialUsages");
+                    b.ToTable("ManufacturingOrderMaterialUsages", t =>
+                        {
+                            t.HasCheckConstraint("CK_ManufacturingOrderMaterialUsages_Quantity_Positive",
+                                "[Quantity] > 0");
+                        });
                 });
 
             modelBuilder.Entity("ManufacturingOrderOperation", b =>
