@@ -244,4 +244,43 @@ public sealed class MrpLotCapacityPreviewTests
         Assert.Equal(100m,shift.EffectiveCapacityPercent);
         Assert.Equal(30m,Assert.Single(lots.PlannedLots).Quantity);
     }
+
+    [Fact]
+    public void Duplicate_or_blank_lot_keys_are_rejected_before_task_identity_mapping()
+    {
+        var item=Guid.NewGuid();var first=Lot(item,Monday,Monday);
+        var duplicate=first with { Quantity=5m };
+        Assert.Throws<InvalidOperationException>(()=>MrpLotCapacityPreview.Evaluate(
+            Graph(first,duplicate),[],[Shift(Guid.NewGuid(),Monday)],Monday,1));
+        var blank=first with { LotKey=" " };
+        Assert.Throws<InvalidOperationException>(()=>MrpLotCapacityPreview.Evaluate(
+            Graph(blank),[],[Shift(Guid.NewGuid(),Monday)],Monday,1));
+    }
+
+    [Fact]
+    public void Duplicate_demand_keys_and_orphan_or_nonpositive_allocations_are_rejected()
+    {
+        var item=Guid.NewGuid();var demand=new NetPegDemand("D1",item,Monday,1,
+            null,null,null,"test",1);
+        var duplicate=new NetPegDemand("D1",item,Monday,1,null,null,null,"test",1);
+        Assert.Throws<InvalidOperationException>(()=>MrpLotCapacityPreview.Evaluate(
+            new NetPeggingReport([demand,duplicate],[],[]),[],[],Monday,1));
+        var orphan=new NetPegAllocation("missing",item,Monday,"ExpectedReceipt","R1",Monday,1,false);
+        Assert.Throws<InvalidOperationException>(()=>MrpLotCapacityPreview.Evaluate(
+            new NetPeggingReport([], [orphan], []),[],[],Monday,1));
+        var invalid=new NetPegAllocation("D1",item,Monday,"ExpectedReceipt","R1",Monday,0,false);
+        Assert.Throws<InvalidOperationException>(()=>MrpLotCapacityPreview.Evaluate(
+            new NetPeggingReport([demand], [invalid], []),[],[],Monday,1));
+    }
+
+    [Fact]
+    public void Null_preview_inputs_are_rejected_explicitly()
+    {
+        Assert.Throws<ArgumentNullException>(()=>MrpLotCapacityPreview.Evaluate(
+            null!,[],[],Monday,1));
+        Assert.Throws<ArgumentNullException>(()=>MrpLotCapacityPreview.Evaluate(
+            Graph(),null!,[],Monday,1));
+        Assert.Throws<ArgumentNullException>(()=>MrpLotCapacityPreview.Evaluate(
+            Graph(),[],null!,Monday,1));
+    }
 }
