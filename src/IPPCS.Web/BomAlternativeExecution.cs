@@ -28,7 +28,8 @@ public sealed class ManufacturingOrderMaterialUsage
 }
 
 public record ManufacturingOrderMaterialShareInput(Guid BomLineId, decimal SharePercent);
-public record ManufacturingOrderMaterialAllocationInput(IReadOnlyList<ManufacturingOrderMaterialShareInput> Shares);
+public record ManufacturingOrderMaterialGroupInput(string GroupCode, IReadOnlyList<ManufacturingOrderMaterialShareInput> Shares);
+public record ManufacturingOrderMaterialAllocationInput(IReadOnlyList<ManufacturingOrderMaterialGroupInput> Groups);
 public record ManufacturingOrderMaterialUsageInput(Guid BomLineId, decimal Quantity, string? LotCode, string? Note);
 
 public static class BomAlternativeExecution
@@ -142,16 +143,17 @@ public static class BomAlternativeExecution
             return Results.Ok(new { orderId = id, rows });
         });
 
-        planningApi.MapPost("/manufacturing-orders/{id:guid}/material-options/{groupCode}", async (
-            Guid id, string groupCode, ManufacturingOrderMaterialAllocationInput input,
-            ProductionDb db, HttpContext context, CancellationToken ct) =>
+        planningApi.MapPost("/manufacturing-orders/{id:guid}/material-options", async (
+            Guid id, ManufacturingOrderMaterialAllocationInput input, ProductionDb db, CancellationToken ct) =>
         {
-            if (string.IsNullOrWhiteSpace(groupCode) || groupCode.Trim().Length > 32 ||
-                input.Shares is null || input.Shares.Count < 1 ||
-                input.Shares.Any(x => x.BomLineId == Guid.Empty || x.SharePercent <= 0 || x.SharePercent > 100) ||
-                input.Shares.Select(x => x.BomLineId).Distinct().Count() != input.Shares.Count ||
-                input.Shares.Sum(x => x.SharePercent) != 100m)
-                return Results.BadRequest(new { message = "سهم قطعات باید مثبت، بدون تکرار و در مجموع دقیقاً ۱۰۰ درصد باشد." });
+            if (input.Groups is null || input.Groups.Count is < 1 or > 100 ||
+                input.Groups.Select(x => x.GroupCode?.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).Count() != input.Groups.Count ||
+                input.Groups.Any(g => string.IsNullOrWhiteSpace(g.GroupCode) || g.GroupCode.Trim().Length > 32 ||
+                    g.Shares is null || g.Shares.Count is < 1 or > 100 ||
+                    g.Shares.Any(x => x.BomLineId == Guid.Empty || x.SharePercent <= 0 || x.SharePercent > 100) ||
+                    g.Shares.Select(x => x.BomLineId).Distinct().Count() != g.Shares.Count ||
+                    g.Shares.Sum(x => x.SharePercent) != 100m))
+                return Results.BadRequest(new { message = "برای تمام گروه‌ها، قطعات بدون تکرار و سهم‌های مثبت لازم است که مجموع هر گروه دقیقاً ۱۰۰٪ باشد." });
 
             await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
             try { await FactoryCapacityReservations.LockOrder(db, id, ct); }
@@ -162,44 +164,58 @@ public static class BomAlternativeExecution
                 return Results.Conflict(new { message = "ترکیب آلترناتیوها در وضعیت فعلی دستور قابل تغییر نیست." });
 
             var lines = await db.ManufacturingBomLines.AsNoTracking()
-                .Where(x => x.RevisionId == order.BomRevisionId &&
-                    x.AlternativeGroupCode != null && x.AlternativeGroupCode.ToUpper() == groupCode.Trim().ToUpper())
+                .Where(x => x.RevisionId == order.BomRevisionId && x.AlternativeGroupCode != null)
                 .ToListAsync(ct);
-            if (lines.Count < 2)
-                return Results.NotFound();
-            var byId = lines.ToDictionary(x => x.Id);
-            if (input.Shares.Any(x => !byId.ContainsKey(x.BomLineId)))
-                return Results.BadRequest(new { message = "تمام قطعات تخصیص‌یافته باید عضو همین گروه آلترناتیو مصوب باشند." });
-            var groupLineIds = lines.Select(x => x.Id).ToArray();
-            if (await db.Set<ManufacturingOrderMaterialUsage>().AnyAsync(x =>
-                x.OrderId == id && groupLineIds.Contains(x.BomLineId), ct))
-                return Results.Conflict(new { message = "پس از اولین مصرف واقعی از هر قطعه این گروه، ترکیب آلترناتیو قفل می‌شود؛ اصلاح باید از مسیر کنترل‌شده مغایرت انجام شود." });
+            var actualGroupMap = lines.GroupBy(x => x.AlternativeGroupCode!, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(x => x.Key, x => x.ToList(), StringComparer.OrdinalIgnoreCase);
+            if (actualGroupMap.Count != input.Groups.Count ||
+                input.Groups.Any(x => !actualGroupMap.ContainsKey(x.GroupCode.Trim())))
+                return Results.BadRequest(new { message = "تمام گروه‌های آلترناتیو BOM باید در یک مرحله تخصیص داده شوند." });
 
-            var prior = await db.Set<ManufacturingOrderMaterialAllocation>()
-                .Where(x => x.OrderId == id && lines.Select(l => l.Id).Contains(x.BomLineId)).ToListAsync(ct);
-            var priorShares = prior.OrderBy(x => x.BomLineId)
+            var allocations = db.Set<ManufacturingOrderMaterialAllocation>();
+            var usage = db.Set<ManufacturingOrderMaterialUsage>();
+            var allLineIds = lines.Select(x => x.Id).ToArray();
+            if (await usage.AnyAsync(x => x.OrderId == id && allLineIds.Contains(x.BomLineId), ct))
+                return Results.Conflict(new { message = "پس از اولین مصرف واقعی از هر قطعه آلترناتیو، ترکیب گروه‌ها قفل می‌شود؛ اصلاح باید از مسیر کنترل‌شده مغایرت انجام شود." });
+
+            var prior = await allocations.Where(x => x.OrderId == id).ToListAsync(ct);
+            var priorDetails = prior.OrderBy(x => x.BomLineId)
                 .Select(x => $"{x.BomLineId}:{x.SharePercent}%").ToArray();
             if (prior.Count > 0) db.RemoveRange(prior);
-            foreach (var share in input.Shares)
+
+            var currentDetails = new List<string>();
+            foreach (var groupInput in input.Groups)
             {
-                var line = byId[share.BomLineId];
-                db.Set<ManufacturingOrderMaterialAllocation>().Add(new ManufacturingOrderMaterialAllocation
+                var groupCode = groupInput.GroupCode.Trim();
+                var groupLines = actualGroupMap[groupCode];
+                if (groupLines.Count < 2)
+                    return Results.Conflict(new { message = $"گروه {groupCode} کمتر از دو آلترناتیو معتبر دارد." });
+                var byId = groupLines.ToDictionary(x => x.Id);
+                if (groupInput.Shares.Any(x => !byId.ContainsKey(x.BomLineId)))
+                    return Results.BadRequest(new { message = $"همه قطعات تخصیص‌یافته باید عضو گروه {groupCode} باشند." });
+                foreach (var share in groupInput.Shares)
                 {
-                    OrderId = id,
-                    BomLineId = line.Id,
-                    SharePercent = share.SharePercent,
-                    PlannedQuantity = CalculatePlannedComponentQuantity(order.PlannedQuantity, line, share.SharePercent)
-                });
+                    var line = byId[share.BomLineId];
+                    allocations.Add(new ManufacturingOrderMaterialAllocation
+                    {
+                        OrderId = id,
+                        BomLineId = line.Id,
+                        SharePercent = share.SharePercent,
+                        PlannedQuantity = RequiredQuantity(order, line, share.SharePercent)
+                    });
+                    currentDetails.Add($"{groupCode}:{line.Id}:{share.SharePercent}%");
+                }
             }
             db.ManufacturingOrderAudits.Add(new ManufacturingOrderAudit
             {
-                OrderId = id, Action = prior.Count > 0 ? "MaterialAlternativeRevised" : "MaterialAlternativeAllocated",
-                Details = $"By={context.User.Identity?.Name ?? "unknown"};Group={groupCode.Trim().ToUpperInvariant()};Previous={string.Join(",", priorShares)};Current=" +
-                    string.Join(",", input.Shares.Select(x => $"{x.BomLineId}:{x.SharePercent}%"))
+                OrderId = id,
+                Action = prior.Count > 0 ? "MaterialAlternativesRevised" : "MaterialAlternativesAllocated",
+                Details = $"Previous={string.Join(",", priorDetails)};Current={string.Join(",", currentDetails)}"
             });
             await db.SaveChangesAsync(ct);
             await tx.CommitAsync(ct);
-            return Results.Ok(new { orderId = id, groupCode = groupCode.Trim().ToUpperInvariant(), totalSharePercent = 100m });
+            return Results.Ok(new { orderId = id, groupCount = input.Groups.Count,
+                totalSharePercentPerGroup = 100m, allocationCount = currentDetails.Count });
         });
 
         floorApi.MapPost("/manufacturing-orders/{id:guid}/material-usage", async (
