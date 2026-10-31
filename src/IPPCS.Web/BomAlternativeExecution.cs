@@ -35,6 +35,38 @@ public static class BomAlternativeExecution
         return sharePercent.HasValue ? quantity * sharePercent.Value / 100m : quantity;
     }
 
+    public static decimal SelectedSharePercent(ManufacturingBomLine line,
+        IReadOnlyList<ManufacturingBomLine> bomLines,
+        IReadOnlyList<ManufacturingOrderMaterialAllocation> allocations)
+    {
+        if (string.IsNullOrWhiteSpace(line.AlternativeGroupCode)) return 100m;
+        var group = bomLines.Where(x => string.Equals(x.AlternativeGroupCode,
+            line.AlternativeGroupCode, StringComparison.OrdinalIgnoreCase)).ToArray();
+        if (group.Length < 2) throw new InvalidOperationException("گروه آلترناتیو BOM نامعتبر است.");
+        var ids = group.Select(x => x.Id).ToHashSet();
+        var selected = allocations.Where(x => ids.Contains(x.BomLineId)).ToArray();
+        if (selected.Length == 0)
+        {
+            if (group.Count(x => x.IsDefaultAlternative) != 1)
+                throw new InvalidOperationException("گروه آلترناتیو باید دقیقاً یک پیش‌فرض داشته باشد.");
+            return line.IsDefaultAlternative ? 100m : 0m;
+        }
+        if (selected.Any(x => x.SharePercent <= 0 || x.SharePercent > 100 || x.PlannedQuantity <= 0) ||
+            selected.Select(x => x.BomLineId).Distinct().Count() != selected.Length ||
+            selected.Sum(x => x.SharePercent) != 100m)
+            throw new InvalidOperationException("تخصیص آلترناتیوها معتبر نیست.");
+        return selected.SingleOrDefault(x => x.BomLineId == line.Id)?.SharePercent ?? 0m;
+    }
+
+    public static decimal CalculateSelectedComponentQuantity(decimal outputQuantity,
+        ManufacturingBomLine line, IReadOnlyList<ManufacturingBomLine> bomLines,
+        IReadOnlyList<ManufacturingOrderMaterialAllocation> allocations)
+    {
+        var share = SelectedSharePercent(line, bomLines, allocations);
+        if (share == 0) return 0m;
+        return CalculatePlannedComponentQuantity(outputQuantity, line, share);
+    }
+
     public static IEndpointRouteBuilder MapBomAlternativeExecution(this IEndpointRouteBuilder routes)
     {
         var api = routes.MapGroup("/api/v1").RequireAuthorization("IpProductionUser");
