@@ -9,7 +9,7 @@ public record IpLoginInput(string Username, string Password);
 
 public static class IpSecuritySetup
 {
-    public static IServiceCollection AddIpSecurity(this IServiceCollection services)
+    public static IServiceCollection AddIpSecurity(this IServiceCollection services,IWebHostEnvironment env)
     {
         services.AddIdentity<IdentityUser,IdentityRole>(options=>{
             options.Password.RequiredLength=12;
@@ -28,7 +28,7 @@ public static class IpSecuritySetup
             options.Cookie.Name="IPPCS.Auth";
             options.Cookie.HttpOnly=true;
             options.Cookie.SameSite=SameSiteMode.Strict;
-            options.Cookie.SecurePolicy=CookieSecurePolicy.SameAsRequest; // HTTPS mandatory in production, which is blocked for prototype.
+            options.Cookie.SecurePolicy=env.IsDevelopment()?CookieSecurePolicy.SameAsRequest:CookieSecurePolicy.Always;
             options.ExpireTimeSpan=TimeSpan.FromMinutes(25);
             options.SlidingExpiration=true;
             options.LoginPath="/login.html";
@@ -120,11 +120,14 @@ public sealed class IpDevelopmentBootstrap(IServiceProvider services,IConfigurat
 {
     public async Task StartAsync(CancellationToken cancellationToken)
     {
-        if(!env.IsDevelopment())return;
+        var enabled=env.IsDevelopment() || config.GetValue<bool>("Bootstrap:EnableInitialAdmin");
+        if(!enabled)return;
         var name=config["Bootstrap:AdminUsername"];
         var password=config["Bootstrap:AdminPassword"];
         if(string.IsNullOrWhiteSpace(name)||string.IsNullOrWhiteSpace(password))
         {
+            if(!env.IsDevelopment())
+                throw new InvalidOperationException("One-time production admin bootstrap is enabled but Bootstrap:AdminUsername or Bootstrap:AdminPassword is missing.");
             log.LogWarning("IPPCS local bootstrap is disabled until Bootstrap:AdminUsername and Bootstrap:AdminPassword are configured.");
             return;
         }
@@ -151,6 +154,9 @@ public sealed class IpDevelopmentBootstrap(IServiceProvider services,IConfigurat
             var created=await roles.CreateAsync(new IdentityRole("Administrator"));
             if(!created.Succeeded)throw new InvalidOperationException("Administrator role creation failed.");
         }
+        // Bootstrap is strictly one-time: never promote a configured account
+        // when an administrator already exists in the database.
+        if((await users.GetUsersInRoleAsync("Administrator")).Count>0)return;
         var user=await users.FindByNameAsync(name);
         if(user is null)
         {
