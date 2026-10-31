@@ -36,6 +36,49 @@ public sealed class NetMrpDemandPeggingTests
     }
 
     [Fact]
+    public void Saved_mrp_run_rebuilds_net_pegging_from_its_frozen_inputs()
+    {
+        var finished=Guid.NewGuid();var raw=Guid.NewGuid();var mpsId=Guid.NewGuid();
+        var line=new MpsDemandLine{MpsVersionId=mpsId,ItemId=finished,
+            Quantity=8,NeededOn=Start.AddDays(5)};
+        var bom=Revision(finished,raw,2);
+        var balances=new[]{Balance(finished,0,1),Balance(raw,20)};
+        var types=new Dictionary<Guid,PlanningItemType>{
+            [finished]=PlanningItemType.Finished,[raw]=PlanningItemType.RawMaterial};
+        var rows=PlanningCalculators.RunMrp([line],[bom],balances,[],types);
+        var run=new PlanningCalculation{
+            MpsVersionId=mpsId,
+            InputSnapshotJson=JsonSerializer.Serialize(new{
+                mps=new{Id=mpsId,Code="MPS-UAT-01",State=PlanningApproval.Approved,
+                    lines=new[]{new{line.Id,line.ItemId,line.NeededOn,line.Quantity,line.Reference}}},
+                bom=new[]{new{bom.Id,bom.ParentItemId,bom.Revision,bom.State,bom.ValidFrom,bom.ValidUntil,
+                    lines=bom.Lines.Select(x=>new{x.Id,x.ComponentItemId,x.QuantityPer,x.ScrapPercent,
+                        x.Sequence,x.AlternativeGroupCode,x.IsDefaultAlternative,x.AlternativePriority})}},
+                balances,receipts=Array.Empty<PlanningExpectedReceipt>(),types}),
+            ResultSnapshotJson=JsonSerializer.Serialize(rows)
+        };
+        Assert.True(NetMrpDemandPegging.TryBuildFromRunSnapshot(run,out var report,out var error),error);
+        Assert.Single(report.PlannedLots);
+        var component=Assert.Single(report.Demands,x=>x.ParentLotKey is not null);
+        Assert.Equal(16m,component.Quantity);
+        Assert.Contains(report.Allocations,x=>x.ItemId==raw&&
+            x.SourceType=="PlanningOpeningBalance"&&x.Quantity==16m);
+    }
+
+    [Fact]
+    public void Saved_mrp_run_rejects_mismatched_or_unsupported_snapshot()
+    {
+        var run=new PlanningCalculation{
+            MpsVersionId=Guid.NewGuid(),AlgorithmVersion="MRP-PREVIEW-OLD",
+            InputSnapshotJson="{}",ResultSnapshotJson="[]"};
+        Assert.False(NetMrpDemandPegging.TryBuildFromRunSnapshot(run,out _,out var error));
+        Assert.Contains("پشتیبانی",error);
+        run.AlgorithmVersion="MRP-PREVIEW-1";
+        Assert.False(NetMrpDemandPegging.TryBuildFromRunSnapshot(run,out _,out error));
+        Assert.NotEmpty(error);
+    }
+
+    [Fact]
     public void Opening_and_expected_supply_prevent_unnecessary_parent_explosion()
     {
         var finished = Guid.NewGuid(); var raw = Guid.NewGuid();
