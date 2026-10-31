@@ -145,3 +145,11 @@ These rows are implementation evidence, **not an attestation of successfully run
 - Regression coverage adds demand-date BOM revision selection, receipt arrival before/after need date, duplicate receipt IDs, and invalid unrelated balance records.
 - No schema migration and no external warehouse, purchasing, sales or HR integration. These are planning assumptions and previews only; they do not reserve or issue physical stock.
 - GitHub Actions was observed running for the latest committed head at the time of this note. Do not treat the commit as green until the exact-head workflow finishes successfully; factory UAT and all 18 sign-offs remain separate.
+
+
+## Stage 59 — MRP lot-capacity graph integrity (implementation committed; exact-head CI pending)
+- Module 05 / 06 / 07: the finite lot-capacity preview now validates its incoming net-pegging graph before building task identities or dependency maps. Blank/duplicate planned-lot keys, invalid item identities, deterministic task-ID collisions, blank/duplicate demand keys, orphan allocations, nonpositive allocation quantities and incomplete source provenance are rejected with explicit domain errors.
+- Null graph/routing/shift inputs are rejected explicitly rather than failing later during dictionary construction or scheduling.
+- Regression tests cover duplicate and blank lot identities, duplicate demand keys, orphan/nonpositive allocations, and null preview inputs.
+- No schema migration, material reservation, work-order creation or external ERP integration. Product-specific routing rates, setup/yield calculations and finite capacity behavior are unchanged.
+- This is input-integrity hardening for the MRP-to-CRP/APS preview, not a claim of full MRP/CRP/APS or factory acceptance. Verify the exact latest commit's build, unit tests and disposable SQL workflow before calling it green.
