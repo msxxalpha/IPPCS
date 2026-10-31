@@ -33,12 +33,14 @@ public record FactoryAdherenceRow(Guid ItemId,decimal MpsRequired,decimal Comple
 public static class FactoryOperationalMetrics
 {
     public static List<FactoryMaterialVariance> MaterialVariances(decimal plannedQuantity,
-        IEnumerable<ManufacturingBomLine> lines,IEnumerable<FactoryMaterialUsage> usage)
+        IReadOnlyList<ManufacturingBomLine> lines,IEnumerable<FactoryMaterialUsage> usage,
+        IReadOnlyList<ManufacturingOrderMaterialAllocation> allocations)
     {
         var consumed=usage.GroupBy(x=>x.ComponentItemId)
             .ToDictionary(x=>x.Key,x=>x.Sum(y=>y.QuantityConsumed));
         var requirements=lines.GroupBy(x=>x.ComponentItemId).ToDictionary(x=>x.Key,
-            x=>x.Sum(y=>plannedQuantity*y.QuantityPer*100m/(100m-y.ScrapPercent)));
+            x=>x.Sum(line=>BomAlternativeExecution.CalculateSelectedComponentQuantity(
+                plannedQuantity,line,lines,allocations)));
         return requirements.Keys.Union(consumed.Keys).OrderBy(x=>x).Select(id=>{
             var required=requirements.GetValueOrDefault(id);
             var actual=consumed.GetValueOrDefault(id);
@@ -95,9 +97,13 @@ public static class FactoryOperationsAnalyticsEndpoints
                 .SingleOrDefaultAsync(x=>x.Id==order.BomRevisionId,ct);
             var consumed=await db.FactoryMaterialUsages.AsNoTracking()
                 .Where(x=>x.OrderId==orderId).OrderBy(x=>x.RecordedUtc).ToListAsync(ct);
-            return Results.Ok(new{orderId,order.Number,
-                rows=FactoryOperationalMetrics.MaterialVariances(order.PlannedQuantity,
-                    bom?.Lines??new(),consumed),history=consumed});
+            var allocations=await db.Set<ManufacturingOrderMaterialAllocation>().AsNoTracking()
+                .Where(x=>x.OrderId==orderId).ToListAsync(ct);
+            try{
+                return Results.Ok(new{orderId,order.Number,
+                    rows=FactoryOperationalMetrics.MaterialVariances(order.PlannedQuantity,
+                        bom?.Lines??new(),consumed,allocations),history=FactoryLineSideCorrections.Ledger(consumed)});
+            }catch(InvalidOperationException ex){return Results.Conflict(new{message=ex.Message});}
         });
         api.MapPost("/factory-material/{orderId:guid}/consumption",
             async(Guid orderId,MaterialConsumptionInput input,ProductionDb db,HttpContext ctx,CancellationToken ct)=>{
@@ -114,9 +120,17 @@ public static class FactoryOperationsAnalyticsEndpoints
             if(order is null)return Results.NotFound();
             if(!ManufacturingExecutionEndpoints.IsActive(order.Status))
                 return Results.Conflict(new{message="فقط هنگام اجرای دستور می‌توان مصرف پای خط ثبت کرد."});
-            var belongs=await db.ManufacturingBomLines.AnyAsync(x=>x.RevisionId==order.BomRevisionId
-                && x.ComponentItemId==input.ComponentItemId,ct);
-            if(!belongs)return Results.BadRequest(new{message="قطعه در نسخه BOM این دستور نیست."});
+            var bom=await db.ManufacturingBomRevisions.AsNoTracking().Include(x=>x.Lines)
+                .SingleOrDefaultAsync(x=>x.Id==order.BomRevisionId,ct);
+            var component=bom?.Lines.SingleOrDefault(x=>x.ComponentItemId==input.ComponentItemId);
+            if(bom is null||component is null)
+                return Results.BadRequest(new{message="قطعه در نسخه BOM این دستور نیست."});
+            var allocations=await db.Set<ManufacturingOrderMaterialAllocation>().AsNoTracking()
+                .Where(x=>x.OrderId==orderId).ToListAsync(ct);
+            try{
+                if(BomAlternativeExecution.SelectedSharePercent(component,bom.Lines,allocations)<=0)
+                    return Results.Conflict(new{message="این آلترناتیو در ترکیب تخصیص‌یافته دستور انتخاب نشده است."});
+            }catch(InvalidOperationException ex){return Results.Conflict(new{message=ex.Message});}
             var record=new FactoryMaterialUsage{OrderId=orderId,ComponentItemId=input.ComponentItemId,
                 QuantityConsumed=input.Quantity,Reference=input.Reference.Trim(),
                 RecordedBy=ctx.User.Identity?.Name??"unknown"};
