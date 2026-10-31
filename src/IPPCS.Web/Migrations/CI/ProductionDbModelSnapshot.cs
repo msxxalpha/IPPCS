@@ -936,57 +936,6 @@ namespace IPPCS.Web.Migrations.CI
                         });
                 });
 
-            modelBuilder.Entity("ManufacturingOrderMaterialUsage", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("BomLineId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("ComponentItemId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("LotCode")
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<string>("Note")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.Property<string>("RecordedBy")
-                        .IsRequired()
-                        .HasMaxLength(256)
-                        .HasColumnType("nvarchar(256)")
-                        .HasDefaultValue("unknown");
-
-                    b.Property<DateTime>("OccurredUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid>("OrderId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<decimal>("Quantity")
-                        .HasPrecision(18, 4)
-                        .HasColumnType("decimal(18,4)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("BomLineId");
-
-                    b.HasIndex("ComponentItemId");
-
-                    b.HasIndex("OrderId", "BomLineId", "OccurredUtc");
-
-                    b.ToTable("ManufacturingOrderMaterialUsages", t =>
-                        {
-                            t.HasCheckConstraint("CK_ManufacturingOrderMaterialUsages_Quantity_Positive",
-                                "[Quantity] > 0");
-                        });
-                });
-
             modelBuilder.Entity("ManufacturingOrderOperation", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2228,27 +2177,6 @@ namespace IPPCS.Web.Migrations.CI
                     b.HasOne("ManufacturingBomLine", null)
                         .WithMany()
                         .HasForeignKey("BomLineId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("ManufacturingOrder", null)
-                        .WithMany()
-                        .HasForeignKey("OrderId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("ManufacturingOrderMaterialUsage", b =>
-                {
-                    b.HasOne("ManufacturingBomLine", null)
-                        .WithMany()
-                        .HasForeignKey("BomLineId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("PlanningItem", null)
-                        .WithMany()
-                        .HasForeignKey("ComponentItemId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
