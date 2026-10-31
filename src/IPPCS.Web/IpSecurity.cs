@@ -118,10 +118,13 @@ public static class IpSecuritySetup
 public sealed class IpDevelopmentBootstrap(IServiceProvider services,IConfiguration config,
     IWebHostEnvironment env,ILogger<IpDevelopmentBootstrap> log):IHostedService
 {
+    public static bool ShouldRunInitialAdminBootstrap(bool isDevelopment,bool explicitlyEnabled,bool administratorExists)=>
+        !administratorExists && (isDevelopment || explicitlyEnabled);
+
     public async Task StartAsync(CancellationToken cancellationToken)
     {
-        var enabled=env.IsDevelopment() || config.GetValue<bool>("Bootstrap:EnableInitialAdmin");
-        if(!enabled)return;
+        var explicitlyEnabled=config.GetValue<bool>("Bootstrap:EnableInitialAdmin");
+        if(!env.IsDevelopment()&&!explicitlyEnabled)return;
         var name=config["Bootstrap:AdminUsername"];
         var password=config["Bootstrap:AdminPassword"];
         if(string.IsNullOrWhiteSpace(name)||string.IsNullOrWhiteSpace(password))
@@ -156,7 +159,8 @@ public sealed class IpDevelopmentBootstrap(IServiceProvider services,IConfigurat
         }
         // Bootstrap is strictly one-time: never promote a configured account
         // when an administrator already exists in the database.
-        if((await users.GetUsersInRoleAsync("Administrator")).Count>0)return;
+        var administratorExists=(await users.GetUsersInRoleAsync("Administrator")).Count>0;
+        if(!ShouldRunInitialAdminBootstrap(env.IsDevelopment(),explicitlyEnabled,administratorExists))return;
         var user=await users.FindByNameAsync(name);
         if(user is null)
         {
