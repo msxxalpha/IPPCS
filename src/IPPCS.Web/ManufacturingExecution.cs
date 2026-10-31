@@ -58,6 +58,7 @@ public sealed class ManufacturingConfirmation
     public decimal ReworkQuantity { get; set; }
     public string? LotCode { get; set; }
     public string? Note { get; set; }
+    public string RecordedBy { get; set; } = "unknown";
     public DateTime OccurredUtc { get; set; } = DateTime.UtcNow;
 }
 public sealed class ManufacturingDowntime
@@ -108,6 +109,7 @@ public static class ManufacturingExecutionEndpoints
             model.Entity<ManufacturingConfirmation>().Property<decimal>(prop).HasPrecision(18,4);
         model.Entity<ManufacturingConfirmation>().Property(x=>x.LotCode).HasMaxLength(100);
         model.Entity<ManufacturingConfirmation>().Property(x=>x.Note).HasMaxLength(500);
+        model.Entity<ManufacturingConfirmation>().Property(x=>x.RecordedBy).HasMaxLength(256);
         model.Entity<ManufacturingDowntime>().Property(x=>x.Reason).HasMaxLength(180);
         model.Entity<ManufacturingDowntime>().HasOne<ManufacturingOrder>().WithMany().HasForeignKey(x=>x.OrderId).OnDelete(DeleteBehavior.Restrict);
         model.Entity<ManufacturingDowntime>().HasOne<ManufacturingOrderOperation>().WithMany().HasForeignKey(x=>x.OperationId).OnDelete(DeleteBehavior.Restrict);
@@ -318,7 +320,7 @@ public static class ManufacturingExecutionEndpoints
             return Results.Ok(ToDto(order));
         });
         floorApi.MapPost("/manufacturing-orders/{id:guid}/operations/{operationId:guid}/confirm",
-            async(Guid id,Guid operationId,ManufacturingConfirmationInput input,ProductionDb db,CancellationToken ct)=>{
+            async(Guid id,Guid operationId,ManufacturingConfirmationInput input,ProductionDb db,HttpContext context,CancellationToken ct)=>{
             if((input.LotCode?.Length??0)>100||(input.Note?.Length??0)>500)
                 return Results.BadRequest(new{message="شرح یا شناسه بچ بیش از حد مجاز است."});
             await using var tx=await db.Database.BeginTransactionAsync(IsolationLevel.Serializable,ct);
@@ -353,7 +355,8 @@ public static class ManufacturingExecutionEndpoints
             catch(SqlException){return Results.Conflict(new{message="قفل رزرو مرکز کاری در دسترس نیست."});}
             db.ManufacturingConfirmations.Add(new ManufacturingConfirmation{
                 OperationId=operationId,GoodQuantity=input.GoodQuantity,ScrapQuantity=input.ScrapQuantity,
-                ReworkQuantity=input.ReworkQuantity,LotCode=input.LotCode?.Trim(),Note=input.Note?.Trim()
+                ReworkQuantity=input.ReworkQuantity,LotCode=input.LotCode?.Trim(),Note=input.Note?.Trim(),
+                RecordedBy=context.User.Identity?.Name??"unknown"
             });
             db.ManufacturingOrderAudits.Add(new ManufacturingOrderAudit{OrderId=id,Action="Confirmed",
                 Details=$"Seq={order.Operations.Single(x=>x.Id==operationId).Sequence};Good={input.GoodQuantity};Scrap={input.ScrapQuantity};Rework={input.ReworkQuantity}"});
