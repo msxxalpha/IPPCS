@@ -220,10 +220,10 @@
   </div>
   <form id="material-usage-form" class="panel form-grid">
    <h3 class="wide">ثبت شارژ/مصرف واقعی قطعه برای دستور</h3>
-   <label>قطعه مجاز برای مصرف<select name="bomLineId" id="material-usage-line" required></select></label>
-   <label>مقدار مصرف<input name="quantity" type="number" min="0.0001" step="any" required></label>
-   <label>شناسه بچ قطعه (اختیاری)<input name="lotCode" maxlength="100"></label>
-   <label>شرح / علت انحراف از مقدار برنامه<input name="note" maxlength="500" placeholder="در صورت تجاوز از مقدار برنامه الزامی است"></label>
+   <label>بچ تولید ثبت‌شده<select name="confirmationId" id="material-usage-lot" required></select></label>
+   <label>قطعه انتخاب‌شده در ترکیب BOM<select name="componentItemId" id="material-usage-line" required></select></label>
+   <label>مقدار مصرف واقعی<input name="quantity" type="number" min="0.0001" step="any" required></label>
+   <label>مرجع / توضیح مصرف<input name="reference" maxlength="140" required placeholder="اپراتور، محل مصرف یا علت انحراف"></label>
    <div class="form-actions"><button type="submit" class="btn-main">ثبت مصرف واقعی</button></div>
   </form>
   <div class="panel"><h3>مقادیر برنامه‌ریزی‌شده و مصرف تجمعی</h3><div id="material-options-summary"></div></div>
