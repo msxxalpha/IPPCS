@@ -23,6 +23,32 @@ public sealed class MaterialConstrainedPlanningTests
         Assert.True(r.Feasible);
     }
     [Fact]
+    public void Alternative_group_uses_only_its_default_for_APS_material_feasibility()
+    {
+        var x=Setup();
+        var defaultLine=x.bom.Lines.Single();
+        defaultLine.AlternativeGroupCode="SEAL";
+        defaultLine.IsDefaultAlternative=true;
+        defaultLine.AlternativePriority=1;
+        var substitute=Guid.NewGuid();
+        x.bom.Lines.Add(new ManufacturingBomLine
+        {
+            ComponentItemId=substitute,QuantityPer=2,ScrapPercent=0,
+            Sequence=defaultLine.Sequence,AlternativeGroupCode="SEAL",
+            IsDefaultAlternative=false,AlternativePriority=2
+        });
+        var balances=new[]
+        {
+            new PlanningBalance{ItemId=x.raw,PhysicalQuantity=20,SnapshotDate=Start}
+        };
+
+        var result=Assert.Single(MaterialConstrainedPlanning.Check([x.line],[x.bom],balances,[],x.types,Start));
+
+        Assert.True(result.Feasible);
+        Assert.DoesNotContain(result.Reasons,x=>x.Contains("موجودی مبنای یکی از مواد"));
+    }
+
+    [Fact]
     public void Quality_quarantine_and_safety_stock_block_unsafe_schedule()
     {
         var x=Setup();var b=new PlanningBalance{ItemId=x.raw,PhysicalQuantity=25,
