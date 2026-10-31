@@ -113,7 +113,7 @@ namespace IPPCS.Web.Migrations.CI
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
-                        name: "FK_ManufacturingOrderMaterialUsages_PlanningItems_ComponentItemId",
+                        name: "FK_ManufacturingOrderMaterialUsages_Items_ComponentItemId",
                         column: x => x.ComponentItemId,
                         principalTable: "Items",
                         principalColumn: "Id",
