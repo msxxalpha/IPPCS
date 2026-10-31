@@ -107,10 +107,10 @@ public static class MaterialConstrainedPlanning
                     bal.QuarantinedQuantity-bal.SafetyQuantity);
                 usable+=receipts.Where(x=>x.ItemId==required.Key &&
                     x.AvailableOn>bal.SnapshotDate &&
-                    x.AvailableOn<=horizonStart).Sum(x=>x.Quantity);
+                    x.AvailableOn<=line.NeededOn).Sum(x=>x.Quantity);
                 var committed=cumulativeDemand.GetValueOrDefault(required.Key);
                 if(usable-committed<required.Value)
-                    causes.Add("ماده اولیه کافی در تاریخ شروع افق موجود نیست.");
+                    causes.Add("ماده اولیه کافی تا تاریخ نیاز تقاضا موجود نیست.");
             }
 
             // Preserve demand priority even when this line is itself infeasible.
