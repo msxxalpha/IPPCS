@@ -64,20 +64,22 @@ public static class FactoryLineSideCorrections
 
     public static IReadOnlyList<FactoryLotMaterialBalance> LotBalances(
         ManufacturingConfirmation confirmation,IReadOnlyList<ManufacturingBomLine> bom,
-        IReadOnlyList<FactoryConsumptionLedgerRow> entries)
+        IReadOnlyList<FactoryConsumptionLedgerRow> entries,
+        IReadOnlyList<ManufacturingOrderMaterialAllocation> allocations)
     {
         if(bom.Any(x=>x.QuantityPer<=0||x.ScrapPercent is <0 or >=100))
             throw new InvalidOperationException("ضرایب BOM دستور نامعتبر است.");
         var reported=confirmation.GoodQuantity+confirmation.ScrapQuantity+
             confirmation.ReworkQuantity;
         return bom.GroupBy(x=>x.ComponentItemId).Select(group=>{
-            var standard=group.Sum(x=>reported*x.QuantityPer*100m/(100m-x.ScrapPercent));
+            var standard=group.Sum(x=>
+                BomAlternativeExecution.CalculateSelectedComponentQuantity(reported,x,bom,allocations));
             var matching=entries.Where(x=>x.ConfirmationId==confirmation.Id&&
                 x.ComponentItemId==group.Key).ToArray();
             var net=matching.Sum(x=>x.NetQuantity);
             return new FactoryLotMaterialBalance(group.Key,standard,net,net-standard,
                 matching.Count(x=>x.NetQuantity>0),
-                "این مقادیر مصرف پای خطِ ثبت‌شده در IPPCS هستند، نه برداشت یا مانده انبار.");
+                "نیاز استاندارد هر گزینه بر اساس ترکیب آلترناتیو دستور محاسبه شده است؛ این دفتر مصرف پای خط است و برداشت یا مانده انبار نیست.");
         }).OrderBy(x=>x.ComponentItemId).ToArray();
     }
 
@@ -109,10 +111,12 @@ public static class FactoryLineSideCorrections
                 if(revision is null)return Results.Conflict(new{message="BOM دستور موجود نیست."});
                 var history=await db.FactoryMaterialUsages.AsNoTracking()
                     .Where(x=>x.OrderId==orderId).ToListAsync(ct);
+                var allocations=await db.Set<ManufacturingOrderMaterialAllocation>().AsNoTracking()
+                    .Where(x=>x.OrderId==orderId).ToListAsync(ct);
                 try{
                     var entries=Ledger(history);
                     return Results.Ok(new{orderId,confirmationId,lot.LotCode,
-                        rows=LotBalances(lot,revision.Lines,entries),
+                        rows=LotBalances(lot,revision.Lines,entries,allocations),
                         history=entries.Where(x=>x.ConfirmationId==confirmationId).ToArray()});
                 }catch(InvalidOperationException ex){
                     return Results.Conflict(new{message=ex.Message});
@@ -140,14 +144,22 @@ public static class FactoryLineSideCorrections
                     return Results.Conflict(new{message="گزارش عملکرد بچ به دستور انتخابی تعلق ندارد."});
                 var bom=await db.ManufacturingBomRevisions.AsNoTracking().Include(x=>x.Lines)
                     .SingleOrDefaultAsync(x=>x.Id==order.BomRevisionId,ct);
-                if(bom is null||!bom.Lines.Any(x=>x.ComponentItemId==input.ComponentItemId))
-                    return Results.Conflict(new{message="این قطعه در BOM مصوب منجمد دستور وجود ندارد."});
+                var line=bom?.Lines.SingleOrDefault(x=>x.ComponentItemId==input.ComponentItemId);
+                if(bom is null||line is null)
+                    return Results.Conflict(new{message="این قطعه در BOM منجمد دستور وجود ندارد."});
+                var allocations=await db.Set<ManufacturingOrderMaterialAllocation>().AsNoTracking()
+                    .Where(x=>x.OrderId==orderId).ToListAsync(ct);
+                decimal selectedShare;
+                try{selectedShare=BomAlternativeExecution.SelectedSharePercent(line,bom.Lines,allocations);}
+                catch(InvalidOperationException ex){return Results.Conflict(new{message=ex.Message});}
+                if(selectedShare<=0)
+                    return Results.Conflict(new{message="این گزینه آلترناتیو در ترکیب مصوب همین دستور انتخاب نشده است."});
                 var entries=await db.FactoryMaterialUsages.AsNoTracking()
                     .Where(x=>x.OrderId==orderId).ToListAsync(ct);
                 IReadOnlyList<FactoryConsumptionLedgerRow> history;
                 try{history=Ledger(entries);}
                 catch(InvalidOperationException ex){return Results.Conflict(new{message=ex.Message});}
-                var cap=LotBalances(lot,bom.Lines,history)
+                var cap=LotBalances(lot,bom.Lines,history,allocations)
                     .Single(x=>x.ComponentItemId==input.ComponentItemId);
                 if(cap.RecordedNetQuantity+input.Quantity>cap.StandardForReportedLot)
                     return Results.Conflict(new{
