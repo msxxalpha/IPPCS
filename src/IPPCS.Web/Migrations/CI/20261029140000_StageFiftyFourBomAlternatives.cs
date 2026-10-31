@@ -79,45 +79,6 @@ namespace IPPCS.Web.Migrations.CI
                         onDelete: ReferentialAction.Restrict);
                 });
 
-            migrationBuilder.CreateTable(
-                name: "ManufacturingOrderMaterialUsages",
-                columns: table => new
-                {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    OrderId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    BomLineId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    ComponentItemId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    Quantity = table.Column<decimal>(type: "decimal(18,4)", precision: 18, scale: 4, nullable: false),
-                    LotCode = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
-                    Note = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true),
-                    RecordedBy = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: false, defaultValue: "unknown"),
-                    OccurredUtc = table.Column<DateTime>(type: "datetime2", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_ManufacturingOrderMaterialUsages", x => x.Id);
-                    table.CheckConstraint("CK_ManufacturingOrderMaterialUsages_Quantity_Positive",
-                        "[Quantity] > 0");
-                    table.ForeignKey(
-                        name: "FK_ManufacturingOrderMaterialUsages_ManufacturingBomLines_BomLineId",
-                        column: x => x.BomLineId,
-                        principalTable: "ManufacturingBomLines",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
-                    table.ForeignKey(
-                        name: "FK_ManufacturingOrderMaterialUsages_ManufacturingOrders_OrderId",
-                        column: x => x.OrderId,
-                        principalTable: "ManufacturingOrders",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
-                    table.ForeignKey(
-                        name: "FK_ManufacturingOrderMaterialUsages_Items_ComponentItemId",
-                        column: x => x.ComponentItemId,
-                        principalTable: "Items",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
-                });
-
             migrationBuilder.CreateIndex(
                 name: "IX_ManufacturingBomLines_RevisionId_AlternativeGroupCode_AlternativePriority",
                 table: "ManufacturingBomLines",
@@ -143,26 +104,9 @@ namespace IPPCS.Web.Migrations.CI
                 columns: new[] { "OrderId", "BomLineId" },
                 unique: true);
 
-            migrationBuilder.CreateIndex(
-                name: "IX_ManufacturingOrderMaterialUsages_BomLineId",
-                table: "ManufacturingOrderMaterialUsages",
-                column: "BomLineId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_ManufacturingOrderMaterialUsages_ComponentItemId",
-                table: "ManufacturingOrderMaterialUsages",
-                column: "ComponentItemId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_ManufacturingOrderMaterialUsages_OrderId_BomLineId_OccurredUtc",
-                table: "ManufacturingOrderMaterialUsages",
-                columns: new[] { "OrderId", "BomLineId", "OccurredUtc" });
-        }
-
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(name: "ManufacturingOrderMaterialAllocations");
-            migrationBuilder.DropTable(name: "ManufacturingOrderMaterialUsages");
             migrationBuilder.DropIndex(
                 name: "IX_ManufacturingBomLines_RevisionId_AlternativeGroupCode_AlternativePriority",
                 table: "ManufacturingBomLines");
