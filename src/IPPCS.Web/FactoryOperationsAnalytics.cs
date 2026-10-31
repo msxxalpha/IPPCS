@@ -127,10 +127,19 @@ public static class FactoryOperationsAnalyticsEndpoints
                 return Results.BadRequest(new{message="قطعه در نسخه BOM این دستور نیست."});
             var allocations=await db.Set<ManufacturingOrderMaterialAllocation>().AsNoTracking()
                 .Where(x=>x.OrderId==orderId).ToListAsync(ct);
+            decimal plannedLimit;
             try{
-                if(BomAlternativeExecution.SelectedSharePercent(component,bom.Lines,allocations)<=0)
-                    return Results.Conflict(new{message="این آلترناتیو در ترکیب تخصیص‌یافته دستور انتخاب نشده است."});
+                plannedLimit=BomAlternativeExecution.CalculateSelectedComponentQuantity(
+                    order.PlannedQuantity,component,bom.Lines,allocations);
             }catch(InvalidOperationException ex){return Results.Conflict(new{message=ex.Message});}
+            var priorRecords=await db.FactoryMaterialUsages.AsNoTracking()
+                .Where(x=>x.OrderId==orderId).ToListAsync(ct);
+            IReadOnlyList<FactoryConsumptionLedgerRow> ledger;
+            try{ledger=FactoryLineSideCorrections.Ledger(priorRecords);}
+            catch(InvalidOperationException ex){return Results.Conflict(new{message=ex.Message});}
+            var recorded=ledger.Where(x=>x.ComponentItemId==input.ComponentItemId).Sum(x=>x.NetQuantity);
+            if(recorded+input.Quantity>plannedLimit)
+                return Results.Conflict(new{message="مصرف تجمعی از مقدار مجاز ترکیب آلترناتیو دستور بیشتر است؛ از ثبت بچ و کنترل علت انحراف استفاده کنید."});
             var record=new FactoryMaterialUsage{OrderId=orderId,ComponentItemId=input.ComponentItemId,
                 QuantityConsumed=input.Quantity,Reference=input.Reference.Trim(),
                 RecordedBy=ctx.User.Identity?.Name??"unknown"};
