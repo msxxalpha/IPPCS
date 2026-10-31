@@ -9,6 +9,9 @@ public record IpLoginInput(string Username, string Password);
 
 public static class IpSecuritySetup
 {
+    public static CookieSecurePolicy AuthenticationCookieSecurePolicy(bool isDevelopment)=>
+        isDevelopment?CookieSecurePolicy.SameAsRequest:CookieSecurePolicy.Always;
+
     public static IServiceCollection AddIpSecurity(this IServiceCollection services,IWebHostEnvironment env)
     {
         services.AddIdentity<IdentityUser,IdentityRole>(options=>{
@@ -28,7 +31,7 @@ public static class IpSecuritySetup
             options.Cookie.Name="IPPCS.Auth";
             options.Cookie.HttpOnly=true;
             options.Cookie.SameSite=SameSiteMode.Strict;
-            options.Cookie.SecurePolicy=env.IsDevelopment()?CookieSecurePolicy.SameAsRequest:CookieSecurePolicy.Always;
+            options.Cookie.SecurePolicy=AuthenticationCookieSecurePolicy(env.IsDevelopment());
             options.ExpireTimeSpan=TimeSpan.FromMinutes(25);
             options.SlidingExpiration=true;
             options.LoginPath="/login.html";
