@@ -17,7 +17,7 @@ builder.Services.AddDbContext<ProductionDb>(o =>
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddProblemDetails();
-builder.Services.AddIpSecurity();
+builder.Services.AddIpSecurity(builder.Environment);
 builder.Services.AddRateLimiter(options=>options.AddFixedWindowLimiter("ip-login",policy=>{
     policy.PermitLimit=8;
     policy.Window=TimeSpan.FromMinutes(2);
@@ -25,11 +25,9 @@ builder.Services.AddRateLimiter(options=>options.AddFixedWindowLimiter("ip-login
 }));
 
 var app = builder.Build();
-// The prototype has no authentication yet. Deny non-development hosting until security is implemented.
-if (!app.Environment.IsDevelopment())
-    throw new InvalidOperationException("IPPCS prototype cannot run outside Development before authentication and authorization are implemented.");
 app.UseExceptionHandler();
 if (app.Environment.IsDevelopment()) { app.UseSwagger(); app.UseSwaggerUI(); }
+else app.UseHsts();
 app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseRouting();
