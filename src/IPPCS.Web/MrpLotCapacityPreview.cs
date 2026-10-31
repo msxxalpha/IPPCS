@@ -31,8 +31,27 @@ public static class MrpLotCapacityPreview
         IReadOnlyList<FactoryClockSession>? clockSessions=null,
         IReadOnlyList<FactoryCapacityReservation>? reservations=null)
     {
+        ArgumentNullException.ThrowIfNull(graph);
+        ArgumentNullException.ThrowIfNull(routings);
+        ArgumentNullException.ThrowIfNull(shifts);
+        if(graph.PlannedLots is null || graph.Demands is null || graph.Allocations is null)
+            throw new ArgumentException("اجزای گراف MRP نمی‌توانند تهی باشند.", nameof(graph));
         if(horizonDays is <1 or >90 || capacityMultiplier<=0m || capacityMultiplier>2m)
             throw new ArgumentException("افق ۱ تا ۹۰ روز و ضریب ظرفیت مثبت تا ۲ لازم است.");
+        if(graph.PlannedLots.Any(x=>string.IsNullOrWhiteSpace(x.LotKey) || x.ItemId==Guid.Empty) ||
+            graph.PlannedLots.Select(x=>x.LotKey).Distinct(StringComparer.Ordinal).Count()!=graph.PlannedLots.Count)
+            throw new InvalidOperationException("بچ‌های پیشنهادی باید شناسه غیرخالی و یکتا و قلم معتبر داشته باشند.");
+        var lotTaskIds=graph.PlannedLots.Select(x=>TaskId(x.LotKey)).ToArray();
+        if(lotTaskIds.Distinct().Count()!=lotTaskIds.Length)
+            throw new InvalidOperationException("شناسه محاسباتی بچ‌ها یکتا نیست؛ کلید بچ‌ها را اصلاح کنید.");
+        if(graph.Demands.Any(x=>string.IsNullOrWhiteSpace(x.DemandKey)) ||
+            graph.Demands.Select(x=>x.DemandKey).Distinct(StringComparer.Ordinal).Count()!=graph.Demands.Count)
+            throw new InvalidOperationException("نیازهای گراف MRP باید کلید غیرخالی و یکتا داشته باشند.");
+        var demandKeys=graph.Demands.Select(x=>x.DemandKey).ToHashSet(StringComparer.Ordinal);
+        if(graph.Allocations.Any(x=>string.IsNullOrWhiteSpace(x.DemandKey) ||
+                !demandKeys.Contains(x.DemandKey) || x.ItemId==Guid.Empty || x.Quantity<=0 ||
+                string.IsNullOrWhiteSpace(x.SourceType) || string.IsNullOrWhiteSpace(x.SourceKey)))
+            throw new InvalidOperationException("تخصیص گراف MRP دارای منشأ نامعتبر، قلم نامعتبر یا مقدار غیرمثبت است.");
         var end=baseline.AddDays(horizonDays);
         var tasks=new List<ApsTask>();
         var earliest=new Dictionary<Guid,DateOnly>();
