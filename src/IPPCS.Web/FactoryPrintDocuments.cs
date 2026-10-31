@@ -67,6 +67,20 @@ public static class FactoryPrintDocuments
                         .SingleOrDefaultAsync(x=>x.Id==o.RoutingRevisionId,ct);
                     var bom=await db.ManufacturingBomRevisions.AsNoTracking()
                         .SingleOrDefaultAsync(x=>x.Id==o.BomRevisionId,ct);
+                    var bomLines=await db.ManufacturingBomLines.AsNoTracking()
+                        .Where(x=>x.RevisionId==o.BomRevisionId)
+                        .OrderBy(x=>x.Sequence).ThenBy(x=>x.AlternativePriority).ToListAsync(ct);
+                    var materialAllocations=await db.Set<ManufacturingOrderMaterialAllocation>().AsNoTracking()
+                        .Where(x=>x.OrderId==o.Id).ToListAsync(ct);
+                    var materialUsage=await db.Set<ManufacturingOrderMaterialUsage>().AsNoTracking()
+                        .Where(x=>x.OrderId==o.Id).OrderBy(x=>x.OccurredUtc).ThenBy(x=>x.Id).ToListAsync(ct);
+                    var materialItemIds=bomLines.Select(x=>x.ComponentItemId)
+                        .Concat(materialUsage.Select(x=>x.ComponentItemId)).Distinct().ToArray();
+                    var materialItems=await db.Items.AsNoTracking().Where(x=>materialItemIds.Contains(x.Id))
+                        .ToDictionaryAsync(x=>x.Id,ct);
+                    var allocationByLine=materialAllocations.ToDictionary(x=>x.BomLineId);
+                    var usageByLine=materialUsage.GroupBy(x=>x.BomLineId)
+                        .ToDictionary(x=>x.Key,x=>x.Sum(y=>y.Quantity));
                     var ids=o.Operations.Select(x=>x.WorkCenterId).Distinct().ToArray();
                     var centers=await db.WorkCenters.AsNoTracking().Where(x=>ids.Contains(x.Id))
                         .ToDictionaryAsync(x=>x.Id,ct);
@@ -107,6 +121,37 @@ public static class FactoryPrintDocuments
                                 Stamp(x.c.OccurredUtc)
                             }).ToArray(),
                             "این ارقام تأییدهای عملیاتی ثبت‌شده هستند، نه موجودی انبار."),
+                        new("مواد اجباری و ترکیب آلترناتیوهای دستور",
+                            ["ردیف","گروه","کد قطعه","شرح قطعه","واحد","مصرف/محصول","ضایعات ٪","سهم تولید ٪","مقدار برنامه","مصرف واقعی"],
+                            bomLines.Select(line=>{
+                                var alternative=!string.IsNullOrWhiteSpace(line.AlternativeGroupCode);
+                                var allocation=allocationByLine.GetValueOrDefault(line.Id);
+                                var groupLines=alternative?bomLines.Where(x=>string.Equals(
+                                    x.AlternativeGroupCode,line.AlternativeGroupCode,StringComparison.OrdinalIgnoreCase)).ToArray():Array.Empty<ManufacturingBomLine>();
+                                var hasExplicit=alternative&&materialAllocations.Any(x=>groupLines.Any(g=>g.Id==x.BomLineId));
+                                var share=alternative?(allocation?.SharePercent??(hasExplicit?0m:line.IsDefaultAlternative?100m:0m)):0m;
+                                var planned=alternative?(allocation?.PlannedQuantity??(!hasExplicit&&line.IsDefaultAlternative
+                                    ?BomAlternativeExecution.CalculatePlannedComponentQuantity(o.PlannedQuantity,line):0m))
+                                    :BomAlternativeExecution.CalculatePlannedComponentQuantity(o.PlannedQuantity,line);
+                                return new[]{
+                                    line.Sequence.ToString(),alternative?Value(line.AlternativeGroupCode):"اجباری",
+                                    Value(materialItems.GetValueOrDefault(line.ComponentItemId)?.Code),
+                                    Value(materialItems.GetValueOrDefault(line.ComponentItemId)?.Name),
+                                    Value(materialItems.GetValueOrDefault(line.ComponentItemId)?.Unit),
+                                    Qty(line.QuantityPer),Qty(line.ScrapPercent),
+                                    alternative?Qty(share):"—",Qty(planned),Qty(usageByLine.GetValueOrDefault(line.Id))
+                                };
+                            }).ToArray(),
+                            "سهم آلترناتیو درصدی از مقدار تولید برنامه‌ریزی‌شده است؛ قطعات هر گروه هم‌نیاز و غیرتجمعی‌اند. این گزارش تراکنش انبار نیست."),
+                        new("سوابق شارژ و مصرف واقعی مواد",
+                            ["تاریخ / ساعت","گروه","کد قطعه","مقدار","بچ قطعه","ثبت‌کننده","شرح / علت"],
+                            materialUsage.Select(x=>new[]{
+                                Stamp(x.OccurredUtc),
+                                Value(bomLines.SingleOrDefault(l=>l.Id==x.BomLineId)?.AlternativeGroupCode) is var g&&g!="—"?g:"اجباری",
+                                Value(materialItems.GetValueOrDefault(x.ComponentItemId)?.Code),
+                                Qty(x.Quantity),Value(x.LotCode),Value(x.RecordedBy),Value(x.Note)
+                            }).ToArray(),
+                            "مصرف واقعی داخلی IPPCS با شناسه بچ و ثبت‌کننده؛ بدون ثبت حواله یا کاهش موجودی انبار."),
                         new("کنترل‌های بازرسی نسخه منجمد دستور",
                             ["عملیات","مشخصه","شرح","حداقل","حداکثر","واحد","اجباری","آخرین وضعیت"],
                             requirements.Select(x=>new[]{
@@ -178,16 +223,19 @@ public static class FactoryPrintDocuments
                             new("نسخه BOM",b.Revision),new("شروع اعتبار",F(b.ValidFrom)),
                             new("پایان اعتبار",F(b.ValidUntil)??"نامحدود")
                         ],[
-                            new("اجزاء ساختار مصوب / پیش‌نویس",
-                                ["ردیف","کد جزء","شرح جزء","واحد","مصرف پایه","ضایعات استاندارد ٪"],
-                                b.Lines.OrderBy(x=>x.Sequence).Select(x=>new[]{
+                            new("اجزاء اجباری و گزینه‌های جایگزین BOM",
+                                ["ردیف","گروه آلترناتیو","کد جزء","شرح جزء","واحد","مصرف پایه","ضایعات استاندارد ٪","پیش‌فرض","اولویت"],
+                                b.Lines.OrderBy(x=>x.Sequence).ThenBy(x=>x.AlternativePriority).Select(x=>new[]{
                                     x.Sequence.ToString(),
+                                    string.IsNullOrWhiteSpace(x.AlternativeGroupCode)?"اجباری":x.AlternativeGroupCode,
                                     Value(items.GetValueOrDefault(x.ComponentItemId)?.Code),
                                     Value(items.GetValueOrDefault(x.ComponentItemId)?.Name),
                                     Value(items.GetValueOrDefault(x.ComponentItemId)?.Unit),
-                                    Qty(x.QuantityPer),Qty(x.ScrapPercent)
+                                    Qty(x.QuantityPer),Qty(x.ScrapPercent),
+                                    string.IsNullOrWhiteSpace(x.AlternativeGroupCode)?"—":x.IsDefaultAlternative?"بله":"خیر",
+                                    string.IsNullOrWhiteSpace(x.AlternativeGroupCode)?"—":x.AlternativePriority.ToString()
                                 }).ToArray(),
-                                "مقادیر مربوط به ساختار مهندسی است و سند برداشت یا حواله انبار نیست.")
+                                "گزینه‌های یک گروه آلترناتیو نیازهای جایگزین یکدیگرند و هم‌زمان به صورت تجمعی محاسبه نمی‌شوند. این سند حواله انبار نیست.")
                         ]);
                     break;
                 }
