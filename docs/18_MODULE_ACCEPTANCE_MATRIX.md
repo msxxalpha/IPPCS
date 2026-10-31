@@ -202,3 +202,11 @@ These rows are implementation evidence, **not an attestation of successfully run
 - The response identifies the MRP run, MPS version, calculation time and algorithm. Unsupported algorithms, mismatched MPS identity, missing snapshots and invalid/tampered graph evidence fail closed.
 - Added tests for saved-run reconstruction and unsupported/mismatched snapshots.
 - This is a planning evidence improvement only: it does not create manufacturing orders, purchase orders, inventory reservations or capacity reservations. Factory acceptance remains pending.
+
+
+## Stage 66 — saved MRP runs in the planning workbench
+
+- Added a history endpoint for the latest 50 saved MRP calculations per MPS version.
+- The BOM/MPS/MRP workbench now lets the planner select a historical saved run and review its net demand, planned lots and supply allocations from the immutable snapshot introduced in Stage 65.
+- A newly calculated MRP run is selected automatically; switching the MPS version refreshes the run list. The review no longer silently recalculates against today's edited planning inputs.
+- The result remains a planning simulation. Conversion to released orders, stock reservation and warehouse transactions are intentionally separate approval steps.
