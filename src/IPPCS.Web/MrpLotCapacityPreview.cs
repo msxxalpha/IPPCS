@@ -312,6 +312,85 @@ public static class MrpLotCapacityPreview
                 ArgumentOutOfRangeException or ArgumentException)
             {return Results.UnprocessableEntity(new{message=ex.Message});}
         });
+        api.MapGet("/mrp/runs/{runId:guid}/lot-capacity-preview",async(Guid runId,
+            int? horizonDays,decimal? capacityMultiplier,ProductionDb db,CancellationToken ct)=>{
+            var days=horizonDays??30;
+            var factor=capacityMultiplier??1m;
+            if(days is <1 or >90||factor<=0m||factor>2m)
+                return Results.BadRequest(new{message="افق ۱ تا ۹۰ روز و ضریب ظرفیت ۰ تا ۲ معتبر لازم است."});
+            var run=await db.PlanningCalculations.AsNoTracking()
+                .SingleOrDefaultAsync(x=>x.Id==runId,ct);
+            if(run is null)return Results.NotFound();
+            if(!NetMrpDemandPegging.TryRestoreRunSnapshot(run,out var snapshot,out var error)
+                ||snapshot is null)
+                return Results.Conflict(new{message=error});
+            var balances=snapshot.Balances;
+            if(balances.Count==0)
+                return Results.UnprocessableEntity(new{message="مبنای موجودی در تصویر اجرای MRP وجود ندارد."});
+            var start=balances[0].SnapshotDate;
+            if(balances.Any(x=>x.SnapshotDate!=start))
+                return Results.Conflict(new{message="تاریخ مبنای موجودی‌های تصویر MRP یکسان نیست."});
+            if(snapshot.Mps.Lines.Any(x=>x.NeededOn<start))
+                return Results.Conflict(new{message="موعد MPS در تصویر اجرای MRP پیش از مبنای موجودی است."});
+            var routings=await db.RoutingRevisions.AsNoTracking().Include(x=>x.Operations)
+                .Where(x=>x.State==RoutingState.Approved).ToListAsync(ct);
+            var productCapacityRates=await WorkCenterProductCapacityRules.LoadActiveRates(db,ct);
+            var productCapacityEvidence=WorkCenterProductCapacityRules.BuildEvidence(routings,productCapacityRates);
+            WorkCenterProductCapacityRules.ApplyToRoutes(routings,productCapacityRates);
+            var shifts=await db.WorkShifts.AsNoTracking().ToListAsync(ct);
+            var auditClocks=await db.ManufacturingOrderAudits.AsNoTracking()
+                .Where(x=>x.Action==FactoryOperationClock.Started||
+                    x.Action==FactoryOperationClock.Stopped||
+                    x.Action==FactoryCapacityReservations.Reserved||
+                    x.Action==FactoryCapacityReservations.Cancelled).ToListAsync(ct);
+            var existing=await db.ManufacturingOrders.AsNoTracking().Include(x=>x.Operations)
+                .Where(x=>x.Status==ManufacturingOrderStatus.Released||
+                    x.Status==ManufacturingOrderStatus.InProgress||
+                    x.Status==ManufacturingOrderStatus.OnHold).ToListAsync(ct);
+            try
+            {
+                var graph=NetMrpDemandPegging.Build(snapshot.Mps.Lines,snapshot.Boms,
+                    snapshot.Balances,snapshot.Receipts,snapshot.Types,snapshot.MrpRows);
+                var sessions=FactoryOperationClock.Read(auditClocks);
+                var reservations=FactoryCapacityReservations.Read(auditClocks);
+                var report=Evaluate(graph,routings,shifts,start,days,factor,
+                    existing,sessions,reservations);
+                var usedRoutingRevisionIds=report.Lots.Where(x=>x.RoutingRevisionId.HasValue)
+                    .Select(x=>x.RoutingRevisionId!.Value).ToHashSet();
+                var usedEvidence=productCapacityEvidence
+                    .Where(x=>usedRoutingRevisionIds.Contains(x.RoutingRevisionId)).ToArray();
+                return Results.Ok(new{
+                    kind="SavedMrpRunCurrentCapacityPreview",runId=run.Id,
+                    mpsVersionId=run.MpsVersionId,calculatedUtc=run.CalculatedUtc,
+                    mrpAlgorithm=run.AlgorithmVersion,capacityEvidenceAsOfUtc=DateTime.UtcNow,
+                    productCapacityEvidence=usedEvidence,
+                    baselineJalali=PersianPlanningDates.Format(start),horizonDays=days,
+                    capacityMultiplier=factor,report.OnTimeLots,report.LateLots,report.BlockedLots,
+                    disclaimer="نیازها، BOM، موجودی مبنا، دریافت‌ها و پیشنهادهای این پیش‌نمایش دقیقاً از اجرای ذخیره‌شده MRP خوانده شده‌اند. مسیرهای مصوب، ظرفیت محصول‌محور، شیفت‌ها، رزروها و ساعت‌های واقعی از وضعیت جاری هنگام محاسبه ظرفیت خوانده می‌شوند؛ بنابراین این گزارش ترکیب تصویر ثابت MRP و شواهد ظرفیت جاری است، نه تصویر تاریخی کامل ظرفیت. نتیجه پیش‌نمایش مجوز آزادسازی یا رزرو جدید نیست.",
+                    lots=report.Lots.Select(x=>new{x.LotKey,x.ItemId,x.Quantity,
+                        proposedReleaseJalali=PersianPlanningDates.Format(x.ProposedRelease),
+                        receiptDueJalali=PersianPlanningDates.Format(x.ReceiptDue),
+                        x.RoutingRevisionId,x.OperationsRequired,x.OperationsScheduled,
+                        x.Status,x.Reason,x.Late}),
+                    allocations=report.Allocations.Select(x=>new{x.ItemId,x.WorkCenterId,
+                        x.Sequence,x.Quantity,x.OperationName,x.DurationMinutes,x.Late,
+                        lotKey=report.Lots.Single(l=>TaskId(l.LotKey)==x.DemandLineId).LotKey,
+                        startJalali=PersianPlanningDates.Format(x.StartDate),
+                        startTime=x.StartsAt.ToString("HH:mm"),
+                        finishJalali=PersianPlanningDates.Format(x.FinishDate),
+                        finishTime=x.FinishesAt.ToString("HH:mm")}),
+                    report.Unscheduled,
+                    activeCapacityReservations=reservations.Count(x=>existing.Any(o=>
+                        o.Id==x.OrderId&&o.Operations.Any(op=>op.Id==x.OperationId&&!op.IsComplete))),
+                    recordedOperationClockSessions=sessions.Count,
+                    runningOperationClockSessions=sessions.Count(x=>x.StoppedUtc is null),
+                    conservativelyBlockedActiveOrders=existing.Count(x=>x.Operations.Any(op=>!op.IsComplete))
+                });
+            }
+            catch(Exception ex)when(ex is InvalidOperationException or OverflowException or
+                ArgumentOutOfRangeException or ArgumentException)
+            {return Results.UnprocessableEntity(new{message=ex.Message});}
+        });
         return routes;
     }
 }
