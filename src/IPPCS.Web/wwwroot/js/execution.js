@@ -187,7 +187,7 @@ async function boot(){
   }
   for(const group of materialSnapshot.groups){
    const panel=document.createElement("div");panel.className="panel";panel.dataset.materialGroup=group.groupCode;
-   const title=document.createElement("h4");title.textContent="گروه "+group.groupCode+" — سهم‌ها باید جمعاً ۱۰۰٪ باشند";panel.append(title);
+   const title=document.createElement("h4");title.textContent="گروه "+group.groupCode+" — سهم از مقدار برنامه تولید (مجموع ۱۰۰٪)";panel.append(title);
    const tbl=document.createElement("table"),thead=document.createElement("thead"),trh=document.createElement("tr");
    for(const label of ["قطعه","پیش‌فرض","ضریب مصرف","اولویت","سهم انتخابی (%)","مقدار برنامه"]){const th=document.createElement("th");th.textContent=label;trh.append(th);}
    thead.append(trh);tbl.append(thead);const tbody=document.createElement("tbody");
@@ -242,20 +242,21 @@ async function boot(){
   try{
    if(!materialSnapshot)await loadMaterialOptions();
    const id=$("#material-order").value;
+   const groups=[];
    for(const panel of $("#material-options-container [data-material-group]")){
-    if(panel.dataset.materialLocked==="true")continue;
     const groupCode=panel.dataset.materialGroup;
     const shares=Array.from(panel.querySelectorAll("[data-material-share]"))
       .map(el=>({bomLineId:el.dataset.lineId,sharePercent:Number(el.value)}));
-    if(shares.some(x=>!Number.isFinite(x.sharePercent)||x.sharePercent<0||x.sharePercent>100))
-     throw Error("سهم هر قطعه باید بین صفر و ۱۰۰ باشد.");
     const active=shares.filter(x=>x.sharePercent>0);
+    if(active.some(x=>!Number.isFinite(x.sharePercent)||x.sharePercent>100))
+     throw Error("سهم هر قطعه باید بین صفر و ۱۰۰ باشد.");
     if(active.length===0)throw Error("برای گروه "+groupCode+" حداقل یک قطعه انتخاب کنید.");
-    if(active.reduce((sum,x)=>sum+x.sharePercent,0)!==100)
+    if(Math.abs(active.reduce((sum,x)=>sum+x.sharePercent,0)-100)>0.000001)
      throw Error("مجموع سهم گروه "+groupCode+" باید دقیقاً ۱۰۰٪ باشد.");
-    await request("/manufacturing-orders/"+id+"/material-options/"+encodeURIComponent(groupCode),"POST",{shares:active});
+    groups.push({groupCode,shares:active});
    }
-   flash("ترکیب آلترناتیوها برای دستور ذخیره شد.");await loadMaterialOptions();
+   await request("/manufacturing-orders/"+id+"/material-options","POST",{groups});
+   flash("ترکیب تمام گروه‌های آلترناتیو به صورت یکجا ذخیره شد.");await loadMaterialOptions();
   }catch(e){flash(e.message,true);}
  };
  register("#material-usage-form",async f=>{
