@@ -103,6 +103,7 @@ namespace IPPCS.Web.Migrations.CI
                 table: "ManufacturingOrderMaterialAllocations",
                 columns: new[] { "OrderId", "BomLineId" },
                 unique: true);
+        }
 
         protected override void Down(MigrationBuilder migrationBuilder)
         {
