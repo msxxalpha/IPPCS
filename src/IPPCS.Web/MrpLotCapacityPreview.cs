@@ -216,6 +216,7 @@ public static class MrpLotCapacityPreview
             var routings=await db.RoutingRevisions.AsNoTracking().Include(x=>x.Operations)
                 .Where(x=>x.State==RoutingState.Approved).ToListAsync(ct);
             var productCapacityRates=await WorkCenterProductCapacityRules.LoadActiveRates(db,ct);
+            var productCapacityEvidence=WorkCenterProductCapacityRules.BuildEvidence(routings,productCapacityRates);
             WorkCenterProductCapacityRules.ApplyToRoutes(routings,productCapacityRates);
             var shifts=await db.WorkShifts.AsNoTracking().ToListAsync(ct);
             var auditClocks=await db.ManufacturingOrderAudits.AsNoTracking()
@@ -236,8 +237,14 @@ public static class MrpLotCapacityPreview
                 var reservations=FactoryCapacityReservations.Read(auditClocks);
                 var report=Evaluate(graph,routings,shifts,start,days,factor,
                     existing,sessions,reservations);
+                var usedRoutingRevisionIds=report.Lots
+                    .Where(x=>x.RoutingRevisionId.HasValue)
+                    .Select(x=>x.RoutingRevisionId!.Value).ToHashSet();
+                var usedProductCapacityEvidence=productCapacityEvidence
+                    .Where(x=>usedRoutingRevisionIds.Contains(x.RoutingRevisionId)).ToArray();
                 return Results.Ok(new{
-                    kind="UnconfirmedNetMrpBatchCapacityPreview",algorithm="MRP-CRP-PREVIEW-4",
+                    kind="UnconfirmedNetMrpBatchCapacityPreview",algorithm="MRP-CRP-PREVIEW-5",
+                    productCapacityEvidence=usedProductCapacityEvidence,
                     baselineJalali=PersianPlanningDates.Format(start),horizonDays=days,
                     capacityMultiplier=factor,report.OnTimeLots,report.LateLots,report.BlockedLots,
                     disclaimer="پیش‌نمایش ظرفیت: رزروهای قطعی داخلی بازه‌های زمانی مرکز کاری، زمان‌های واقعی ثبت‌شده و ساعت‌های باز لحاظ می‌شوند. برای عملیات بدون رزرو و ساعت باز، ظرفیت به‌طور محافظه‌کارانه بسته است. رزرو به معنای تکمیل واقعی یا موجودی قطعی نیست؛ نتیجه مجوز آزادسازی نیست.",
