@@ -44,6 +44,11 @@ namespace IPPCS.Web.Migrations.CI
                 nullable: false,
                 defaultValue: false);
 
+            migrationBuilder.AddCheckConstraint(
+                name: "CK_ManufacturingBomLines_AlternativePriority_Positive",
+                table: "ManufacturingBomLines",
+                sql: "[AlternativePriority] >= 1");
+
             migrationBuilder.CreateTable(
                 name: "ManufacturingOrderMaterialAllocations",
                 columns: table => new
@@ -58,6 +63,10 @@ namespace IPPCS.Web.Migrations.CI
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_ManufacturingOrderMaterialAllocations", x => x.Id);
+                    table.CheckConstraint("CK_ManufacturingOrderMaterialAllocations_SharePercent",
+                        "[SharePercent] > 0 AND [SharePercent] <= 100");
+                    table.CheckConstraint("CK_ManufacturingOrderMaterialAllocations_PlannedQuantity",
+                        "[PlannedQuantity] > 0");
                     table.ForeignKey(
                         name: "FK_ManufacturingOrderMaterialAllocations_ManufacturingBomLines_BomLineId",
                         column: x => x.BomLineId,
@@ -89,6 +98,8 @@ namespace IPPCS.Web.Migrations.CI
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_ManufacturingOrderMaterialUsages", x => x.Id);
+                    table.CheckConstraint("CK_ManufacturingOrderMaterialUsages_Quantity_Positive",
+                        "[Quantity] > 0");
                     table.ForeignKey(
                         name: "FK_ManufacturingOrderMaterialUsages_ManufacturingBomLines_BomLineId",
                         column: x => x.BomLineId,
@@ -104,10 +115,24 @@ namespace IPPCS.Web.Migrations.CI
                     table.ForeignKey(
                         name: "FK_ManufacturingOrderMaterialUsages_PlanningItems_ComponentItemId",
                         column: x => x.ComponentItemId,
-                        principalTable: "PlanningItems",
+                        principalTable: "Items",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
                 });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ManufacturingBomLines_RevisionId_AlternativeGroupCode_AlternativePriority",
+                table: "ManufacturingBomLines",
+                columns: new[] { "RevisionId", "AlternativeGroupCode", "AlternativePriority" },
+                unique: true,
+                filter: "[AlternativeGroupCode] IS NOT NULL");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ManufacturingBomLines_RevisionId_AlternativeGroupCode",
+                table: "ManufacturingBomLines",
+                columns: new[] { "RevisionId", "AlternativeGroupCode" },
+                unique: true,
+                filter: "[AlternativeGroupCode] IS NOT NULL AND [IsDefaultAlternative] = 1");
 
             migrationBuilder.CreateIndex(
                 name: "IX_ManufacturingOrderMaterialAllocations_BomLineId",
@@ -140,6 +165,15 @@ namespace IPPCS.Web.Migrations.CI
         {
             migrationBuilder.DropTable(name: "ManufacturingOrderMaterialAllocations");
             migrationBuilder.DropTable(name: "ManufacturingOrderMaterialUsages");
+            migrationBuilder.DropIndex(
+                name: "IX_ManufacturingBomLines_RevisionId_AlternativeGroupCode_AlternativePriority",
+                table: "ManufacturingBomLines");
+            migrationBuilder.DropIndex(
+                name: "IX_ManufacturingBomLines_RevisionId_AlternativeGroupCode",
+                table: "ManufacturingBomLines");
+            migrationBuilder.DropCheckConstraint(
+                name: "CK_ManufacturingBomLines_AlternativePriority_Positive",
+                table: "ManufacturingBomLines");
             migrationBuilder.DropColumn(name: "AlternativeGroupCode", table: "ManufacturingBomLines");
             migrationBuilder.DropColumn(name: "AlternativePriority", table: "ManufacturingBomLines");
             migrationBuilder.DropColumn(name: "IsDefaultAlternative", table: "ManufacturingBomLines");
