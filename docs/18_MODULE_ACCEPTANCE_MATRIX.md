@@ -193,3 +193,12 @@ These rows are implementation evidence, **not an attestation of successfully run
 - Updated the first-UAT pack and Visual Studio first-run guide to distinguish controlled IIS UAT from permanent production operation.
 - IIS UAT is permitted only on an isolated site with HTTPS, a dedicated IPPCS UAT database, least-privilege SQL identity, one-time administrator bootstrap and explicit test records. The complete runbook is `docs/FACTORY_OPERATIONAL_TEST_SETUP.md`.
 - No branch merge or production release is authorized by these documentation changes. The fixed UAT branch/package must be created from a single commit only after all CI jobs on that exact commit pass.
+
+
+## Stage 65 — immutable MRP run traceability
+
+- Added `GET /api/v1/mrp/runs/{runId}/net-demand-pegging`.
+- The endpoint reconstructs the net-MRP demand/allocation/lot graph from the exact input and result JSON saved by that MRP calculation. It does not recalculate from mutable live BOM, planning balances, expected receipts or item types.
+- The response identifies the MRP run, MPS version, calculation time and algorithm. Unsupported algorithms, mismatched MPS identity, missing snapshots and invalid/tampered graph evidence fail closed.
+- Added tests for saved-run reconstruction and unsupported/mismatched snapshots.
+- This is a planning evidence improvement only: it does not create manufacturing orders, purchase orders, inventory reservations or capacity reservations. Factory acceptance remains pending.
