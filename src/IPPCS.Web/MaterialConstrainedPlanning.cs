@@ -67,7 +67,7 @@ public static class MaterialConstrainedPlanning
                     structureValid=false;
                     stack.Remove(item);return;
                 }
-                foreach(var component in found[0].Lines)
+                foreach(var component in PlanningCalculators.EffectiveDemandLines(found[0]))
                 {
                     if(component.QuantityPer<=0||component.ScrapPercent is <0 or >=100)
                     {
