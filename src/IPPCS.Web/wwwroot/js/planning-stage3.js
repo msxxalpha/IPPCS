@@ -305,8 +305,8 @@ function boot(){
   }catch(e){alertText(e.message,true);}finally{btn.disabled=false;}
  };
  $("#lot-capacity-run").onclick=async()=>{
-  const id=$("#calculate-mps").value;
-  if(!id){alertText("نسخه تأییدشده MPS را انتخاب کنید.",true);return;}
+  const runId=$("#mrp-run-history").value;
+  if(!runId){alertText("ابتدا اجرای ذخیره‌شده MRP را انتخاب کنید.",true);return;}
   const days=Number(IPPCSJalali.toLatin($("#lot-capacity-days").value));
   const factor=Number(IPPCSJalali.toLatin($("#lot-capacity-multiplier").value));
   if(!Number.isInteger(days)||days<1||days>90||!Number.isFinite(factor)||factor<=0||factor>2){
@@ -314,7 +314,7 @@ function boot(){
   }
   const button=$("#lot-capacity-run");button.disabled=true;
   try{
-   const result=await call("/mrp/"+id+"/lot-capacity-preview?horizonDays="+days+"&capacityMultiplier="+factor);
+   const result=await call("/mrp/runs/"+runId+"/lot-capacity-preview?horizonDays="+days+"&capacityMultiplier="+factor);
    const summary=$("#lot-capacity-summary");
    summary.hidden=false;
    summary.textContent="مبنای شمسی: "+result.baselineJalali+
@@ -342,7 +342,7 @@ function boot(){
    table("#lot-capacity-unscheduled",[
     ["کالا",x=>name(x.itemId)],["مرحله","sequence"],["علت","reason"]
    ],result.unscheduled);
-   alertText(result.disclaimer);
+   alertText("اجرای مبنا: "+result.runId+" | "+result.disclaimer);
   }catch(e){alertText(e.message,true);}finally{button.disabled=false;}
  };
  $("#net-pegging-run").onclick=async()=>{
