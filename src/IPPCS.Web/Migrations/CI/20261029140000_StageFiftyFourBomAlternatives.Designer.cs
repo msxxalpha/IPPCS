@@ -958,6 +958,12 @@ namespace IPPCS.Web.Migrations.CI
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
 
+                    b.Property<string>("RecordedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)")
+                        .HasDefaultValue("unknown");
+
                     b.Property<DateTime>("OccurredUtc")
                         .HasColumnType("datetime2");
 
