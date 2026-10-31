@@ -63,7 +63,7 @@ public sealed class FactoryStageFifteenTests
             QuantityConsumed=4,Reference=FactoryLineSideCorrections.LotReference(
                 confirmation.Id,"traceable")};
         var row=Assert.Single(FactoryLineSideCorrections.LotBalances(
-            confirmation,bom,FactoryLineSideCorrections.Ledger([entry])));
+            confirmation,bom,FactoryLineSideCorrections.Ledger([entry]),[]));
         Assert.Equal(6,row.StandardForReportedLot);
         Assert.Equal(4,row.RecordedNetQuantity);
         Assert.Equal(-2,row.Variance);
@@ -71,7 +71,7 @@ public sealed class FactoryStageFifteenTests
         Assert.Throws<InvalidOperationException>(()=>
             FactoryLineSideCorrections.LotBalances(confirmation,[
                 new ManufacturingBomLine{ComponentItemId=part,QuantityPer=1,ScrapPercent=100}
-            ],[]));
+            ],[],[]));
     }
 
     [Fact]
