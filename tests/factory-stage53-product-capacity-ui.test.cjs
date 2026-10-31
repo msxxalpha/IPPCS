@@ -65,6 +65,9 @@ test("S&OP, finite APS and MPS revision impact use the same active product rates
 test("net MRP lot capacity preview applies product overrides and cumulative downstream yields",()=>{
  assert.match(mrpCapacity,/WorkCenterProductCapacityRules\.LoadActiveRates\(db,ct\)/);
  assert.match(mrpCapacity,/WorkCenterProductCapacityRules\.ApplyToRoutes\(routings,productCapacityRates\)/);
+ assert.match(mrpCapacity,/WorkCenterProductCapacityRules\\.BuildEvidence\\(routings,productCapacityRates\\)/);
+ assert.match(mrpCapacity,/productCapacityEvidence=usedProductCapacityEvidence/);
+ assert.match(mrpCapacity,/algorithm="MRP-CRP-PREVIEW-5"/);
  assert.match(mrpCapacity,/cumulativeYield\*=ops\[j\]\.YieldPercent\/100m/);
  assert.match(mrpCapacity,/quantities\[i\]=lot\.Quantity\/cumulativeYield/);
  assert.match(mrpCapacity,/new ApsTask\(taskId,lot\.ItemId,lot\.ReceiptOn,quantities\[i\]/);
