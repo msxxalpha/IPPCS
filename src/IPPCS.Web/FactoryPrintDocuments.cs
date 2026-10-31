@@ -145,11 +145,14 @@ public static class FactoryPrintDocuments
                             "سهم آلترناتیو درصدی از مقدار تولید برنامه‌ریزی‌شده است؛ قطعات هر گروه هم‌نیاز و غیرتجمعی‌اند. این گزارش تراکنش انبار نیست."),
                         new("سوابق شارژ و مصرف واقعی مواد",
                             ["تاریخ / ساعت","گروه","کد قطعه","مقدار","بچ قطعه","ثبت‌کننده","شرح / علت"],
-                            materialUsage.Select(x=>new[]{
-                                Stamp(x.OccurredUtc),
-                                Value(bomLines.SingleOrDefault(l=>l.Id==x.BomLineId)?.AlternativeGroupCode) is var g&&g!="—"?g:"اجباری",
-                                Value(materialItems.GetValueOrDefault(x.ComponentItemId)?.Code),
-                                Qty(x.Quantity),Value(x.LotCode),Value(x.RecordedBy),Value(x.Note)
+                            materialUsage.Select(x=>{
+                                var groupCode=bomLines.SingleOrDefault(l=>l.Id==x.BomLineId)?.AlternativeGroupCode;
+                                return new[]{
+                                    Stamp(x.OccurredUtc),
+                                    string.IsNullOrWhiteSpace(groupCode)?"اجباری":groupCode,
+                                    Value(materialItems.GetValueOrDefault(x.ComponentItemId)?.Code),
+                                    Qty(x.Quantity),Value(x.LotCode),Value(x.RecordedBy),Value(x.Note)
+                                };
                             }).ToArray(),
                             "مصرف واقعی داخلی IPPCS با شناسه بچ و ثبت‌کننده؛ بدون ثبت حواله یا کاهش موجودی انبار."),
                         new("کنترل‌های بازرسی نسخه منجمد دستور",
@@ -227,7 +230,7 @@ public static class FactoryPrintDocuments
                                 ["ردیف","گروه آلترناتیو","کد جزء","شرح جزء","واحد","مصرف پایه","ضایعات استاندارد ٪","پیش‌فرض","اولویت"],
                                 b.Lines.OrderBy(x=>x.Sequence).ThenBy(x=>x.AlternativePriority).Select(x=>new[]{
                                     x.Sequence.ToString(),
-                                    string.IsNullOrWhiteSpace(x.AlternativeGroupCode)?"اجباری":x.AlternativeGroupCode,
+                                    string.IsNullOrWhiteSpace(x.AlternativeGroupCode)?"اجباری":Value(x.AlternativeGroupCode),
                                     Value(items.GetValueOrDefault(x.ComponentItemId)?.Code),
                                     Value(items.GetValueOrDefault(x.ComponentItemId)?.Name),
                                     Value(items.GetValueOrDefault(x.ComponentItemId)?.Unit),
