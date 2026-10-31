@@ -153,3 +153,11 @@ These rows are implementation evidence, **not an attestation of successfully run
 - Regression tests cover duplicate and blank lot identities, duplicate demand keys, orphan/nonpositive allocations, and null preview inputs.
 - No schema migration, material reservation, work-order creation or external ERP integration. Product-specific routing rates, setup/yield calculations and finite capacity behavior are unchanged.
 - This is input-integrity hardening for the MRP-to-CRP/APS preview, not a claim of full MRP/CRP/APS or factory acceptance. Verify the exact latest commit's build, unit tests and disposable SQL workflow before calling it green.
+
+
+## Stage 60 — MRP pegging provenance and quantity integrity (implementation committed; CI pending)
+- Module 05 / 06 / 07: the MRP-to-capacity preview now verifies every allocation against its originating demand: item identity and need date must match, supply availability cannot be later than the demand date, source type must be recognized, and total pegged quantity cannot exceed gross demand.
+- Proposed manufacturing/external receipts must resolve to an existing planned lot with matching item and receipt date; proposal type must agree with source type. This prevents a malformed graph from scheduling a parent lot against an unrelated or future component receipt.
+- Regression tests cover item/date mismatches, late supply, over-allocation and proposed-lot provenance mismatch.
+- No database schema changes and no physical reservation/order creation. Existing product-specific run rates, setup/yield calculations and finite scheduling behavior are unchanged.
+- This is a read-only planning integrity control, not factory acceptance. Validate the exact-head build, unit tests and SQL Server workflow before marking this stage green.
