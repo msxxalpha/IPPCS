@@ -136,6 +136,11 @@ public static class BomAlternativeExecution
             var lines = await db.ManufacturingBomLines.AsNoTracking()
                 .Where(x => x.RevisionId == order.BomRevisionId && x.AlternativeGroupCode != null)
                 .ToListAsync(ct);
+            var usageRecords = await db.FactoryMaterialUsages.AsNoTracking()
+                .Where(x => x.OrderId == id).ToListAsync(ct);
+            IReadOnlyList<FactoryConsumptionLedgerRow> usageLedger;
+            try { usageLedger = FactoryLineSideCorrections.Ledger(usageRecords); }
+            catch (InvalidOperationException ex) { return Results.Conflict(new { message = ex.Message }); }
             var groupMap = lines.GroupBy(x => x.AlternativeGroupCode!, StringComparer.OrdinalIgnoreCase)
                 .ToDictionary(x => x.Key, x => x.ToList(), StringComparer.OrdinalIgnoreCase);
             if (groupMap.Count != input.Groups.Count ||
