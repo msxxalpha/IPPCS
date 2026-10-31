@@ -176,3 +176,13 @@ These rows are implementation evidence, **not an attestation of successfully run
 - The Stage 61 CI run confirmed SQL Server schema acceptance, but the .NET test job failed in the cyclic-lot-dependency test because its synthetic graph assigned each proposed receipt to the wrong component item. The stricter Stage 60 source-to-lot consistency validation correctly rejected that malformed fixture before the cycle detector ran.
 - Corrected the fixture so each parent demand references the other lot's actual item, preserving the intended two-node dependency cycle. The regression now exercises cycle rejection after the graph passes source identity, item and receipt-date validation.
 - No production scheduling behavior or database schema changed in this correction. CI must pass on the new commit before this regression can be marked verified.
+
+
+## Stage 63 — controlled non-Development IIS UAT hosting
+
+- Removed the unconditional non-Development startup abort after verifying the existing ASP.NET Core Identity authentication, role policies, login lockout/rate limit, CSRF validation and local account-management workflow.
+- Production authentication cookies now require HTTPS (`SecurePolicy.Always`); HSTS is enabled outside Development; Swagger remains Development-only. HTTPS redirection remains enabled.
+- Added an explicit one-time production bootstrap gate. It requires `Bootstrap:EnableInitialAdmin=true` plus configured credentials, waits until all EF migrations are applied, and refuses to promote any account if an Administrator already exists. The operator must remove bootstrap settings after first login.
+- Added unit coverage for the one-time admin gate and environment-specific secure-cookie policy. No database schema or external integration changed.
+- Added `docs/FACTORY_OPERATIONAL_TEST_SETUP.md` with isolated SQL Server, IIS/.NET 10 Hosting Bundle, HTTPS, least-privilege database identity, bootstrap, smoke checks and factory UAT instructions.
+- This makes controlled IIS/UAT deployment possible; it does **not** establish production security certification, backup/restore acceptance, load testing, or factory acceptance. Keep the PR Draft and Factory Accepted at zero until those gates pass.
