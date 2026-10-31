@@ -307,6 +307,16 @@ public static class NetMrpDemandPegging
     {
         var api = routes.MapGroup("/api/v1").RequireAuthorization("IpProductionUser");
 
+        api.MapGet("/mrp/{id:guid}/runs",async(Guid id,ProductionDb db,CancellationToken ct)=>{
+            if(!await db.MpsVersions.AsNoTracking().AnyAsync(x=>x.Id==id,ct))
+                return Results.NotFound();
+            var runs=await db.PlanningCalculations.AsNoTracking()
+                .Where(x=>x.MpsVersionId==id&&x.AlgorithmVersion=="MRP-PREVIEW-1")
+                .OrderByDescending(x=>x.CalculatedUtc).Take(50)
+                .Select(x=>new{x.Id,x.MpsVersionId,x.CalculatedUtc,x.AlgorithmVersion})
+                .ToListAsync(ct);
+            return Results.Ok(runs);
+        });
         api.MapGet("/mrp/runs/{runId:guid}/net-demand-pegging",
             async(Guid runId,ProductionDb db,CancellationToken ct)=>{
             var run=await db.PlanningCalculations.AsNoTracking()
