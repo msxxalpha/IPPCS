@@ -1,4 +1,5 @@
 using Xunit;
+using System.Text.Json;
 
 public sealed class NetMrpDemandPeggingTests
 {
