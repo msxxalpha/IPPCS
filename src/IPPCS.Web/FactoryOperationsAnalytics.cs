@@ -20,7 +20,7 @@ public sealed class FactoryCenterCostRate
     public DateOnly EffectiveFrom { get; set; }
     public string Note { get; set; } = "";
 }
-public record MaterialConsumptionInput(Guid ComponentItemId,decimal Quantity,string Reference);
+public record MaterialConsumptionInput(Guid BomLineId,decimal Quantity,string Reference);
 public record CenterCostInput(Guid WorkCenterId,decimal ConversionRialsPerMinute,
     decimal ScrapRialsPerUnit,string EffectiveFromJalali,string? Note);
 public record FactoryScenarioInput(Guid MpsVersionId,string StartJalali,int HorizonDays,
@@ -122,9 +122,9 @@ public static class FactoryOperationsAnalyticsEndpoints
                 return Results.Conflict(new{message="فقط هنگام اجرای دستور می‌توان مصرف پای خط ثبت کرد."});
             var bom=await db.ManufacturingBomRevisions.AsNoTracking().Include(x=>x.Lines)
                 .SingleOrDefaultAsync(x=>x.Id==order.BomRevisionId,ct);
-            var component=bom?.Lines.SingleOrDefault(x=>x.ComponentItemId==input.ComponentItemId);
+            var component=bom?.Lines.SingleOrDefault(x=>x.Id==input.BomLineId);
             if(bom is null||component is null)
-                return Results.BadRequest(new{message="قطعه در نسخه BOM این دستور نیست."});
+                return Results.BadRequest(new{message="ردیف BOM انتخاب‌شده در نسخه منجمد دستور وجود ندارد."});
             var allocations=await db.Set<ManufacturingOrderMaterialAllocation>().AsNoTracking()
                 .Where(x=>x.OrderId==orderId).ToListAsync(ct);
             decimal plannedLimit;
@@ -137,15 +137,24 @@ public static class FactoryOperationsAnalyticsEndpoints
             IReadOnlyList<FactoryConsumptionLedgerRow> ledger;
             try{ledger=FactoryLineSideCorrections.Ledger(priorRecords);}
             catch(InvalidOperationException ex){return Results.Conflict(new{message=ex.Message});}
-            var recorded=ledger.Where(x=>x.ComponentItemId==input.ComponentItemId).Sum(x=>x.NetQuantity);
+            var sameItemLines=bom.Lines.Where(x=>x.ComponentItemId==component.ComponentItemId).ToArray();
+            var hasUnattributedLegacy=ledger.Any(x=>x.ComponentItemId==component.ComponentItemId&&
+                x.BomLineId is null&&x.NetQuantity!=0m);
+            if(sameItemLines.Length>1&&hasUnattributedLegacy)
+                return Results.Conflict(new{message="سوابق قدیمی این قطعه فاقد ردیف BOM هستند؛ تا تعیین تکلیف دستی این سوابق، ثبت مصرف جدید برای ردیف‌های تکراری مجاز نیست."});
+            var recorded=ledger.Where(x=>x.BomLineId==component.Id||
+                (x.BomLineId is null&&x.ComponentItemId==component.ComponentItemId))
+                .Sum(x=>x.NetQuantity);
             if(recorded+input.Quantity>plannedLimit)
-                return Results.Conflict(new{message="مصرف تجمعی از مقدار مجاز ترکیب آلترناتیو دستور بیشتر است؛ از ثبت بچ و کنترل علت انحراف استفاده کنید."});
-            var record=new FactoryMaterialUsage{OrderId=orderId,ComponentItemId=input.ComponentItemId,
-                QuantityConsumed=input.Quantity,Reference=input.Reference.Trim(),
+                return Results.Conflict(new{message="مصرف تجمعی ردیف BOM از مقدار مجاز ترکیب آلترناتیو دستور بیشتر است؛ از ثبت بچ و کنترل علت انحراف استفاده کنید."});
+            var record=new FactoryMaterialUsage{OrderId=orderId,ComponentItemId=component.ComponentItemId,
+                QuantityConsumed=input.Quantity,
+                Reference=FactoryLineSideCorrections.BomLineReference(component.Id,input.Reference.Trim()),
                 RecordedBy=ctx.User.Identity?.Name??"unknown"};
             db.FactoryMaterialUsages.Add(record);
             db.ManufacturingOrderAudits.Add(new ManufacturingOrderAudit{
-                OrderId=orderId,Action="MaterialUsage",Details=$"Item={input.ComponentItemId};Qty={input.Quantity}"});
+                OrderId=orderId,Action="MaterialUsage",
+                Details=$"BomLine={component.Id:N};Item={component.ComponentItemId:N};Qty={input.Quantity}"});
             await db.SaveChangesAsync(ct);await tx.CommitAsync(ct);
             return Results.Created($"/api/v1/factory-material/{orderId}",new{record.Id,
                 warning="این صرفاً ثبت مصرف عملیات تولید است و موجودی هیچ انباری را تغییر نمی‌دهد."});
