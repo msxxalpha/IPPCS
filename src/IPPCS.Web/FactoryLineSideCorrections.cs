@@ -161,7 +161,7 @@ public static class FactoryLineSideCorrections
                 if(input.ConfirmationId==Guid.Empty||input.BomLineId==Guid.Empty||
                     input.Quantity<=0||input.Quantity>1000000000m||
                     string.IsNullOrWhiteSpace(input.Reference)||
-                    input.Reference.Trim().Length>140)
+                    input.Reference.Trim().Length>120)
                     return Results.BadRequest(new{message="بچ، قطعه، مقدار و مرجع کوتاه معتبر لازم است."});
                 await using var tx=await db.Database.BeginTransactionAsync(IsolationLevel.Serializable,ct);
                 try{await FactoryCapacityReservations.LockOrder(db,orderId,ct);}
