@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore;
 // Factory-only evidence journal. No stock transfer, goods receipt, warehouse
 // balance, accounting valuation or purchasing action is created.
 public record FactoryLotMaterialInput(Guid ConfirmationId,Guid BomLineId,
-    decimal Quantity,string Reference);
+    decimal Quantity,string Reference,Guid? ComponentItemId=null);
 public record FactoryUsageReversalInput(string Reason);
 public record FactoryConsumptionLedgerRow(Guid EntryId,Guid ComponentItemId,
     Guid? BomLineId,decimal RecordedQuantity,decimal NetQuantity,Guid? ConfirmationId,
@@ -170,7 +170,8 @@ public static class FactoryLineSideCorrections
         api.MapPost("/factory-material/{orderId:guid}/lot-consumption",
             async(Guid orderId,FactoryLotMaterialInput input,ProductionDb db,
                 HttpContext ctx,CancellationToken ct)=>{
-                if(input.ConfirmationId==Guid.Empty||input.BomLineId==Guid.Empty||
+                if(input.ConfirmationId==Guid.Empty||
+                    (input.BomLineId==Guid.Empty&&(!input.ComponentItemId.HasValue||input.ComponentItemId.Value==Guid.Empty))||
                     input.Quantity<=0||input.Quantity>1000000000m||
                     string.IsNullOrWhiteSpace(input.Reference)||
                     input.Reference.Trim().Length>120)
@@ -189,8 +190,18 @@ public static class FactoryLineSideCorrections
                     return Results.Conflict(new{message="گزارش عملکرد بچ به دستور انتخابی تعلق ندارد."});
                 var bom=await db.ManufacturingBomRevisions.AsNoTracking().Include(x=>x.Lines)
                     .SingleOrDefaultAsync(x=>x.Id==order.BomRevisionId,ct);
-                var line=bom?.Lines.SingleOrDefault(x=>x.Id==input.BomLineId);
-                if(bom is null||line is null)
+                if(bom is null)return Results.Conflict(new{message="BOM منجمد دستور موجود نیست."});
+                ManufacturingBomLine? line=null;
+                if(input.BomLineId!=Guid.Empty)
+                    line=bom.Lines.SingleOrDefault(x=>x.Id==input.BomLineId);
+                else if(input.ComponentItemId.HasValue&&input.ComponentItemId.Value!=Guid.Empty)
+                {
+                    var legacyMatches=bom.Lines.Where(x=>x.ComponentItemId==input.ComponentItemId.Value).ToArray();
+                    if(legacyMatches.Length>1)
+                        return Results.Conflict(new{message="این قطعه در چند ردیف BOM وجود دارد؛ شناسه دقیق ردیف BOM را ارسال کنید."});
+                    line=legacyMatches.SingleOrDefault();
+                }
+                if(line is null)
                     return Results.Conflict(new{message="ردیف BOM انتخاب‌شده در نسخه منجمد دستور وجود ندارد."});
                 var allocations=await db.Set<ManufacturingOrderMaterialAllocation>().AsNoTracking()
                     .Where(x=>x.OrderId==orderId).ToListAsync(ct);
