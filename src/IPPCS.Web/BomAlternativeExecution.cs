@@ -40,6 +40,62 @@ public static class BomAlternativeExecution
             .HasForeignKey(x=>x.OrderId).OnDelete(DeleteBehavior.Restrict);
     }
 
+    public static IReadOnlyList<string> ValidateReleaseAllocations(
+        ManufacturingOrder order, IReadOnlyList<ManufacturingBomLine> bomLines,
+        IReadOnlyList<ManufacturingOrderMaterialAllocation> allocations)
+    {
+        var issues = new List<string>();
+        var byId = bomLines.ToDictionary(x => x.Id);
+        if (allocations.Any(x => !byId.ContainsKey(x.BomLineId)) ||
+            allocations.GroupBy(x => x.BomLineId).Any(x => x.Count() != 1))
+        {
+            issues.Add("تخصیص مواد به جزء BOM نامعتبر یا تکراری متصل شده است.");
+            return issues;
+        }
+
+        foreach (var mandatory in bomLines.Where(x => string.IsNullOrWhiteSpace(x.AlternativeGroupCode)))
+            if (allocations.Any(x => x.BomLineId == mandatory.Id))
+                issues.Add($"جزء اجباری {mandatory.Id} نباید به عنوان آلترناتیو تخصیص داده شود.");
+
+        foreach (var group in bomLines.Where(x => !string.IsNullOrWhiteSpace(x.AlternativeGroupCode))
+            .GroupBy(x => x.AlternativeGroupCode!.Trim(), StringComparer.OrdinalIgnoreCase))
+        {
+            var lines = group.ToArray();
+            if (lines.Length < 2 || lines.Count(x => x.IsDefaultAlternative) != 1 ||
+                lines.Select(x => x.Sequence).Distinct().Count() != 1 ||
+                lines.GroupBy(x => x.AlternativePriority).Any(x => x.Count() != 1))
+            {
+                issues.Add($"ساختار گروه آلترناتیو {group.Key} معتبر نیست.");
+                continue;
+            }
+
+            var selected = allocations.Where(x => lines.Any(line => line.Id == x.BomLineId)).ToArray();
+            if (selected.Length == 0) continue; // The approved engineering default is the effective option.
+            if (selected.Any(x => x.SharePercent <= 0 || x.SharePercent > 100 ||
+                x.PlannedQuantity <= 0) || selected.Sum(x => x.SharePercent) != 100m)
+            {
+                issues.Add($"سهم‌های گروه آلترناتیو {group.Key} باید مثبت و دقیقاً ۱۰۰٪ باشند.");
+                continue;
+            }
+
+            foreach (var allocation in selected)
+            {
+                var line = lines.Single(x => x.Id == allocation.BomLineId);
+                decimal expected;
+                try { expected = CalculatePlannedComponentQuantity(order.PlannedQuantity, line, allocation.SharePercent); }
+                catch (InvalidOperationException)
+                {
+                    issues.Add($"پارامتر مصرف قطعه {line.Id} در گروه {group.Key} نامعتبر است.");
+                    continue;
+                }
+                if (decimal.Round(expected, 4, MidpointRounding.AwayFromZero) !=
+                    decimal.Round(allocation.PlannedQuantity, 4, MidpointRounding.AwayFromZero))
+                    issues.Add($"مقدار برنامه‌ریزی‌شده قطعه {line.Id} با مقدار دستور و سهم آلترناتیو سازگار نیست.");
+            }
+        }
+        return issues;
+    }
+
     public static decimal CalculatePlannedComponentQuantity(
         decimal orderQuantity, ManufacturingBomLine line, decimal? sharePercent = null)
     {
