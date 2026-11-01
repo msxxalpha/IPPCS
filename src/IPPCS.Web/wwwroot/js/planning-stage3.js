@@ -330,6 +330,7 @@ function boot(){
    ],result.explanations||[]);
    await loadMrpRuns();$("#mrp-run-history").value=result.runId;
    alertText("نتیجه MRP با تصویر ثابت ورودی و خروجی ذخیره شد؛ از فهرست اجرای ذخیره‌شده می‌توانید همان مبنا را دوباره بررسی کنید.");
+   await loadMrpDraftProposals();
   }catch(e){alertText(e.message,true);}finally{btn.disabled=false;}
  };
  $("#lot-capacity-run").onclick=async()=>{
