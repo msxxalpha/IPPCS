@@ -336,7 +336,20 @@ async function boot(){
    ["ساعت باز",x=>x.hasRunningClock?"دارد":"ندارد"],
    ["WIP",x=>num(x.workInProgress)],["قرنطینه مرحله",x=>num(x.qualityPending)],
    ["توضیح","guidance"]
-  ],report.rows);
+  ],report.rows,[{
+   label:"برنامه‌ریزی بازه مرکز",
+   show:x=>can("Planner")&&x.canStartByRouteAndQuality&&!x.hasOpenQualityHold&&
+    !x.hasBookedMachineSlot&&!x.hasRunningClock&&x.status!==3,
+   run:async x=>{
+    $("#slot-order").value=x.orderId;
+    refreshOperations("slot-form","slot-operation");
+    $("#slot-operation").value=x.operationId;
+    $("#slot-form [name=date]").value=fval($("#dispatch-form"),"from");
+    const tab=$('nav [data-page]').find(b=>b.dataset.page==="slots");
+    if(tab)tab.click();
+    flash("دستور و عملیات انتخاب شدند؛ زمان واقعی را در محدوده شیفت مرکز کاری تعیین کنید.");
+   }
+  }]);
   flash(report.disclaimer);
  });
  const slotForm=$("#slot-form");
