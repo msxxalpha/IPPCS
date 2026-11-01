@@ -28,16 +28,25 @@ public static class FactoryLineSideCorrections
     public static string LotReference(Guid confirmationId,Guid bomLineId,string note)
         =>LotPrefix+confirmationId.ToString("N")+"|"+bomLineId.ToString("N")+"|"+note.Trim();
 
+    public const string BomLinePrefix="IPBOM:";
+    public static string BomLineReference(Guid bomLineId,string note)
+        =>BomLinePrefix+bomLineId.ToString("N")+"|"+note.Trim();
+
     public static Guid? ParseBomLineId(string? reference)
     {
-        if(reference is null||!reference.StartsWith(LotPrefix,StringComparison.Ordinal))
-            return null;
+        if(reference is null)return null;
+        if(reference.StartsWith(BomLinePrefix,StringComparison.Ordinal))
+        {
+            var tail=reference.AsSpan(BomLinePrefix.Length);
+            return tail.Length>=33&&tail[32]=='|'&&
+                Guid.TryParseExact(tail[..32],"N",out var direct)?direct:null;
+        }
+        if(!reference.StartsWith(LotPrefix,StringComparison.Ordinal))return null;
         var tail=reference.AsSpan(LotPrefix.Length);
         if(tail.Length<66||tail[32]!='|')return null;
         var line=tail[33..];
         var separator=line.IndexOf('|');
-        if(separator!=32||!Guid.TryParseExact(line[..32],"N",out var id))return null;
-        return id;
+        return separator==32&&Guid.TryParseExact(line[..32],"N",out var id)?id:null;
     }
     public static string ReverseReference(Guid originalId,string reason)
         =>ReversalPrefix+originalId.ToString("N")+"|"+reason.Trim();
