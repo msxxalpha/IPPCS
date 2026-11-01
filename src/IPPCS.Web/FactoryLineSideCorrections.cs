@@ -42,9 +42,9 @@ public static class FactoryLineSideCorrections
                 Guid.TryParseExact(tail[..32],"N",out var direct)?direct:null;
         }
         if(!reference.StartsWith(LotPrefix,StringComparison.Ordinal))return null;
-        var tail=reference.AsSpan(LotPrefix.Length);
-        if(tail.Length<66||tail[32]!='|')return null;
-        var line=tail[33..];
+        var lotTail=reference.AsSpan(LotPrefix.Length);
+        if(lotTail.Length<66||lotTail[32]!='|')return null;
+        var line=lotTail[33..];
         var separator=line.IndexOf('|');
         return separator==32&&Guid.TryParseExact(line[..32],"N",out var id)?id:null;
     }
