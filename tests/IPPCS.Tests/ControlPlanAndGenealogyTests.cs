@@ -111,4 +111,45 @@ public sealed class ControlPlanAndGenealogyTests
         Assert.Equal(expected,ManufacturingInspectionRules.ExactlyOneApplicableControlPlan(count));
     }
 
+
+    [Fact]
+    public void Wip_handoff_audit_reconciles_lot_quantities_and_remaining_upstream_good()
+    {
+        var order=Order();
+        var sourceOp=order.Operations[0];var destinationOp=order.Operations[1];
+        sourceOp.GoodQuantity=10m;destinationOp.GoodQuantity=8m;
+        var source=new ManufacturingConfirmation{OperationId=sourceOp.Id,GoodQuantity=10m,
+            LotCode="WELD-001",OccurredUtc=DateTime.UtcNow.AddMinutes(-10)};
+        var destination=new ManufacturingConfirmation{OperationId=destinationOp.Id,GoodQuantity=8m,
+            LotCode="ASSY-001",OccurredUtc=DateTime.UtcNow};
+        var link=new ManufacturingLotGenealogy{OrderId=order.Id,
+            SourceConfirmationId=source.Id,DestinationConfirmationId=destination.Id,Quantity=8m};
+        var audit=FactoryInProcessHandoffs.Analyze(order,[source,destination],[link],[]);
+        var pair=Assert.Single(audit.Pairs);
+        Assert.Equal(8m,pair.DocumentedGood);
+        Assert.Equal(2m,pair.RemainingUpstreamGood);
+        Assert.Equal(0m,pair.UntracedDownstreamGood);
+        Assert.True(pair.QualityGatePassed);
+    }
+
+    [Fact]
+    public void Wip_handoff_audit_fails_closed_on_non_adjacent_or_dangling_links()
+    {
+        var order=Order();
+        var third=new ManufacturingOrderOperation{Sequence=30,Name="Packing"};
+        order.Operations.Add(third);
+        var source=new ManufacturingConfirmation{OperationId=order.Operations[0].Id,
+            GoodQuantity=5m,LotCode="A",OccurredUtc=DateTime.UtcNow.AddMinutes(-2)};
+        var destination=new ManufacturingConfirmation{OperationId=third.Id,
+            GoodQuantity=5m,LotCode="C",OccurredUtc=DateTime.UtcNow};
+        var nonAdjacent=new ManufacturingLotGenealogy{OrderId=order.Id,
+            SourceConfirmationId=source.Id,DestinationConfirmationId=destination.Id,Quantity=5m};
+        Assert.Throws<InvalidOperationException>(()=>
+            FactoryInProcessHandoffs.Analyze(order,[source,destination],[nonAdjacent],[]));
+        var dangling=new ManufacturingLotGenealogy{OrderId=order.Id,
+            SourceConfirmationId=Guid.NewGuid(),DestinationConfirmationId=destination.Id,Quantity=1m};
+        Assert.Throws<InvalidOperationException>(()=>
+            FactoryInProcessHandoffs.Analyze(order,[source,destination],[dangling],[]));
+    }
+
 }
