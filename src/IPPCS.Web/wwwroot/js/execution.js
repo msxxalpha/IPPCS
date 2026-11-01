@@ -194,6 +194,8 @@ async function boot(){
    request("/manufacturing-orders/"+id+"/material-usage")
   ]);
   materialSnapshot=snapshot;
+  if((materialSnapshot.unattributedLegacyQuantity||0)!==0)
+   flash("مقداری از سوابق قدیمی مصرف هنوز به ردیف BOM مشخص منتسب نیست: "+num(materialSnapshot.unattributedLegacyQuantity)+"؛ در گزارش با هشدار جداگانه نمایش داده می‌شود.");
   const root=$("#material-options-container");root.replaceChildren();
   if(!materialSnapshot.groups.length){
    const p=document.createElement("p");p.textContent="برای BOM این دستور گروه آلترناتیو تعریف نشده است؛ فقط اجزای اجباری وجود دارند.";root.append(p);
@@ -221,8 +223,10 @@ async function boot(){
   const usageStatus=[1,2].includes(materialSnapshot.orderStatus);
   for(const panel of $("#material-options-container [data-material-group]")){
    const group=materialSnapshot.groups.find(g=>g.groupCode===panel.dataset.materialGroup);
+   const groupLineIds=group.options.map(x=>x.id);
    const groupComponentIds=group.options.map(x=>x.componentItemId);
-   const hasUsage=usageHistory.rows.some(x=>groupComponentIds.includes(x.componentItemId));
+   const hasUsage=usageHistory.rows.some(x=>groupLineIds.includes(x.bomLineId)||
+     (!x.bomLineId&&groupComponentIds.includes(x.componentItemId)));
    panel.dataset.materialLocked=hasUsage?"true":"false";
    panel.querySelectorAll("[data-material-share]").forEach(el=>el.disabled=!editableStatus||hasUsage);
   }
