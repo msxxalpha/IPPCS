@@ -117,16 +117,18 @@ public static class MrpDraftOrderConversion
                     x.ItemId == lot.ItemId && x.State == RoutingState.Approved &&
                     x.EffectiveFrom <= lot.ReleaseOn &&
                     (x.EffectiveTo == null || lot.ReleaseOn <= x.EffectiveTo), ct);
-                var already = existingIds.TryGetValue(key, out var orderId) && orders.TryGetValue(orderId, out var order);
+                ManufacturingOrder? existingOrder = null;
+                var already = existingIds.TryGetValue(key, out var orderId) &&
+                    orders.TryGetValue(orderId, out existingOrder);
                 rows.Add(new {
                     lot.LotKey, lot.ItemId, itemCode = item?.Code, itemName = item?.Name,
                     lot.Quantity, lot.NetShortage, lot.LotSizingSurplus, lot.BomRevisionId,
                     releaseOnJalali = PersianPlanningDates.Format(lot.ReleaseOn),
                     receiptOnJalali = PersianPlanningDates.Format(lot.ReceiptOn),
                     lot.ReleaseBeforeBaseline, alreadyCreated = already,
-                    orderId = already ? order!.Id : (Guid?)null,
-                    orderNumber = already ? order!.Number : null,
-                    orderStatus = already ? order!.Status.ToString() : null,
+                    orderId = already ? existingOrder!.Id : (Guid?)null,
+                    orderNumber = already ? existingOrder!.Number : null,
+                    orderStatus = already ? existingOrder!.Status.ToString() : null,
                     routingReady = routeCount == 1,
                     routingIssue = routeCount == 0 ? "مسیر ساخت مصوب برای تاریخ شروع وجود ندارد." :
                         routeCount > 1 ? "چند مسیر ساخت هم‌زمان معتبر است." : null
