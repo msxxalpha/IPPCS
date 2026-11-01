@@ -236,9 +236,9 @@ async function boot(){
   $("#material-usage-lot").disabled=!usageStatus||lots.length===0;
   const choices=[];
   for(const line of materialSnapshot.mandatoryComponents)
-   if(line.plannedQuantity>0)choices.push({...line,id:line.componentItemId,label:itemName(line.componentItemId)+" • اجباری"});
+   if(line.plannedQuantity>0)choices.push({...line,id:line.id,label:itemName(line.componentItemId)+" • ردیف BOM "+line.id.slice(0,8)+" • اجباری"});
   for(const group of materialSnapshot.groups)for(const line of group.options)
-   if(line.plannedQuantity>0)choices.push({...line,id:line.componentItemId,label:itemName(line.componentItemId)+" • "+group.groupCode});
+   if(line.plannedQuantity>0)choices.push({...line,id:line.id,label:itemName(line.componentItemId)+" • ردیف BOM "+line.id.slice(0,8)+" • "+group.groupCode});
   select($("#material-usage-line"),choices,x=>x.label);
   $("#material-usage-line").disabled=!usageStatus||choices.length===0;
   $("#material-usage-form").querySelectorAll("input,button").forEach(el=>el.disabled=!usageStatus||lots.length===0||choices.length===0);
@@ -255,7 +255,7 @@ async function boot(){
   const lotNames=new Map(lots.map(x=>[x.id,x.label]));
   table("#material-usage-history",[
    ["زمان ثبت",x=>new Date(x.recordedUtc).toLocaleString("fa-IR-u-ca-persian",{timeZone:"Asia/Tehran"})],
-   ["قطعه",x=>itemName(x.componentItemId)],["مقدار اولیه",x=>num(x.recordedQuantity)],
+   ["قطعه",x=>itemName(x.componentItemId)],["ردیف BOM",x=>x.bomLineId?x.bomLineId.slice(0,8):"قدیمی / نامشخص"],["مقدار اولیه",x=>num(x.recordedQuantity)],
    ["مقدار خالص",x=>num(x.netQuantity)],
    ["بچ",x=>x.confirmationId?(lotNames.get(x.confirmationId)||x.confirmationId.slice(0,8)):"قدیمی / بدون انتساب بچ"],
    ["ثبت‌کننده",x=>x.recordedBy],["مرجع / علت",x=>x.reference||"—"],
@@ -290,7 +290,7 @@ async function boot(){
   const id=$("#material-order").value;
   if(!id)throw Error("ابتدا دستور تولید را انتخاب کنید.");
   await request("/factory-material/"+id+"/lot-consumption","POST",{
-   confirmationId:fval(f,"confirmationId"),componentItemId:fval(f,"componentItemId"),
+   confirmationId:fval(f,"confirmationId"),bomLineId:fval(f,"bomLineId"),
    quantity:numeric(f,"quantity"),reference:fval(f,"reference").trim()
   });
   await loadMaterialOptions();flash("مصرف واقعی قطعه برای بچ تولیدی ثبت شد.");
