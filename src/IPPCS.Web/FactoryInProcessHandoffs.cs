@@ -25,6 +25,21 @@ public static class FactoryInProcessHandoffs
         if(confirmations.Select(x=>x.Id).Distinct().Count()!=confirmations.Count ||
             links.Select(x=>x.Id).Distinct().Count()!=links.Count)
             throw new InvalidOperationException("شناسه تکراری در اسناد انتقال مراحل تولید ثبت شده است.");
+        var operationIndex=ops.Select((op,index)=>(op.Id,index))
+            .ToDictionary(x=>x.Id,x=>x.index);
+        var confirmationMap=confirmations.ToDictionary(x=>x.Id);
+        var seenPairs=new HashSet<(Guid Source,Guid Destination)>();
+        foreach(var link in links)
+        {
+            if(link.Id==Guid.Empty||link.SourceConfirmationId==link.DestinationConfirmationId||
+                link.Quantity<=0||!confirmationMap.TryGetValue(link.SourceConfirmationId,out var source)||
+                !confirmationMap.TryGetValue(link.DestinationConfirmationId,out var destination)||
+                !operationIndex.TryGetValue(source.OperationId,out var fromIndex)||
+                !operationIndex.TryGetValue(destination.OperationId,out var toIndex)||
+                toIndex!=fromIndex+1||source.OccurredUtc>destination.OccurredUtc||
+                !seenPairs.Add((link.SourceConfirmationId,link.DestinationConfirmationId)))
+                throw new InvalidOperationException("پیوند انتقال باید یکتا، مثبت، زمان‌مند و بین بچ‌های دو عملیات متوالی همین دستور باشد.");
+        }
         var output=new List<FactoryStageHandoff>();
         for(var i=1;i<ops.Length;i++)
         {
@@ -45,7 +60,11 @@ public static class FactoryInProcessHandoffs
             var sourceOver=previous.Sum(lot=>Math.Max(0m,
                 pairLinks.Where(x=>x.SourceConfirmationId==lot.Id).Sum(x=>x.Quantity)-
                 Math.Max(0m,lot.GoodQuantity)));
-            var overUpstream=Math.Max(sourceOver,Math.Max(0m,documented-forward));
+            var destinationOver=destination.Sum(lot=>Math.Max(0m,
+                pairLinks.Where(x=>x.DestinationConfirmationId==lot.Id).Sum(x=>x.Quantity)-
+                Math.Max(0m,lot.GoodQuantity)));
+            var overUpstream=Math.Max(Math.Max(sourceOver,destinationOver),
+                Math.Max(0m,documented-forward));
             var gaps=destination.Select(lot=>{
                 var received=pairLinks.Where(x=>x.DestinationConfirmationId==lot.Id)
                     .Sum(x=>x.Quantity);
