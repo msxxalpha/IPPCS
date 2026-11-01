@@ -1,7 +1,7 @@
 (()=>{
 "use strict";
 const $=s=>document.querySelector(s), $$=s=>Array.from(document.querySelectorAll(s));
-const state={items:[],centers:[],bom:[],routings:[],mps:[],balances:[],receipts:[],mrpRuns:[]};
+const state={items:[],centers:[],bom:[],routings:[],mps:[],balances:[],receipts:[],mrpRuns:[],mrpProposals:[]};
 const val=(form,k)=>new FormData(form).get(k);
 const number=(form,k)=>Number(IPPCSJalali.toLatin(val(form,k)));
 const fmt=v=>Number(v).toLocaleString("fa-IR",{maximumFractionDigits:4});
@@ -105,6 +105,34 @@ async function load(){
  ["items","centers","bom","routings","mps","balances","receipts"].forEach((k,i)=>state[k]=resources[i]);
  render();
  await loadMrpRuns();
+}
+async function loadMrpDraftProposals(){
+ const runId=$("#mrp-run-history").value;
+ if(!runId){alertText("ابتدا یک اجرای ذخیره‌شده MRP را انتخاب کنید.",true);return;}
+ const result=await call("/mrp/runs/"+runId+"/manufacturing-proposals");
+ state.mrpProposals=result.proposals||[];
+ const root=$("#mrp-draft-proposals");root.replaceChildren();
+ const wrap=document.createElement("div");wrap.className="table-wrap";
+ const t=document.createElement("table"),head=document.createElement("thead"),hr=document.createElement("tr");
+ ["انتخاب","شناسه بچ","کالا","مقدار","شروع","موعد","وضعیت","دستور موجود"].forEach(x=>{const th=document.createElement("th");th.textContent=x;hr.append(th);});
+ head.append(hr);t.append(head);const body=document.createElement("tbody");
+ if(!state.mrpProposals.length){const tr=document.createElement("tr"),td=document.createElement("td");td.colSpan=8;td.className="empty";td.textContent="در این اجرا پیشنهاد ساختی وجود ندارد.";tr.append(td);body.append(tr);}
+ for(const row of state.mrpProposals){
+  const tr=document.createElement("tr"),checkCell=document.createElement("td"),check=document.createElement("input");
+  check.type="checkbox";check.dataset.lotkey=row.lotKey;check.disabled=row.alreadyCreated||!row.routingReady;
+  checkCell.append(check);tr.append(checkCell);
+  const values=[row.lotKey,(row.itemCode||"")+" | "+(row.itemName||name(row.itemId)),fmt(row.quantity),row.releaseOnJalali,row.receiptOnJalali,
+   row.alreadyCreated?"قبلاً ایجاد شده":row.routingReady?"آماده ایجاد پیش‌نویس":row.routingIssue||"مسیر نامعتبر",
+   row.alreadyCreated?(row.orderNumber+" ("+row.orderStatus+")"):"—"];
+  values.forEach(v=>{const td=document.createElement("td");td.textContent=v??"—";tr.append(td);});
+  body.append(tr);
+ }
+ t.append(body);wrap.append(t);root.append(wrap);
+ const summary=$("#mrp-draft-summary");summary.hidden=false;
+ summary.textContent="اجرای MRP: "+runId+" | پیشنهاد ساخت: "+state.mrpProposals.length+
+  " | قبلاً تبدیل‌شده: "+state.mrpProposals.filter(x=>x.alreadyCreated).length+
+  " | آماده تبدیل: "+state.mrpProposals.filter(x=>!x.alreadyCreated&&x.routingReady).length+
+  " | پیشنهاد تأمین خارجی از این فرایند حذف شده است.";
 }
 async function loadMrpRuns(){
  const mpsId=$("#calculate-mps").value;
@@ -390,6 +418,24 @@ function boot(){
    alertText(result.warning);
   }catch(e){alertText(e.message,true);}finally{button.disabled=false;}
  };
+ $("#mrp-draft-refresh").onclick=()=>loadMrpDraftProposals().catch(e=>alertText(e.message,true));
+ $("#mrp-draft-create").onclick=async()=>{
+  const selected=$("#mrp-draft-proposals input[type=checkbox]:checked").map(x=>x.dataset.lotkey);
+  const runId=$("#mrp-run-history").value;
+  if(!runId||!selected.length){alertText("یک یا چند بچ ساخت آماده را انتخاب کنید.",true);return;}
+  const button=$("#mrp-draft-create");button.disabled=true;
+  try{
+   const result=await call("/mrp/runs/"+runId+"/manufacturing-drafts","POST",{lotKeys:selected});
+   table("#mrp-draft-results",[
+    ["بچ MRP","lotKey"],["شماره دستور","orderNumber"],["شناسه دستور",x=>x.orderId],
+    ["وضعیت","status"],["نتیجه",x=>x.outcome==="Created"?"ایجاد شد":"قبلاً ایجاد شده"],
+    ["بچ‌های والد",x=>(x.parentLotKeys||[]).join(" ، ")||"نیاز مستقیم MPS"]
+   ],result.results||[]);
+   alertText("تبدیل انجام شد. "+result.warning);
+   await loadMrpDraftProposals();
+  }catch(e){alertText(e.message,true);}finally{button.disabled=false;}
+ };
+ $("#mrp-run-history").addEventListener("change",()=>loadMrpDraftProposals().catch(e=>alertText(e.message,true)));
  $("#phased-pegging-run").onclick=async()=>{
   const id=$("#calculate-mps").value;
   if(!id){alertText("نسخه مصوب MPS را انتخاب کنید.",true);return;}
