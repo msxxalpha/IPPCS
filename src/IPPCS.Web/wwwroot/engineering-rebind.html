@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>IPPCS | انتقال کنترل‌شده نسخه دستورات پیش‌نویس</title>
+<link rel="stylesheet" href="/css/production.css">
+<script defer src="/js/security-client.js"></script>
+<script defer src="/js/jalali-datepicker.js"></script>
+<script defer src="/js/engineering-rebind.js"></script>
+</head>
+<body>
+<div class="app-shell">
+<aside class="sidebar">
+<div class="brand"><div class="brand-logo">IP</div><div><strong>ایندامین سایپا</strong><small>مدیریت نسخه‌های مهندسی</small></div></div>
+<nav>
+<a class="planning-link" href="/app.html">صفحه اصلی</a>
+<a class="planning-link" href="/planning.html">BOM و مسیر ساخت</a>
+<a class="planning-link" href="/execution.html">دستورات تولید</a>
+<a class="planning-link" href="/control-plan.html">کنترل پلن</a>
+<a class="planning-link" href="/engineering-rebind.html" aria-current="page">انتقال کنترل‌شده نسخه پیش‌نویس</a>
+</nav>
+<div class="sidebar-foot">IPPCS • مرحله ۲۱<br>قابل بررسی در شاخه توسعه، نه مجوز بهره‌برداری</div>
+</aside>
+<div class="main">
+<header class="topbar">
+<div><span class="eyebrow">BOM / Routing · کنترل تغییرات مهندسی</span>
+<h1>انتقال نسخه دستورات پیش‌نویس</h1></div>
+<button type="button" class="btn-outline" data-ip-logout>خروج</button>
+</header>
+<main class="content">
+<div class="callout">این فرایند فقط مرجع BOM یا Routing دستورات <strong>پیش‌نویس و بدون عملیات</strong> را به نسخه مصوب جدید انتقال می‌دهد. دستورات آزادشده، تولیدشده و سوابق تاریخی دست‌نخورده باقی می‌مانند. برش تاریخ اعتبار نیازمند درخواست ECO توسط نقش برنامه‌ریزی و تأیید مستقل کاربر دوم با نقش کیفیت است. دو تصمیم هویتی با تاریخ و اثرانگشت نسخه‌ها ثبت می‌شوند، اما امضای رمزنگاری‌شده PKI یا مجوز خروج محصول نیستند.</div>
+<div id="engineering-message" class="notice" role="status" aria-live="polite" hidden></div>
+<section class="panel">
+<h3>۱. انتخاب نوع و نسخه‌های تغییر</h3>
+<div class="form-grid">
+<label>نوع نسخه
+<select id="engineering-kind"><option value="BOM">ساختار مواد BOM</option><option value="Routing">مسیر ساخت Routing</option></select>
+</label>
+<label>نسخه مبدأ فعلی<select id="engineering-baseline" required></select></label>
+<label>نسخه مقصد مصوب<select id="engineering-candidate" required></select></label>
+<label class="wide">دلیل قابل پیگیری انتقال
+<input id="engineering-reason" maxlength="300" placeholder="شماره درخواست مهندسی و شرح دلیل تغییر" required></label>
+</div>
+<p class="muted">نسخه مقصد باید قبلاً تصویب شده و در تاریخ شروع برنامه هر دستور معتبر باشد. نسخه‌های مصوب با بازه‌های متداخل مجاز نیستند.</p>
+</section>
+<section class="panel">
+<h3>۲. برش کنترل‌شده تاریخ اعتبار نسخه‌ها (اختیاری)</h3>
+<p class="muted">برای تصویب نسخه پیشنهادی با تاریخ اعتبار متداخل، ابتدا تاریخ قطع اعتبار نسخه قدیمی را به‌صورت اتمیک با تصویب نسخه جدید ثبت کنید. دستورات آزادشده تغییر نمی‌کنند. در صورت نیاز سپس پیش‌نویس‌ها را در بخش بعد منتقل کنید.</p>
+<div class="form-grid">
+<label>نسخه مقصد پیش‌نویس (برای تصویب با برش)
+<select id="cutover-candidate"></select></label>
+<label>تاریخ مؤثر برش شمسی
+<span class="jalali-field"><input id="cutover-date" data-jalali-date placeholder="۱۴۰۵/۰۸/۰۶"><button type="button" class="date-trigger" data-jalali-trigger>▣</button></span></label>
+<label>شماره/مرجع تأیید مهندسی
+<input id="cutover-ref" maxlength="100" placeholder="ECO-1405-001"></label>
+<label class="wide">علت ثبت برش
+<input id="cutover-reason" maxlength="300" placeholder="شرح تغییر نسخه و تصمیم مسئول مهندسی"></label>
+</div>
+<div class="panel">
+<h3>درخواست و امضای مستقل ECO پیش از برش</h3>
+<p class="muted">پس از انتخاب نسخه مبدأ مصوب، نسخه پیشنهادی، تاریخ، مرجع و دلیل، کاربر برنامه‌ریزی درخواست ECO را ثبت می‌کند. سپس کاربر متفاوت با نقش <strong>QualityInspector</strong> شواهد را بررسی و تأیید یا رد می‌کند. پس از تغییر نسخه‌های مهندسی، اثرانگشت درخواست منقضی و برش مسدود خواهد شد.</p>
+<div class="form-actions">
+<button type="button" class="btn-outline" id="eco-submit">۱. ثبت درخواست و امضای مسئول برنامه‌ریزی</button>
+<button type="button" class="btn-outline" id="eco-refresh">به‌روزرسانی درخواست‌های ECO</button>
+</div>
+<div class="form-grid">
+<label class="wide">درخواست ECO ثبت‌شده
+<select id="eco-approval-select"><option value="">برای مشاهده درخواست‌ها ابتدا نسخه مبدأ را انتخاب کنید</option></select></label>
+<label>شناسه شواهد بررسی کیفیت
+<input id="eco-evidence" maxlength="100" placeholder="QA-ECO-1405-001"></label>
+<label class="wide">شرح مستقل شواهد بررسی کیفیت
+<input id="eco-observation" maxlength="400" placeholder="نتیجه بررسی مشخصات فنی، ریسک، ظرفیت، Control Plan و مدارک تغییر"></label>
+</div>
+<div class="form-actions">
+<button type="button" class="btn-main" id="eco-approve">۲. ثبت تأیید مستقل کیفیت</button>
+<button type="button" class="btn-outline" id="eco-reject">رد و ثبت توضیح کیفیت</button>
+</div>
+<div id="eco-review-history" aria-live="polite"></div>
+</div>
+<div class="form-actions">
+<button type="button" class="btn-outline" id="cutover-preview">۳. کنترل تاریخ و اثر برش</button>
+<button type="button" class="btn-main" id="cutover-apply" disabled>۴. ثبت برش مصوب و سابقه تغییر</button>
+</div>
+<div id="cutover-results" aria-live="polite"></div>
+</section>
+<section class="panel">
+<h3>۳. انتقال انتخابی دستورات پیش‌نویس</h3>
+<p class="muted">فقط دستورهای پیش‌نویس مربوط به نسخه مبدأ نشان داده می‌شوند؛ این فهرست از ۲۰۰ دستور آخر سامانه ساخته می‌شود. برای دستورات قدیمی‌تر یا انتقال بیش از ۱۰۰ دستور، از فهرست/API با کنترل دقیق شناسه استفاده کنید.</p>
+<div id="engineering-orders"></div>
+<p id="engineering-selected" class="muted"></p>
+<div class="form-actions">
+<button type="button" id="engineering-preview" class="btn-outline">پیش‌نمایش انتقال</button>
+<button type="button" id="engineering-apply" class="btn-main" disabled>ثبت انتقال کنترل‌شده</button>
+</div>
+</section>
+<section class="panel"><h3>نتیجه کنترل</h3><div id="engineering-results" aria-live="polite"></div></section>
+<div class="callout">انتقال ثبت‌شده در تاریخچه مستقل هر دستور با شناسه نسخه قبلی، نسخه جدید، کاربر و دلیل تغییر قابل بازیابی است. برای تصویب تغییر مهندسی اصل BOM یا Routing از فرایندهای نسخه‌دار استفاده می‌شود.</div>
+</main></div></div>
+</body></html>

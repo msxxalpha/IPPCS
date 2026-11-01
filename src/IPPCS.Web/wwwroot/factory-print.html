@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>IPPCS | نسخه چاپی سند تولید</title>
+<link rel="stylesheet" href="/css/factory-print.css">
+<script defer src="/js/security-client.js"></script>
+<script defer src="/js/factory-print.js"></script>
+</head>
+<body>
+<div class="print-toolbar" role="toolbar" aria-label="عملیات نسخه چاپی">
+ <div class="toolbar-brand">IPPCS <span>سامانه برنامه‌ریزی و کنترل تولید</span></div>
+ <div class="toolbar-actions">
+  <button id="print-action" type="button" disabled>چاپ / ذخیره PDF</button>
+  <button id="print-back" type="button" class="btn-muted">بازگشت به فرم</button>
+ </div>
+</div>
+<div id="print-error" class="print-error" role="alert" hidden></div>
+<main id="print-document" class="print-document" hidden aria-label="سند قابل چاپ">
+  <div class="print-top-accent"></div>
+  <header class="print-head">
+    <div class="company">
+      <div class="company-symbol" aria-hidden="true">IP</div>
+      <div><strong>شرکت کمک فنرسازی ایندامین سایپا</strong>
+       <span>سامانه تخصصی برنامه‌ریزی و کنترل تولید · IPPCS</span>
+       <small>با کمک ما برانید</small>
+      </div>
+    </div>
+    <div class="document-type">
+      <span class="document-eyebrow">سند کنترل‌شده داخلی</span>
+      <h1 id="print-title"></h1>
+      <div id="print-reference" class="document-reference"></div>
+    </div>
+  </header>
+  <div class="document-ribbon">
+    <div><small>وضعیت سند</small><strong id="print-status"></strong></div>
+    <div><small>زمان استخراج (تهران)</small><strong id="print-created"></strong></div>
+    <div><small>کاربر استخراج‌کننده</small><strong id="print-user"></strong></div>
+    <div><small>شناسه منبع اطلاعات</small><strong id="print-source"></strong></div>
+  </div>
+  <div id="print-watermark" class="print-watermark" aria-hidden="true"></div>
+  <section class="print-meta-section">
+    <h2>شناسنامه و اطلاعات سند</h2>
+    <div id="print-meta" class="print-meta"></div>
+  </section>
+  <div id="print-tables"></div>
+  <aside class="print-notice">
+    <strong>حدود اعتبار سند</strong>
+    <p id="print-disclaimer"></p>
+  </aside>
+  <section class="print-signoff" aria-label="محل بررسی و تأیید">
+    <h2>بررسی و امضای مسئولان</h2>
+    <div class="signoff-grid">
+      <div class="signoff-cell"><strong>تهیه‌کننده</strong><span>نام، سمت و تاریخ:</span><div class="signature-line"></div></div>
+      <div class="signoff-cell"><strong>بررسی برنامه‌ریزی / تولید</strong><span>نام، سمت و تاریخ:</span><div class="signature-line"></div></div>
+      <div class="signoff-cell"><strong>کنترل کیفیت / تصویب مجاز</strong><span>نام، سمت و تاریخ:</span><div class="signature-line"></div></div>
+    </div>
+    <small>امضاهای این بخش در نسخه چاپی دستی تکمیل می‌شوند و به‌عنوان امضای سیستمی، مجوز EOL یا تصویب الکترونیکی ثبت نمی‌گردند.</small>
+  </section>
+  <footer class="print-footer">
+    <span>IPPCS • سند داخلی و قابل ردیابی از داده ثبت‌شده</span>
+    <span id="print-footer-code"></span>
+    <span>نسخه استخراج‌شده؛ برای آخرین وضعیت، سامانه را مشاهده کنید</span>
+  </footer>
+</main>
+</body>
+</html>

@@ -1,0 +1,264 @@
+name: IPPCS consolidated acceptance
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+concurrency:
+  group: ippcs-ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Verify and package the exact Draft PR head, not GitHub's temporary merge ref.
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Restore
+        run: dotnet restore src/IPPCS.Web/IPPCS.Web.csproj
+      - name: Build
+        run: dotnet build src/IPPCS.Web/IPPCS.Web.csproj -c Release --no-restore
+      - name: Diagnose pending EF snapshot delta (temporary)
+        env:
+          IPPCS_EF_MODEL_ONLY: '1'
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet tool install --global dotnet-ef --version 10.0.0
+          dotnet ef migrations add Stage54ModelDiagnostic --project src/IPPCS.Web/IPPCS.Web.csproj --startup-project src/IPPCS.Web/IPPCS.Web.csproj --configuration Release --no-build --output-dir Migrations/CI
+          echo "===== DIAGNOSTIC MIGRATION OPERATIONS ====="
+          for file in src/IPPCS.Web/Migrations/CI/*_Stage54ModelDiagnostic.cs; do
+            if [ -f "$file" ]; then echo "FILE: $file"; cat "$file"; fi
+          done
+          echo "===== SNAPSHOT DIFF ====="
+          git diff -- src/IPPCS.Web/Migrations/CI/ProductionDbModelSnapshot.cs
+          git checkout -- src/IPPCS.Web/Migrations/CI/ProductionDbModelSnapshot.cs
+          rm -f src/IPPCS.Web/Migrations/CI/*_Stage54ModelDiagnostic*
+      - name: .NET calendar unit tests
+        run: dotnet test tests/IPPCS.Tests/IPPCS.Tests.csproj --configuration Release
+      - name: Browser script syntax
+        run: |
+          node --check src/IPPCS.Web/wwwroot/js/jalali-datepicker.js
+          node --check src/IPPCS.Web/wwwroot/js/production.js
+          node --check src/IPPCS.Web/wwwroot/js/planning-stage3.js
+          node --check src/IPPCS.Web/wwwroot/js/execution.js
+          node --check src/IPPCS.Web/wwwroot/js/quality-oee.js
+          node --check src/IPPCS.Web/wwwroot/js/control-plan.js
+          node --check src/IPPCS.Web/wwwroot/js/mps-pegging.js
+          node --check src/IPPCS.Web/wwwroot/js/production-deviations.js
+          node --check src/IPPCS.Web/wwwroot/js/planning-advanced.js
+          node --check src/IPPCS.Web/wwwroot/js/engineering-rebind.js
+          node --check src/IPPCS.Web/wwwroot/js/ip-users.js
+          node --check src/IPPCS.Web/wwwroot/js/security-client.js
+          node --check src/IPPCS.Web/wwwroot/js/factory-recall.js
+          node --check src/IPPCS.Web/wwwroot/js/factory-choices.js
+          node --check src/IPPCS.Web/wwwroot/js/aps-gantt-segments.js
+          node --check src/IPPCS.Web/wwwroot/js/periodic-tests.js
+          node --check src/IPPCS.Web/wwwroot/js/factory-master-data.js
+          node --check src/IPPCS.Web/wwwroot/js/factory-release-readiness.js
+          node --check src/IPPCS.Web/wwwroot/js/factory-analytical-verification.js
+          node --check src/IPPCS.Web/wwwroot/js/factory-reports.js
+          node --check src/IPPCS.Web/wwwroot/js/login.js
+          node --check src/IPPCS.Web/wwwroot/js/excel-csv-import.js
+          node --check src/IPPCS.Web/wwwroot/js/factory-print.js
+      - name: Jalali browser calendar and recall UI tests
+        run: node --test tests/jalali.test.cjs tests/factory-recall-ui.test.cjs tests/eco-ui.test.cjs tests/factory-master-ui.test.cjs tests/factory-first-run-ui.test.cjs tests/factory-analytical-ui.test.cjs tests/factory-eighteen-module-ui-audit.test.cjs tests/factory-reports-ui.test.cjs tests/factory-stage39-acceptance-ui.test.cjs tests/factory-stage40-spc-ui.test.cjs tests/factory-stage41-aps-ui.test.cjs tests/factory-stage42-help.test.cjs tests/factory-stage42-shared-tool-ui.test.cjs tests/factory-stage44-print-ui.test.cjs tests/factory-stage46-navigation-ui.test.cjs tests/factory-stage47-control-plan-ui.test.cjs tests/factory-stage48-mrp-capacity-ui.test.cjs tests/factory-stage49-menu-order-ui.test.cjs tests/factory-stage50-aps-yield-ui.test.cjs tests/factory-stage51-aps-gantt-overnight-ui.test.cjs tests/factory-stage52-periodic-product-tests-ui.test.cjs tests/factory-stage53-product-capacity-ui.test.cjs tests/planning-csv-import.test.cjs tests/bom-alternatives-ui.test.cjs
+      - name: First-test PowerShell script syntax preflight (Windows compatible)
+        shell: pwsh
+        run: |
+          foreach($script in @(
+            'scripts/Export-IPPCSDatabaseSql.ps1',
+            'scripts/Test-IPPCS-FirstTest.ps1',
+            'scripts/Validate-IPPCS.ps1'
+          )){
+            $tokens=$null
+            $parseErrors=$null
+            [System.Management.Automation.Language.Parser]::ParseFile(
+              (Resolve-Path $script).Path,[ref]$tokens,[ref]$parseErrors) | Out-Null
+            if($parseErrors.Count -gt 0){
+              $parseErrors | ForEach-Object { Write-Error "$script : $($_.Message)" }
+              throw "Invalid PowerShell first-run script: $script"
+            }
+          }
+      - name: Verify committed migrations match EF Core model
+        env:
+          IPPCS_EF_MODEL_ONLY: '1'
+        run: |
+          dotnet tool install --global dotnet-ef --version 10.0.0
+          dotnet ef migrations has-pending-model-changes --project src/IPPCS.Web/IPPCS.Web.csproj --startup-project src/IPPCS.Web/IPPCS.Web.csproj
+      - name: Generate reviewed one-file IPPCS_Dev SQL installer
+        env:
+          IPPCS_EF_MODEL_ONLY: '1'
+        run: |
+          python3 -m unittest discover -s tests -p 'test_ippcs_sql_installer.py'
+          dotnet ef migrations script 0 --idempotent --no-build --configuration Release --project src/IPPCS.Web/IPPCS.Web.csproj --startup-project src/IPPCS.Web/IPPCS.Web.csproj --output /tmp/ippcs-complete-ef.sql
+          python3 scripts/build_ippcs_install_sql.py --source /tmp/ippcs-complete-ef.sql --database IPPCS_Dev --output database/IPPCS_Dev_Complete_Install.sql
+          test -s database/IPPCS_Dev_Complete_Install.sql
+      - name: Publish complete, self-contained SQL installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: IPPCS_Dev_Complete_Install_SQL
+          path: database/IPPCS_Dev_Complete_Install.sql
+          if-no-files-found: error
+          retention-days: 30
+      - name: Bundle first UAT Visual Studio source and SQL as one zip artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist/IPPCS_First_UAT_1
+          git archive HEAD | tar -xf - -C dist/IPPCS_First_UAT_1
+          mkdir -p dist/IPPCS_First_UAT_1/database
+          cp database/IPPCS_Dev_Complete_Install.sql dist/IPPCS_First_UAT_1/database/
+          git rev-parse HEAD > dist/IPPCS_First_UAT_1/TESTED_COMMIT.txt
+          test -s dist/IPPCS_First_UAT_1/IPPCS.sln
+          test -s dist/IPPCS_First_UAT_1/database/IPPCS_Dev_Complete_Install.sql
+          test -s dist/IPPCS_First_UAT_1/docs/FIRST_UAT_TEST_PACK.md
+          echo "PASS: complete source + standalone SQL + visual studio/UAT guide bundled."
+      - name: Publish first UAT complete source plus SQL package
+        uses: actions/upload-artifact@v4
+        with:
+          name: IPPCS_First_UAT_1_VisualStudio_SQL_Complete
+          path: dist/IPPCS_First_UAT_1/
+          if-no-files-found: error
+          retention-days: 30
+  # Independently isolated SQL acceptance; one workflow run includes both gates.
+  sqlserver-schema:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Verify and package the exact Draft PR head, not GitHub's temporary merge ref.
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Start disposable SQL Server with generated credential
+        shell: bash
+        run: |
+          password="Ci_Aa1!$(openssl rand -hex 18)"
+          echo "::add-mask::$password"
+          echo "CI_DB_PASSWORD=$password" >> "$GITHUB_ENV"
+          admin_password="Ci_Aa1!$(openssl rand -hex 18)"
+          echo "::add-mask::$admin_password"
+          echo "CI_ADMIN_PASSWORD=$admin_password" >> "$GITHUB_ENV"
+          docker run -d --name ippcs-ci-sql \
+            -e ACCEPT_EULA=Y -e MSSQL_PID=Developer \
+            -e MSSQL_SA_PASSWORD="$password" -p 1433:1433 \
+            mcr.microsoft.com/mssql/server:2022-latest
+      - name: Build and apply checked-in EF Core migration
+        shell: bash
+        run: |
+          export ASPNETCORE_ENVIRONMENT=Development
+          export ConnectionStrings__Production="Server=127.0.0.1,1433;Database=IPPCS_CI;User Id=sa;Password=${CI_DB_PASSWORD};Encrypt=True;TrustServerCertificate=True;"
+          dotnet restore src/IPPCS.Web/IPPCS.Web.csproj
+          dotnet build src/IPPCS.Web/IPPCS.Web.csproj -c Release --no-restore
+          dotnet tool install --global dotnet-ef --version 10.0.0
+          success=0
+          for attempt in $(seq 1 8); do
+            if dotnet ef database update --project src/IPPCS.Web/IPPCS.Web.csproj --startup-project src/IPPCS.Web/IPPCS.Web.csproj --configuration Release > /tmp/ippcs-migrate.log 2>&1; then
+              success=1
+              break
+            fi
+            echo "Schema attempt $attempt/8"
+            sleep 8
+          done
+          if [ "$success" -ne 1 ]; then
+            echo "SQL migration failed; sanitized diagnostic follows:"
+            grep -E 'Exception|Error|error|fail|Invalid|SqlException|migration|already exists|Duplicate' /tmp/ippcs-migrate.log | tail -n 65 || true
+            echo "SQL container state:"
+            docker inspect -f '{{.State.Status}} exit={{.State.ExitCode}}' ippcs-ci-sql || true
+            docker logs --tail 35 ippcs-ci-sql 2>&1 | grep -E 'error|Error|SQL Server is|fail|memory|Killed|Recovery' | tail -n 20 || true
+            exit 1
+          fi
+          echo "PASS: versioned EF schema applied to disposable SQL Server."
+      - name: Apply exactly the delivered installer to a second fresh SQL database
+        shell: bash
+        run: |
+          set -euo pipefail
+          IPPCS_EF_MODEL_ONLY=1 dotnet ef migrations script 0 --idempotent --no-build --configuration Release --project src/IPPCS.Web/IPPCS.Web.csproj --startup-project src/IPPCS.Web/IPPCS.Web.csproj --output /tmp/ippcs-install-ef.sql
+          python3 scripts/build_ippcs_install_sql.py --source /tmp/ippcs-install-ef.sql --database IPPCS_InstallerSmoke --output /tmp/ippcs-install-smoke.sql
+          export IPPCS_INSTALLER_CONNECTION="Server=127.0.0.1,1433;Database=master;User Id=sa;Password=${CI_DB_PASSWORD};Encrypt=True;TrustServerCertificate=True;"
+          export IPPCS_INSTALLER_DATABASE="IPPCS_InstallerSmoke"
+          dotnet run --project tools/IPPCS.SqlInstaller/IPPCS.SqlInstaller.csproj --configuration Release -- /tmp/ippcs-install-smoke.sql
+          # Repeat to prove EF history guards and seed inserts are idempotent.
+          dotnet run --project tools/IPPCS.SqlInstaller/IPPCS.SqlInstaller.csproj --configuration Release --no-build -- /tmp/ippcs-install-smoke.sql
+          echo "PASS: full one-file SSMS installer creates a second fresh SQL Server database and runs twice safely."
+      - name: Authenticate and verify protected SQL writes
+        shell: bash
+        run: |
+          set -euo pipefail
+          export ASPNETCORE_ENVIRONMENT=Development
+          export ConnectionStrings__Production="Server=127.0.0.1,1433;Database=IPPCS_CI;User Id=sa;Password=${CI_DB_PASSWORD};Encrypt=True;TrustServerCertificate=True;"
+          export Bootstrap__AdminUsername="ci-admin"
+          export Bootstrap__AdminPassword="$CI_ADMIN_PASSWORD"
+          dotnet run --project src/IPPCS.Web/IPPCS.Web.csproj --no-build -c Release --no-launch-profile --urls http://127.0.0.1:5295 > /tmp/ippcs-web.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          ready=0
+          for attempt in $(seq 1 25); do
+            if curl -fsS http://127.0.0.1:5295/health >/dev/null 2>&1; then ready=1; break; fi
+            sleep 2
+          done
+          if [ "$ready" -ne 1 ]; then echo "Web host failed health check"; exit 1; fi
+          unauthorized=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:5295/api/v1/items)
+          test "$unauthorized" = "401"
+          python3 -c 'import json,os;open("/tmp/ippcs-login.json","w").write(json.dumps({"username":"ci-admin","password":os.environ["CI_ADMIN_PASSWORD"]}))'
+          curl --fail --silent --show-error -c /tmp/ippcs-cookie \
+            -H 'Content-Type: application/json' --data-binary @/tmp/ippcs-login.json \
+            http://127.0.0.1:5295/auth/login > /tmp/ippcs-login-response.json
+          csrf_status=$(curl -s -o /dev/null -w '%{http_code}' -b /tmp/ippcs-cookie \
+            -H 'Content-Type: application/json' -d '{"code":"NO-CSRF","name":"Denied","unit":"PCS","type":2}' \
+            http://127.0.0.1:5295/api/v1/items)
+          test "$csrf_status" = "400"
+          curl --fail --silent --show-error -b /tmp/ippcs-cookie -c /tmp/ippcs-cookie \
+            http://127.0.0.1:5295/auth/csrf > /tmp/ippcs-token.json
+          token=$(python3 -c 'import json;print(json.load(open("/tmp/ippcs-token.json"))["token"])')
+          test -n "$token"
+          curl --fail --silent --show-error -b /tmp/ippcs-cookie -c /tmp/ippcs-cookie \
+            -H "X-IPPCS-CSRF: $token" -H 'Content-Type: application/json' \
+            -d '{"code":"SHOCK-CI-001","name":"CI Shock Absorber","unit":"PCS","type":2}' \
+            http://127.0.0.1:5295/api/v1/items > /tmp/ippcs-item-created.json
+          curl --fail --silent --show-error -b /tmp/ippcs-cookie \
+            http://127.0.0.1:5295/api/v1/items > /tmp/ippcs-items.json
+          python3 -c 'import json;assert any(x["code"]=="SHOCK-CI-001" for x in json.load(open("/tmp/ippcs-items.json")))'
+          # Stage 38: read-only management report must require login, honor the
+          # Jalali reporting window, and expose explicit non-inventory metrics.
+          report_unauth=$(curl -s -o /dev/null -w '%{http_code}' \
+            'http://127.0.0.1:5295/api/v1/factory-reports/overview?fromJalali=1405%2F08%2F01&throughJalali=1405%2F08%2F02')
+          test "$report_unauth" = "401"
+          curl --fail --silent --show-error -b /tmp/ippcs-cookie \
+            'http://127.0.0.1:5295/api/v1/factory-reports/overview?fromJalali=1405%2F08%2F01&throughJalali=1405%2F08%2F02' \
+            > /tmp/ippcs-report.json
+          python3 -c 'import json;d=json.load(open("/tmp/ippcs-report.json"));assert all(k in d for k in ("orders","centers","daily","quality","capa","definitions"));assert d["definitions"]["timeZone"]=="Asia/Tehran"'
+          bad_range=$(curl -s -o /dev/null -w '%{http_code}' -b /tmp/ippcs-cookie \
+            'http://127.0.0.1:5295/api/v1/factory-reports/overview?fromJalali=1405%2F08%2F05&throughJalali=1405%2F08%2F01')
+          test "$bad_range" = "400"
+          echo "PASS: bounded management reports, authenticated access and date validation."
+          priority_status=$(curl --silent --show-error -b /tmp/ippcs-cookie \
+            -o /tmp/ippcs-uat-queue.json -w '%{http_code}' \
+            http://127.0.0.1:5295/api/v1/factory-release-readiness/priority-queue)
+          if [ "$priority_status" != "200" ]; then
+            echo "Factory priority queue returned HTTP $priority_status"
+            cat /tmp/ippcs-uat-queue.json || true
+            echo "Application diagnostic log:"
+            grep -E "fail:|Exception|SqlException|InvalidOperation|warn:" /tmp/ippcs-web.log | tail -n 100 || true
+            exit 1
+          fi
+          python3 -c 'import json;d=json.load(open("/tmp/ippcs-uat-queue.json"));assert d["kind"]=="FactoryPriorityExceptionsOnly";assert d["factoryAcceptedModules"]==0 and d["productionReleaseAuthorized"] is False;assert d["total"]==len(d["rows"]);assert d["critical"]+d["high"]+d["medium"]==d["total"]'
+          echo "PASS: evidence-only ECO/CAPA/EOL/APS priority queue and no fabricated factory acceptance."
+          if ! python3 tests/production_e2e_smoke.py; then
+            echo "Production E2E failed; application warnings:"
+            grep -E "IPPCS_CONCURRENCY_RELEASE|DbUpdateConcurrencyException|fail:|warn:" /tmp/ippcs-web.log | tail -n 50 || true
+            exit 1
+          fi
+          # First VS run must serve every UI page, allow actual Administrator
+          # sign-in, expose all 18 modules and render a real SQL order print.
+          python3 tests/first_uat_access_smoke.py
+          echo "PASS: unauthorized=401, CSRF denied=400, login successful, protected SQL Server insert and read round trip."
+      - name: Cleanup
+        if: always()
+        run: docker rm -f ippcs-ci-sql || true

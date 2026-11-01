@@ -1,0 +1,91 @@
+using Xunit;
+
+public sealed class FactoryStageThirtySixAnalyticalTests
+{
+    [Fact]
+    public void Missing_inputs_on_first_install_block_all_eight_trial_calculations()
+    {
+        var gates=FactoryAnalyticalVerification.Build(
+            confirmedDemand:0,confirmedMonths:0,sopRuns:0,approvedMps:0,
+            approvedBom:0,balances:0,mrpRuns:0,centers:0,routings:0,shifts:0,
+            apsRuns:0,oeePlans:0,clockStops:0,closedTimedStops:0,costRates:0,
+            frozenRates:0,orders:0);
+        Assert.Equal(FactoryAnalyticalVerification.ModuleNumbers,gates.Select(x=>x.Number));
+        Assert.Equal(8,gates.Count);
+        Assert.All(gates,gate=>{
+            Assert.False(gate.CanRun);
+            Assert.False(gate.HasRecordedEvidence);
+            Assert.Equal("MissingInputs",gate.State);
+            Assert.NotEmpty(gate.Warning);
+            Assert.All(gate.Checks,c=>Assert.True(c.Minimum>0));
+        });
+    }
+
+    [Fact]
+    public void Real_example_data_changes_only_test_readiness_and_recorded_evidence()
+    {
+        var gates=FactoryAnalyticalVerification.Build(
+            confirmedDemand:4,confirmedMonths:4,sopRuns:1,approvedMps:1,
+            approvedBom:1,balances:2,mrpRuns:1,centers:1,routings:1,shifts:2,
+            apsRuns:1,oeePlans:1,clockStops:1,closedTimedStops:1,costRates:1,
+            frozenRates:2,orders:1);
+        Assert.All(gates,x=>Assert.True(x.CanRun));
+        Assert.Equal(new[]{2,6,16},gates.Where(x=>!x.HasRecordedEvidence)
+            .Select(x=>x.Number));
+        Assert.All(gates.Where(x=>x.HasRecordedEvidence),
+            x=>Assert.Equal("EvidenceAvailable",x.State));
+        Assert.All(gates.Where(x=>!x.HasRecordedEvidence),
+            x=>Assert.Equal("ReadyForFirstTest",x.State));
+    }
+
+    [Fact]
+    public void Missing_frozen_cost_rate_and_observed_clock_must_not_be_inferred_from_orders()
+    {
+        var gates=FactoryAnalyticalVerification.Build(
+            confirmedDemand:2,confirmedMonths:2,sopRuns:2,approvedMps:1,
+            approvedBom:1,balances:1,mrpRuns:2,centers:1,routings:1,shifts:1,
+            apsRuns:2,oeePlans:1,clockStops:0,closedTimedStops:2,costRates:1,
+            frozenRates:0,orders:3);
+        var oee=gates.Single(x=>x.Number==14);
+        Assert.False(oee.CanRun);
+        Assert.Equal("MissingInputs",oee.State);
+        Assert.Contains(oee.Checks,x=>x.Key=="clock"&&!x.Ready);
+        var cost=gates.Single(x=>x.Number==17);
+        Assert.False(cost.CanRun);
+        Assert.False(cost.HasRecordedEvidence);
+        Assert.Contains(cost.Checks,x=>x.Key=="frozen"&&!x.Ready);
+    }
+    [Fact]
+    public void Forecast_requires_four_recorded_months_for_two_month_backtest()
+    {
+        var gates=FactoryAnalyticalVerification.Build(
+            confirmedDemand:2,confirmedMonths:2,sopRuns:2,approvedMps:1,
+            approvedBom:1,balances:1,mrpRuns:2,centers:1,routings:1,shifts:1,
+            apsRuns:2,oeePlans:1,clockStops:1,closedTimedStops:2,costRates:1,
+            frozenRates:1,orders:3);
+        var forecast=gates.Single(x=>x.Number==2);
+        Assert.False(forecast.CanRun);
+        Assert.False(forecast.HasRecordedEvidence);
+        Assert.Contains(forecast.Checks,x=>x.Key=="months"&&x.Minimum==4&&!x.Ready);
+    }
+    [Fact]
+    public void Moving_average_clearly_reports_missing_months_instead_of_certified_zero_demand()
+    {
+        var jalali=new System.Globalization.PersianCalendar();
+        DateOnly D(int y,int m,int day)=>
+            DateOnly.FromDateTime(new DateTime(y,m,day,jalali));
+        var history=new[]{
+            new FactoryDemand{Category="Confirmed",DueOn=D(1405,6,5),Quantity=10},
+            new FactoryDemand{Category="Confirmed",DueOn=D(1405,8,10),Quantity=20},
+            new FactoryDemand{Category="Forecast",DueOn=D(1405,7,10),Quantity=100},
+            new FactoryDemand{Category="Confirmed",DueOn=D(1405,9,11),Quantity=999}
+        };
+        var coverage=FactoryForecasting.Coverage(history,D(1405,9,1),3);
+        Assert.False(coverage.Complete);
+        Assert.Equal(2,coverage.RecordedMonths);
+        Assert.Equal(new[]{"1405/07"},coverage.MissingMonths);
+        Assert.Equal(10m,FactoryForecasting.MonthlyMovingAverage(
+            history,D(1405,9,1),3));
+    }
+
+}

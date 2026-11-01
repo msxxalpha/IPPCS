@@ -1,0 +1,27 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IPPCS.Web", "src\IPPCS.Web\IPPCS.Web.csproj", "{AB45AFAB-A9FC-4D17-A8CA-0D0A9667B41B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IPPCS.Tests", "tests\IPPCS.Tests\IPPCS.Tests.csproj", "{7B3F59CF-D442-4D02-9CE3-78B0CF3A7E51}"
+EndProject
+Global
+ GlobalSection(SolutionConfigurationPlatforms) = preSolution
+  Debug|Any CPU = Debug|Any CPU
+  Release|Any CPU = Release|Any CPU
+ EndGlobalSection
+ GlobalSection(ProjectConfigurationPlatforms) = postSolution
+  {AB45AFAB-A9FC-4D17-A8CA-0D0A9667B41B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+  {AB45AFAB-A9FC-4D17-A8CA-0D0A9667B41B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+  {AB45AFAB-A9FC-4D17-A8CA-0D0A9667B41B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+  {AB45AFAB-A9FC-4D17-A8CA-0D0A9667B41B}.Release|Any CPU.Build.0 = Release|Any CPU
+  {7B3F59CF-D442-4D02-9CE3-78B0CF3A7E51}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+  {7B3F59CF-D442-4D02-9CE3-78B0CF3A7E51}.Debug|Any CPU.Build.0 = Debug|Any CPU
+  {7B3F59CF-D442-4D02-9CE3-78B0CF3A7E51}.Release|Any CPU.ActiveCfg = Release|Any CPU
+  {7B3F59CF-D442-4D02-9CE3-78B0CF3A7E51}.Release|Any CPU.Build.0 = Release|Any CPU
+ EndGlobalSection
+ GlobalSection(SolutionProperties) = preSolution
+  HideSolutionNode = FALSE
+ EndGlobalSection
+EndGlobal

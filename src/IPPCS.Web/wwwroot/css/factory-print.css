@@ -1,0 +1,76 @@
+/* A high-contrast, RTL, printable in-factory document. No external fonts. */
+:root{--navy:#142e49;--blue:#1b567b;--silver:#e7edf1;--ink:#172d3d;--accent:#dd8a3e;--gray:#596c7b}
+*{box-sizing:border-box}
+html{direction:rtl}
+body{margin:0;background:#e8eef2;font:13px/1.8 "Vazirmatn","Vazir","Tahoma","Segoe UI",sans-serif;color:var(--ink);-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.print-toolbar{max-width:1240px;margin:14px auto 0;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:10px 18px;border-radius:12px;background:#fff;box-shadow:0 7px 25px #162d4218}
+.toolbar-brand{font-weight:900;color:var(--navy)}.toolbar-brand span{font-weight:400;color:var(--gray);margin-right:12px}
+.toolbar-actions{display:flex;gap:8px;flex-wrap:wrap}
+button{font:inherit;border:0;border-radius:7px;background:var(--navy);color:white;padding:9px 20px;cursor:pointer}
+button:disabled{opacity:.46;cursor:not-allowed}
+button.btn-muted{background:#e4e9ed;color:#213c4f}
+.print-error{max-width:1240px;margin:15px auto;padding:14px 20px;border-radius:8px;color:#8b1d1d;background:#fce4e4}
+.print-document{width:min(1180px,calc(100% - 30px));margin:18px auto 50px;padding:26px 34px 22px;background:white;box-shadow:0 18px 50px #15294016;position:relative;overflow:hidden}
+.print-top-accent{height:7px;background:linear-gradient(270deg,var(--navy) 0 61%,var(--accent) 61% 74%,#899aa9 74%);margin:-26px -34px 23px}
+.print-head{display:flex;align-items:center;justify-content:space-between;border-bottom:2px solid var(--navy);padding-bottom:15px;gap:26px;min-height:94px}
+.company{display:flex;align-items:center;gap:12px;max-width:55%}
+.company-symbol{background:var(--navy);color:#fff;border-radius:12px;display:grid;place-items:center;width:56px;height:56px;font:900 27px/1 sans-serif;letter-spacing:-1px;position:relative;flex-shrink:0}
+.company-symbol:after{content:"";position:absolute;width:36px;height:5px;bottom:5px;right:10px;background:var(--accent);border-radius:4px}
+.company strong,.company span,.company small{display:block}
+.company strong{font-size:16px;line-height:1.5;color:var(--navy)}
+.company span{font-size:10.5px;color:var(--gray)}
+.company small{font-size:10px;color:var(--blue)}
+.document-type{text-align:left;max-width:44%}.document-eyebrow{color:var(--accent);font-weight:800;font-size:10px;letter-spacing:.07em}
+.document-type h1{font-size:18px;line-height:1.55;margin:3px 0 4px;color:var(--navy);font-weight:900}
+.document-reference{font:600 11px/1.5 "Tahoma",sans-serif;direction:ltr;text-align:left;unicode-bidi:plaintext;color:var(--gray)}
+.document-ribbon{display:grid;grid-template-columns:1fr 1fr 1fr 1.5fr;gap:0;border:1px solid #cbd7df;border-top:0;background:#f4f7f9}
+.document-ribbon>div{border-left:1px solid #d3dde4;padding:9px 13px;min-width:0;overflow-wrap:anywhere}
+.document-ribbon>div:last-child{border-left:0}
+.document-ribbon small{display:block;color:#5b6d7c;font-size:10px}
+.document-ribbon strong{font-size:11px;color:var(--navy);font-weight:800;unicode-bidi:plaintext}
+.print-meta-section{margin-top:18px}
+h2{font-size:13px;color:var(--navy);margin:0 0 9px;font-weight:900;border-right:4px solid var(--accent);padding-right:9px}
+.print-meta{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border:1px solid #d9e1e7;border-radius:6px;overflow:hidden}
+.print-field{padding:9px 11px;min-height:56px;border-left:1px solid #dde5ea;border-bottom:1px solid #dde5ea;overflow-wrap:anywhere}
+.print-field label{display:block;color:#687a87;font-size:10px}.print-field strong{display:block;color:#1a3245;font-size:12px;unicode-bidi:plaintext}
+.print-section{margin:20px 0;break-inside:auto}
+.print-section h2{display:flex;align-items:center;justify-content:space-between}
+.print-table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;table-layout:auto}
+.print-table thead{display:table-header-group;background:#173953;color:white}
+.print-table th{text-align:right;font-size:10px;padding:9px 7px;border:1px solid #456077;font-weight:700;white-space:normal}
+.print-table td{padding:8px 7px;border:1px solid #d5e0e6;font-size:10.5px;vertical-align:top;overflow-wrap:anywhere;unicode-bidi:plaintext}
+.print-table tbody tr:nth-child(2n){background:#f1f5f7}
+.print-table tbody tr{break-inside:avoid;page-break-inside:avoid}
+.print-table .empty{text-align:center;color:#66798a;padding:18px}
+.print-section-note{color:#596d7b;font-size:10px;margin:7px 0 0;line-height:1.7}
+.print-notice{padding:11px 14px;border-right:4px solid #c48b48;background:#f8f4ec;margin-top:18px;break-inside:avoid}
+.print-notice strong{font-size:12px;color:#774d1f}.print-notice p{margin:2px 0 0;font-size:10.5px}
+.print-signoff{margin-top:19px;break-inside:avoid}
+.signoff-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.signoff-cell{border:1px solid #bac8d3;padding:10px 14px;height:85px;display:flex;flex-direction:column}
+.signoff-cell strong{font-size:11px}.signoff-cell span{font-size:10px;color:#70818e}
+.signature-line{border-bottom:1px dotted #a5b4be;flex:1}
+.print-signoff>small{display:block;margin-top:6px;color:#667785;font-size:9.5px}
+.print-footer{border-top:1px solid #bfced9;margin-top:16px;padding-top:8px;display:flex;justify-content:space-between;gap:20px;color:#5d6b78;font-size:9.5px}
+.print-footer span:nth-child(2){direction:ltr;unicode-bidi:plaintext}
+.print-watermark{position:absolute;left:50%;top:40%;transform:translate(-50%,-50%) rotate(-21deg);font-size:72px;white-space:nowrap;font-weight:900;letter-spacing:.04em;opacity:.07;color:#a43130;pointer-events:none;z-index:1}
+.print-document[data-kind="report"]{page:ippcs-report}
+.print-document[data-kind="order"]{page:ippcs-order}
+@page ippcs-report{size:A3 landscape;margin:13mm 11mm}
+@page ippcs-order{size:A4 landscape;margin:11mm 10mm}
+@page{size:A4 landscape;margin:11mm 10mm}
+@media print{
+ html,body{background:white !important;width:auto;height:auto;margin:0;padding:0}
+ .print-toolbar,.print-error{display:none!important}
+ .print-document{width:100%;padding:0;margin:0;box-shadow:none;overflow:visible}
+ .print-top-accent{margin:0 0 13px}
+ .print-head{padding-bottom:9px}
+ .print-section{margin:12px 0}
+ .print-meta-section{margin-top:12px}
+ .print-footer{break-inside:avoid}
+ .print-table{font-size:9pt}
+ .print-watermark{position:fixed;top:48%}
+ a[href]:after{content:none!important}
+}
+@media(max-width:900px){.print-meta{grid-template-columns:repeat(2,minmax(0,1fr))}.document-ribbon{grid-template-columns:1fr 1fr}.print-head{align-items:start}.company strong{font-size:13px}}
+@media(max-width:540px){.print-document{padding:12px;width:calc(100% - 12px)}.print-top-accent{margin:-12px -12px 12px}.print-head{display:block}.company,.document-type{max-width:100%;text-align:right}.document-type{margin-top:12px}.print-meta{grid-template-columns:1fr 1fr}.signoff-grid{grid-template-columns:1fr}}

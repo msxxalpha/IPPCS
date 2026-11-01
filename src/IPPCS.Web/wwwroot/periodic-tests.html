@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#17324d">
+<title>IPPCS | برنامه آزمون‌های ادواری و سالانه محصول</title>
+<link rel="stylesheet" href="/css/production.css">
+<script defer src="/js/security-client.js"></script>
+<script defer src="/js/jalali-datepicker.js"></script>
+<script defer src="/js/factory-choices.js"></script>
+<script defer src="/js/periodic-tests.js"></script>
+</head>
+<body>
+<div class="app-shell">
+ <aside class="sidebar">
+  <div class="brand"><div class="brand-logo">IP</div><div><strong>ایندامین سایپا</strong><small>آزمون‌های محصول و فرآیند</small></div></div>
+  <div class="side-caption">آزمایش‌ها و تست‌های دوره‌ای/سالانه</div>
+  <nav aria-label="منوی آزمون">
+   <a class="planning-link" href="/app.html">داشبورد اصلی</a>
+   <a class="planning-link" href="/control-plan.html">کنترل پلن، بازرسی و EOL</a>
+   <a class="planning-link" href="/factory-analytical-verification.html">آزمون محاسبات و داده‌های تحلیلی</a>
+   <a class="planning-link" href="/factory-release-readiness.html">آمادگی آزمون و گیت‌های پذیرش</a>
+   <a class="planning-link" href="/execution.html">دستورات و عملیات تولید</a>
+   <a class="planning-link" href="/factory-reports.html">گزارش‌های تولید</a>
+  </nav>
+  <div class="sidebar-foot">برنامه آزمون محصول/فرآیند داخل IPPCS<br>بدون اتصال به انبار، خرید، فروش، منابع انسانی یا سامانه کالیبراسیون</div>
+ </aside>
+ <div class="main">
+  <header class="topbar">
+   <div><span class="eyebrow">مدیریت برنامه و شواهد آزمون</span><h1>آزمون‌های ادواری و سالانه محصول</h1></div>
+   <span class="environment-pill">محیط توسعه</span>
+   <button type="button" class="btn-outline" data-ip-logout>خروج از سامانه</button>
+  </header>
+  <main class="content">
+   <div id="test-notice" class="notice" hidden role="status" aria-live="polite"></div>
+   <div class="callout">
+    این فرم برای تعریف تناوب آزمون، ساخت سررسیدهای شمسی، ثبت نمونه و نتیجه و نگهداری سابقه قابل ممیزی است. آزمون‌های عددی با حدود پذیرش کنترل می‌شوند. ثبت نتیجه، به‌تنهایی مجوز آزادسازی محصول نیست. مدیریت کالیبراسیون و ابزار اندازه‌گیری در سامانه مستقل سازمان باقی می‌ماند.
+   </div>
+   <div class="summary-stats">
+    <div><span>برنامه‌های فعال</span><strong id="test-plan-count">—</strong></div>
+    <div><span>سررسیدهای عقب‌افتاده در بازه انتخابی</span><strong id="test-overdue-count">—</strong></div>
+    <div><span>نتیجه‌های مردود در بازه انتخابی</span><strong id="test-failed-count">—</strong></div>
+   </div>
+
+   <section class="panel">
+    <div class="section-title"><h3>۱. تعریف برنامه آزمون</h3><small>نسخه برنامه پس از ثبت ثابت می‌ماند؛ برای تغییر روش یا معیار پذیرش، کد نسخه جدید تعریف کنید.</small></div>
+    <form id="test-plan-form" class="form-grid">
+     <label>کد برنامه آزمون<input name="code" required maxlength="64" placeholder="مثلاً LAB-DAMP-ANNUAL-A"></label>
+     <label>نام آزمون<input name="name" required maxlength="180" placeholder="نام آزمون محصول یا فرآیند"></label>
+     <label>محصول نهایی یا نیمه‌ساخته<select id="test-item" name="itemId" required></select></label>
+     <label>تناوب آزمون<select id="test-cadence" name="cadence" required><option value="Periodic">ادواری</option><option value="Annual">سالانه</option></select></label>
+     <label>فاصله تکرار (ماه)<input id="test-interval" name="intervalMonths" type="number" min="1" max="11" value="3" required></label>
+     <label>اولین سررسید شمسی<span class="jalali-field"><input name="firstDue" data-jalali-date required placeholder="انتخاب تاریخ"><button type="button" data-jalali-trigger class="date-trigger" aria-label="انتخاب اولین سررسید">▣</button></span></label>
+     <label>آخرین سررسید مجاز (اختیاری)<span class="jalali-field"><input name="validThrough" data-jalali-date placeholder="بدون تاریخ پایان"><button type="button" data-jalali-trigger class="date-trigger" aria-label="انتخاب پایان اعتبار">▣</button></span></label>
+     <label>روش یا مرجع دستور آزمون<input name="methodReference" required maxlength="120" placeholder="شماره دستورالعمل داخلی"></label>
+     <label>تعداد نمونه در هر اجرا<input name="sampleCount" type="number" min="1" max="1000" value="1" required></label>
+     <label>واحد اندازه‌گیری (برای آزمون عددی)<select id="test-unit" name="unit"></select></label>
+     <label>حد پایین پذیرش (اختیاری)<input name="minimum" type="number" step="any"></label>
+     <label>حد بالای پذیرش (اختیاری)<input name="maximum" type="number" step="any"></label>
+     <label class="wide">معیار پذیرش و شرط قبولی<textarea name="acceptanceCriteria" required maxlength="500" rows="2" placeholder="معیار پذیرفته‌شده آزمون و نحوه تفسیر نتیجه"></textarea></label>
+     <div class="form-actions wide"><button class="btn-main" type="submit">ثبت برنامه آزمون</button></div>
+    </form>
+    <div id="test-plan-table"></div>
+   </section>
+
+   <section class="panel">
+    <div class="section-title"><h3>۲. تولید و بازخوانی سررسیدها</h3><small>تاریخ‌ها در تقویم هجری شمسی محاسبه می‌شوند. تولید سررسید برای بازه یکسان تکرارپذیر است و ردیف تکراری نمی‌سازد.</small></div>
+    <form id="test-range-form" class="form-grid">
+     <label>از تاریخ شمسی<span class="jalali-field"><input id="test-range-from" data-jalali-date required placeholder="شروع بازه"><button type="button" data-jalali-trigger class="date-trigger">▣</button></span></label>
+     <label>تا تاریخ شمسی<span class="jalali-field"><input id="test-range-through" data-jalali-date required placeholder="پایان بازه"><button type="button" data-jalali-trigger class="date-trigger">▣</button></span></label>
+     <div class="form-actions wide">
+      <button id="test-generate-due" type="button" class="btn-main">تولید سررسیدهای برنامه‌های فعال</button>
+      <button id="test-refresh-runs" type="button" class="btn-outline">بازخوانی سررسیدهای موجود</button>
+     </div>
+    </form>
+    <div id="test-schedule-summary" class="notice" hidden role="status" aria-live="polite"></div>
+    <div id="test-run-table"></div>
+   </section>
+
+   <section class="panel">
+    <div class="section-title"><h3>۳. ثبت نتیجه آزمون</h3><small>هر سررسید فقط یک بار تکمیل می‌شود؛ اصلاحات باید طبق فرایند کنترل‌شده کیفیت ثبت شوند، نه با بازنویسی تاریخچه.</small></div>
+    <form id="test-result-form" class="form-grid">
+     <label>سررسید انجام‌نشده<select id="test-run-select" name="runId" required></select></label>
+     <label>تاریخ واقعی اجرا<span class="jalali-field"><input name="performedOn" data-jalali-date required placeholder="تاریخ انجام آزمون"><button type="button" data-jalali-trigger class="date-trigger">▣</button></span></label>
+     <label>کد نمونه یا ارجاع بچ<input name="sampleReference" required maxlength="100" placeholder="ارجاع نمونه، بچ یا گزارش آزمایشگاه"></label>
+     <label>مقدار اندازه‌گیری (در صورت عددی بودن)<input name="measuredValue" type="number" step="any"></label>
+     <label>نتیجه آزمون<select name="outcome" id="test-outcome" required><option value="Passed">قبول</option><option value="Failed">مردود</option><option value="Inconclusive">نامعین / نیازمند بررسی</option></select></label>
+     <label>مرجع گزارش یا مدرک<input name="reportReference" maxlength="120" placeholder="شماره گزارش یا سند"></label>
+     <label class="wide">توضیحات، علت مردودی یا نتیجه نامعین<textarea name="notes" id="test-result-notes" maxlength="500" rows="2" placeholder="برای نتیجه مردود یا نامعین اجباری است"></textarea></label>
+     <div class="form-actions wide"><button class="btn-main" type="submit">ثبت نهایی نتیجه و حفظ سابقه</button></div>
+    </form>
+   </section>
+  </main>
+  <footer class="footer">IPPCS • آزمون ادواری/سالانه محصول و فرآیند <span>سوابق آزمون حذف یا بازنویسی نمی‌شوند</span></footer>
+ </div>
+</div>
+</body>
+</html>
