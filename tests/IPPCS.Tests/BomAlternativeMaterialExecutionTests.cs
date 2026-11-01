@@ -149,4 +149,70 @@ public sealed class BomAlternativeMaterialExecutionTests
     }
 
 
+
+    [Fact]
+    public void Same_component_on_distinct_bom_lines_keeps_separate_lot_consumption()
+    {
+        var component = Guid.NewGuid();
+        var firstLine = new ManufacturingBomLine
+        {
+            Id = Guid.NewGuid(), ComponentItemId = component,
+            QuantityPer = 1m, ScrapPercent = 0, Sequence = 10
+        };
+        var secondLine = new ManufacturingBomLine
+        {
+            Id = Guid.NewGuid(), ComponentItemId = component,
+            QuantityPer = 2m, ScrapPercent = 0, Sequence = 20
+        };
+        var confirmation = new ManufacturingConfirmation
+        {
+            Id = Guid.NewGuid(), GoodQuantity = 10m
+        };
+        var orderId = Guid.NewGuid();
+        var usages = new[]
+        {
+            new FactoryMaterialUsage
+            {
+                OrderId = orderId, ComponentItemId = component, QuantityConsumed = 4m,
+                Reference = FactoryLineSideCorrections.LotReference(
+                    confirmation.Id, firstLine.Id, "first BOM line")
+            },
+            new FactoryMaterialUsage
+            {
+                OrderId = orderId, ComponentItemId = component, QuantityConsumed = 7m,
+                Reference = FactoryLineSideCorrections.LotReference(
+                    confirmation.Id, secondLine.Id, "second BOM line")
+            }
+        };
+
+        var ledger = FactoryLineSideCorrections.Ledger(usages);
+        var balances = FactoryLineSideCorrections.LotBalances(
+            confirmation, [firstLine, secondLine], ledger, []);
+
+        var first = Assert.Single(balances, x => x.BomLineId == firstLine.Id);
+        var second = Assert.Single(balances, x => x.BomLineId == secondLine.Id);
+        Assert.Equal(10m, first.StandardForReportedLot);
+        Assert.Equal(4m, first.RecordedNetQuantity);
+        Assert.Equal(20m, second.StandardForReportedLot);
+        Assert.Equal(7m, second.RecordedNetQuantity);
+        Assert.All(ledger, x => Assert.False(x.IsLegacyUnattributed));
+    }
+
+    [Fact]
+    public void Legacy_lot_consumption_without_bom_line_is_not_silently_attributed()
+    {
+        var lotId = Guid.NewGuid();
+        var component = Guid.NewGuid();
+        var usage = new FactoryMaterialUsage
+        {
+            ComponentItemId = component, QuantityConsumed = 3m,
+            Reference = FactoryLineSideCorrections.LotPrefix +
+                lotId.ToString("N") + "|legacy note"
+        };
+
+        var row = Assert.Single(FactoryLineSideCorrections.Ledger([usage]));
+        Assert.Equal(lotId, row.ConfirmationId);
+        Assert.Null(row.BomLineId);
+        Assert.True(row.IsLegacyUnattributed);
+    }
 }
