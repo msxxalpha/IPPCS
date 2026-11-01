@@ -502,6 +502,12 @@ assert external_lots and all(x["lotKey"] not in [p["lotKey"] for p in second_pro
 request(f"/api/v1/mrp/runs/{second_conversion_run}/manufacturing-drafts", "POST", {
     "lotKeys": [external_lots[0]["lotKey"]]
 }, 400)
+# Restore the shared fixture for later independent planning-bridge tests.
+request(f"/api/v1/planning-balances/{raw['id']}", "PUT", {
+    "itemId": raw["id"], "physicalQuantity": 25, "reservedQuantity": 0,
+    "quarantinedQuantity": 0, "safetyQuantity": 0, "leadDays": 1,
+    "minimumBatch": 1, "batchMultiple": 1, "snapshotDateJalali": JALALI_NOW
+})
 print("PASS: saved MRP manufacturing lots create idempotent Draft orders, preserve BOM/route/dates, "
       "peg direct MPS demand, block over-allocation, and exclude external supply proposals.")
 
