@@ -255,7 +255,7 @@ async function boot(){
   const lotNames=new Map(lots.map(x=>[x.id,x.label]));
   table("#material-usage-history",[
    ["زمان ثبت",x=>new Date(x.recordedUtc).toLocaleString("fa-IR-u-ca-persian",{timeZone:"Asia/Tehran"})],
-   ["قطعه",x=>itemName(x.componentItemId)],["ردیف BOM",x=>x.bomLineId?x.bomLineId.slice(0,8):"قدیمی / نامشخص"],["مقدار اولیه",x=>num(x.recordedQuantity)],
+   ["عملیات",x=>x.operationSequence==null?"بدون انتساب عملیات":String(x.operationSequence)],["قطعه",x=>itemName(x.componentItemId)],["ردیف BOM",x=>x.bomLineId?x.bomLineId.slice(0,8):"قدیمی / نامشخص"],["مقدار اولیه",x=>num(x.recordedQuantity)],
    ["مقدار خالص",x=>num(x.netQuantity)],
    ["بچ",x=>x.confirmationId?(lotNames.get(x.confirmationId)||x.confirmationId.slice(0,8)):"قدیمی / بدون انتساب بچ"],
    ["ثبت‌کننده",x=>x.recordedBy],["مرجع / علت",x=>x.reference||"—"],
