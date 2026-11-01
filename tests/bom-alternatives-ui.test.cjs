@@ -36,6 +36,7 @@ test('order UI saves alternative groups atomically and records real lot usage hi
   assert.match(execution, /name="bomLineId"/);
   assert.match(executionJs, /bomLineId:fval\(f,"bomLineId"\)/);
   assert.match(executionJs, /line\.id\.slice\(0,8\)/);
+  assert.match(executionJs, /groupLineIds\.includes\(x\.bomLineId\)/);
   assert.match(materialLedger, /RecordedBy=ctx\.User\.Identity\?\.Name\?\?"unknown"/);
   assert.match(materialLedger, /FactoryLineSideCorrections/);
   assert.match(materialLedger, /ParseBomLineId/);
@@ -47,6 +48,8 @@ test('order UI saves alternative groups atomically and records real lot usage hi
   assert.match(executionJs, /x\.reversedById/);
   assert.match(service, /CalculatePlannedComponentQuantity/);
   assert.match(service, /usageLedger/);
+  assert.match(service, /usedByLine/);
+  assert.match(service, /unattributedLegacyQuantity/);
 });
 
 test('alternative allocations validate 100 percent, preserve used groups, and never post stock', () => {
