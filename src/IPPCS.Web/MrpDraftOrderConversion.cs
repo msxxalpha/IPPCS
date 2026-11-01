@@ -40,25 +40,33 @@ public static class MrpDraftOrderConversion
             return false;
         }
 
-        var demandMap = graph.Demands.ToDictionary(x => x.DemandKey, StringComparer.Ordinal);
+        var demandMap = graph.Demands.GroupBy(x => x.DemandKey, StringComparer.Ordinal);
+        if (demandMap.Any(x => x.Count() != 1))
+        {
+            error = "شناسه نیاز در گراف MRP تکراری است.";
+            return false;
+        }
+        var demandsByKey = demandMap.ToDictionary(x => x.Key, x => x.Single(), StringComparer.Ordinal);
         var allocations = graph.Allocations
             .Where(x => x.SourceType == "ProposedManufacturingReceipt" && x.SourceKey == lot.LotKey)
             .OrderBy(x => x.DemandKey, StringComparer.Ordinal).ToArray();
         if (allocations.Length == 0 || allocations.Any(x => x.ItemId != lot.ItemId ||
-            x.Quantity <= 0 || !demandMap.ContainsKey(x.DemandKey)))
+            x.Quantity <= 0 || !demandsByKey.ContainsKey(x.DemandKey)))
         {
             error = "منشأ تخصیص این بچ در گراف MRP کامل یا معتبر نیست.";
             return false;
         }
 
-        var demandSources = allocations.Select(x =>
+        var assignedDemands = allocations.Select(x => (Allocation: x, Demand: demandsByKey[x.DemandKey])).ToArray();
+        if (assignedDemands.Any(x => x.Demand.ItemId != lot.ItemId ||
+            x.Demand.NeededOn != lot.ReceiptOn))
         {
-            var demand = demandMap[x.DemandKey];
-            if (demand.ItemId != lot.ItemId || demand.NeededOn != lot.ReceiptOn)
-                throw new InvalidOperationException("تخصیص بچ به نیاز با قلم یا تاریخ دریافت سازگار نیست.");
-            return new MrpDraftDemandSource(demand.DemandKey, x.Quantity,
-                demand.MpsLineId, demand.ParentLotKey);
-        }).ToArray();
+            error = "تخصیص بچ به نیاز با قلم یا تاریخ دریافت سازگار نیست.";
+            return false;
+        }
+        var demandSources = assignedDemands.Select(x => new MrpDraftDemandSource(
+            x.Demand.DemandKey, x.Allocation.Quantity, x.Demand.MpsLineId,
+            x.Demand.ParentLotKey)).ToArray();
         if (demandSources.Select(x => x.DemandKey).Distinct(StringComparer.Ordinal).Count() != demandSources.Length ||
             demandSources.Sum(x => x.Quantity) > lot.Quantity)
         {
@@ -186,6 +194,7 @@ public static class MrpDraftOrderConversion
                 .ToListAsync(ct);
             var existingByKey = existingEvents.ToDictionary(x => x.Details!, x => x.OrderId, StringComparer.Ordinal);
             var results = new List<object>();
+            var createdCount = 0;
             var actor = context.User.Identity?.Name ?? "unknown";
             foreach (var entry in contexts)
             {
@@ -212,6 +221,7 @@ public static class MrpDraftOrderConversion
                     PlannedQuantity = entry.Lot.Quantity, PlannedStart = entry.Lot.ReleaseOn,
                     DueOn = entry.Lot.ReceiptOn, Status = ManufacturingOrderStatus.Draft
                 };
+                createdCount++;
                 db.ManufacturingOrders.Add(order);
                 db.ManufacturingOrderAudits.Add(new ManufacturingOrderAudit {
                     OrderId = order.Id, Action = "Created", Details = "Source=SavedMrpRun"
@@ -256,7 +266,7 @@ public static class MrpDraftOrderConversion
                 return Results.Conflict(new { message = "تبدیل هم‌زمان یا تعارض کلید یکتا رخ داد؛ فهرست پیشنهادها را تازه‌سازی و دوباره بررسی کنید." });
             }
             return Results.Ok(new {
-                runId, created = results.Count(x => x.ToString()!.Contains("Created", StringComparison.Ordinal)),
+                runId, created = createdCount,
                 results, warning = "همه دستورها در وضعیت پیش‌نویس باقی مانده‌اند؛ هیچ موجودی یا ظرفیتی رزرو نشده و آزادسازی باید از کنترل‌های استاندارد دستور تولید عبور کند."
             });
         });
