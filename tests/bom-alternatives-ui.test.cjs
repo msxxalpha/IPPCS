@@ -33,8 +33,13 @@ test('order UI saves alternative groups atomically and records real lot usage hi
   assert.match(executionJs, /groups\.push\(\{groupCode,shares:active\}\)/);
   assert.match(executionJs, /\/material-usage/);
   assert.match(executionJs, /\/lot-consumption/);
+  assert.match(execution, /name="bomLineId"/);
+  assert.match(executionJs, /bomLineId:fval\(f,"bomLineId"\)/);
+  assert.match(executionJs, /line\.id\.slice\(0,8\)/);
   assert.match(materialLedger, /RecordedBy=ctx\.User\.Identity\?\.Name\?\?"unknown"/);
   assert.match(materialLedger, /FactoryLineSideCorrections/);
+  assert.match(materialLedger, /ParseBomLineId/);
+  assert.match(materialLedger, /x\.BomLineId==line\.Id/);
   assert.match(executionJs, /x\.recordedQuantity/);
   assert.match(executionJs, /x\.netQuantity/);
   assert.match(executionJs, /x\.confirmationId/);
