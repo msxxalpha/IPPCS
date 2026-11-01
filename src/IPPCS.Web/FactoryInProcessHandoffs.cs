@@ -7,7 +7,7 @@ public record FactoryHandoffLotGap(Guid ConfirmationId,string LotCode,decimal Re
 public record FactoryStageHandoff(Guid OrderId,int FromSequence,int ToSequence,
     Guid SourceOperationId,Guid TargetOperationId,decimal EligibleSourceGood,
     decimal DocumentedGood,decimal RemainingUpstreamGood,decimal UntracedDownstreamGood,
-    bool QualityGatePassed,int OpenQualityHolds,decimal OverAllocatedUpstreamGood,
+    bool ChronologyValid,bool QualityGatePassed,int OpenQualityHolds,decimal OverAllocatedUpstreamGood,
     IReadOnlyList<FactoryHandoffLotGap> DestinationLots);
 public record FactoryHandoffAudit(Guid OrderId,int StagePairs,int PairsWithUntracedOutput,
     decimal TotalUntracedDownstreamGood,int PairsWithOverAllocation,
@@ -36,7 +36,7 @@ public static class FactoryInProcessHandoffs
                 !confirmationMap.TryGetValue(link.DestinationConfirmationId,out var destination)||
                 !operationIndex.TryGetValue(source.OperationId,out var fromIndex)||
                 !operationIndex.TryGetValue(destination.OperationId,out var toIndex)||
-                toIndex!=fromIndex+1||source.OccurredUtc>destination.OccurredUtc||
+                toIndex!=fromIndex+1||
                 !seenPairs.Add((link.SourceConfirmationId,link.DestinationConfirmationId)))
                 throw new InvalidOperationException("پیوند انتقال باید یکتا، مثبت، زمان‌مند و بین بچ‌های دو عملیات متوالی همین دستور باشد.");
         }
@@ -74,14 +74,17 @@ public static class FactoryInProcessHandoffs
             }).ToArray();
             var held=holds.Count(x=>x.Status==ManufacturingQualityStatus.Open &&
                 (x.OperationId==from.Id||x.OperationId==to.Id));
-            var quality=held==0&&from.QualityPendingQuantity==0&&
+            var chronology=pairLinks.All(x=>
+                confirmationMap[x.SourceConfirmationId].OccurredUtc<=
+                confirmationMap[x.DestinationConfirmationId].OccurredUtc);
+            var quality=chronology&&held==0&&from.QualityPendingQuantity==0&&
                 to.QualityPendingQuantity==0&&overUpstream==0m&&
                 gaps.All(x=>x.OverAllocatedGood==0m)&&
                 ManufacturingInspectionRules.GatePassed(from)&&
                 ManufacturingInspectionRules.GatePassed(to);
             output.Add(new(order.Id,from.Sequence,to.Sequence,from.Id,to.Id,
                 forward,documented,Math.Max(0m,forward-documented),
-                gaps.Sum(x=>x.UntracedGood),quality,held,overUpstream,gaps));
+                gaps.Sum(x=>x.UntracedGood),chronology,quality,held,overUpstream,gaps));
         }
         return new(order.Id,output.Count,output.Count(x=>x.UntracedDownstreamGood>0),
             output.Sum(x=>x.UntracedDownstreamGood),
