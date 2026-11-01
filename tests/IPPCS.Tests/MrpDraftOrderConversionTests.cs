@@ -52,7 +52,7 @@ public sealed class MrpDraftOrderConversionTests
             out var evidence, out var error), error);
         Assert.NotNull(evidence);
         Assert.Empty(evidence.DirectMpsLinks);
-        Assert.Equal([parentA, parentB], evidence.ParentLotKeys);
+        Assert.Equal(new[] { parentA, parentB }, evidence.ParentLotKeys);
         Assert.Equal(20m, evidence.Demands.Sum(x => x.Quantity));
     }
 
