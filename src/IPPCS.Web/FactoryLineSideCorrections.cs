@@ -4,16 +4,16 @@ using Microsoft.EntityFrameworkCore;
 
 // Factory-only evidence journal. No stock transfer, goods receipt, warehouse
 // balance, accounting valuation or purchasing action is created.
-public record FactoryLotMaterialInput(Guid ConfirmationId,Guid ComponentItemId,
+public record FactoryLotMaterialInput(Guid ConfirmationId,Guid BomLineId,
     decimal Quantity,string Reference);
 public record FactoryUsageReversalInput(string Reason);
 public record FactoryConsumptionLedgerRow(Guid EntryId,Guid ComponentItemId,
-    decimal RecordedQuantity,decimal NetQuantity,Guid? ConfirmationId,
+    Guid? BomLineId,decimal RecordedQuantity,decimal NetQuantity,Guid? ConfirmationId,
     string Reference,string RecordedBy,DateTime RecordedUtc,Guid? ReversedById,
     bool IsLegacyUnattributed);
-public record FactoryLotMaterialBalance(Guid ComponentItemId,decimal StandardForReportedLot,
-    decimal RecordedNetQuantity,decimal Variance,int ActiveEntries,
-    string Disclaimer);
+public record FactoryLotMaterialBalance(Guid BomLineId,Guid ComponentItemId,
+    decimal StandardForReportedLot,decimal RecordedNetQuantity,decimal Variance,
+    int ActiveEntries,string Disclaimer);
 public static class FactoryLineSideCorrections
 {
     public const string LotPrefix="IPLOT:";
@@ -23,8 +23,22 @@ public static class FactoryLineSideCorrections
         value?.StartsWith(ReversalPrefix,StringComparison.OrdinalIgnoreCase)==true;
 
 
-    public static string LotReference(Guid confirmationId,string note)
-        =>LotPrefix+confirmationId.ToString("N")+"|"+note.Trim();
+    // Both confirmation and BOM-line identities are embedded in the immutable
+    // evidence reference, avoiding a schema rewrite of the existing ledger.
+    public static string LotReference(Guid confirmationId,Guid bomLineId,string note)
+        =>LotPrefix+confirmationId.ToString("N")+"|"+bomLineId.ToString("N")+"|"+note.Trim();
+
+    public static Guid? ParseBomLineId(string? reference)
+    {
+        if(reference is null||!reference.StartsWith(LotPrefix,StringComparison.Ordinal))
+            return null;
+        var tail=reference.AsSpan(LotPrefix.Length);
+        if(tail.Length<66||tail[32]!='|')return null;
+        var line=tail[33..];
+        var separator=line.IndexOf('|');
+        if(separator!=32||!Guid.TryParseExact(line[..32],"N",out var id))return null;
+        return id;
+    }
     public static string ReverseReference(Guid originalId,string reason)
         =>ReversalPrefix+originalId.ToString("N")+"|"+reason.Trim();
 
@@ -56,9 +70,11 @@ public static class FactoryLineSideCorrections
         return positives.OrderBy(x=>x.RecordedUtc).ThenBy(x=>x.Id).Select(x=>{
             reversals.TryGetValue(x.Id,out var reverse);
             var lot=ParseId(x.Reference,LotPrefix);
-            return new FactoryConsumptionLedgerRow(x.Id,x.ComponentItemId,
+            var bomLine=ParseBomLineId(x.Reference);
+            return new FactoryConsumptionLedgerRow(x.Id,x.ComponentItemId,bomLine,
                 x.QuantityConsumed,reverse is null?x.QuantityConsumed:0m,lot,
-                x.Reference,x.RecordedBy,x.RecordedUtc,reverse?.Id,lot is null);
+                x.Reference,x.RecordedBy,x.RecordedUtc,reverse?.Id,
+                lot is null||bomLine is null);
         }).ToArray();
     }
 
@@ -71,16 +87,18 @@ public static class FactoryLineSideCorrections
             throw new InvalidOperationException("ضرایب BOM دستور نامعتبر است.");
         var reported=confirmation.GoodQuantity+confirmation.ScrapQuantity+
             confirmation.ReworkQuantity;
-        return bom.GroupBy(x=>x.ComponentItemId).Select(group=>{
-            var standard=group.Sum(x=>
-                BomAlternativeExecution.CalculateSelectedComponentQuantity(reported,x,bom,allocations));
+        // A material requirement is a BOM-line fact, not merely an item fact.
+        // The same item may occur in more than one engineering line/group.
+        return bom.OrderBy(x=>x.Sequence).ThenBy(x=>x.Id).Select(line=>{
+            var standard=BomAlternativeExecution.CalculateSelectedComponentQuantity(
+                reported,line,bom,allocations);
             var matching=entries.Where(x=>x.ConfirmationId==confirmation.Id&&
-                x.ComponentItemId==group.Key).ToArray();
+                x.BomLineId==line.Id&&x.ComponentItemId==line.ComponentItemId).ToArray();
             var net=matching.Sum(x=>x.NetQuantity);
-            return new FactoryLotMaterialBalance(group.Key,standard,net,net-standard,
-                matching.Count(x=>x.NetQuantity>0),
-                "نیاز استاندارد هر گزینه بر اساس ترکیب آلترناتیو دستور محاسبه شده است؛ این دفتر مصرف پای خط است و برداشت یا مانده انبار نیست.");
-        }).OrderBy(x=>x.ComponentItemId).ToArray();
+            return new FactoryLotMaterialBalance(line.Id,line.ComponentItemId,standard,net,
+                net-standard,matching.Count(x=>x.NetQuantity>0),
+                "نیاز استاندارد و مصرف واقعی بر اساس ردیف مشخص BOM محاسبه شده است؛ این دفتر مصرف پای خط است و برداشت یا مانده انبار نیست.");
+        }).ToArray();
     }
 
     public static IEndpointRouteBuilder MapLineSideCorrections(this IEndpointRouteBuilder routes)
@@ -117,7 +135,13 @@ public static class FactoryLineSideCorrections
                     var entries=Ledger(history);
                     return Results.Ok(new{orderId,confirmationId,lot.LotCode,
                         rows=LotBalances(lot,revision.Lines,entries,allocations),
-                        history=entries.Where(x=>x.ConfirmationId==confirmationId).ToArray()});
+                        history=entries.Where(x=>x.ConfirmationId==confirmationId).Select(x=>new{
+                            x.EntryId,x.ComponentItemId,x.BomLineId,x.RecordedQuantity,x.NetQuantity,
+                            x.ConfirmationId,x.Reference,x.RecordedBy,x.RecordedUtc,x.ReversedById,
+                            x.IsLegacyUnattributed,
+                            operationId=lot.OperationId,operationSequence=lot.Operation.Sequence
+                        }).ToArray(),
+                        warning="مصرف‌های قدیمی فاقد شناسه ردیف BOM به هیچ ردیفی نسبت داده نمی‌شوند؛ سوابق جدید با شناسه دقیق BOM ثبت می‌شوند."});
                 }catch(InvalidOperationException ex){
                     return Results.Conflict(new{message=ex.Message});
                 }
@@ -125,7 +149,7 @@ public static class FactoryLineSideCorrections
         api.MapPost("/factory-material/{orderId:guid}/lot-consumption",
             async(Guid orderId,FactoryLotMaterialInput input,ProductionDb db,
                 HttpContext ctx,CancellationToken ct)=>{
-                if(input.ConfirmationId==Guid.Empty||input.ComponentItemId==Guid.Empty||
+                if(input.ConfirmationId==Guid.Empty||input.BomLineId==Guid.Empty||
                     input.Quantity<=0||input.Quantity>1000000000m||
                     string.IsNullOrWhiteSpace(input.Reference)||
                     input.Reference.Trim().Length>140)
@@ -144,9 +168,9 @@ public static class FactoryLineSideCorrections
                     return Results.Conflict(new{message="گزارش عملکرد بچ به دستور انتخابی تعلق ندارد."});
                 var bom=await db.ManufacturingBomRevisions.AsNoTracking().Include(x=>x.Lines)
                     .SingleOrDefaultAsync(x=>x.Id==order.BomRevisionId,ct);
-                var line=bom?.Lines.SingleOrDefault(x=>x.ComponentItemId==input.ComponentItemId);
+                var line=bom?.Lines.SingleOrDefault(x=>x.Id==input.BomLineId);
                 if(bom is null||line is null)
-                    return Results.Conflict(new{message="این قطعه در BOM منجمد دستور وجود ندارد."});
+                    return Results.Conflict(new{message="ردیف BOM انتخاب‌شده در نسخه منجمد دستور وجود ندارد."});
                 var allocations=await db.Set<ManufacturingOrderMaterialAllocation>().AsNoTracking()
                     .Where(x=>x.OrderId==orderId).ToListAsync(ct);
                 decimal selectedShare;
@@ -160,19 +184,19 @@ public static class FactoryLineSideCorrections
                 try{history=Ledger(entries);}
                 catch(InvalidOperationException ex){return Results.Conflict(new{message=ex.Message});}
                 var cap=LotBalances(lot,bom.Lines,history,allocations)
-                    .Single(x=>x.ComponentItemId==input.ComponentItemId);
+                    .Single(x=>x.BomLineId==line.Id);
                 if(cap.RecordedNetQuantity+input.Quantity>cap.StandardForReportedLot)
                     return Results.Conflict(new{
                         message="مصرف ثبت‌شده این بچ از نیاز استاندارد BOM برای گزارش عملکرد آن بیشتر می‌شود."});
                 var record=new FactoryMaterialUsage{
-                    OrderId=orderId,ComponentItemId=input.ComponentItemId,
+                    OrderId=orderId,ComponentItemId=line.ComponentItemId,
                     QuantityConsumed=input.Quantity,
-                    Reference=LotReference(input.ConfirmationId,input.Reference),
+                    Reference=LotReference(input.ConfirmationId,line.Id,input.Reference),
                     RecordedBy=ctx.User.Identity?.Name??"unknown"};
                 db.FactoryMaterialUsages.Add(record);
                 db.ManufacturingOrderAudits.Add(new ManufacturingOrderAudit{
                     OrderId=orderId,Action="MaterialLotUsage",
-                    Details=$"Entry={record.Id:N};Lot={input.ConfirmationId:N};Part={input.ComponentItemId:N};Qty={input.Quantity}"});
+                    Details=$"Entry={record.Id:N};Lot={input.ConfirmationId:N};Operation={lot.OperationId:N};BomLine={line.Id:N};Part={line.ComponentItemId:N};Qty={input.Quantity}"});
                 await db.SaveChangesAsync(ct);await tx.CommitAsync(ct);
                 return Results.Created($"/api/v1/factory-material/{orderId}/lot/{input.ConfirmationId}",
                     new{record.Id,record.QuantityConsumed,record.Reference});
