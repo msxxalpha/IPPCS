@@ -215,4 +215,20 @@ public sealed class BomAlternativeMaterialExecutionTests
         Assert.Null(row.BomLineId);
         Assert.True(row.IsLegacyUnattributed);
     }
+
+    [Fact]
+    public void Non_lot_consumption_keeps_exact_bom_line_identity()
+    {
+        var lineId = Guid.NewGuid();
+        var reference = FactoryLineSideCorrections.BomLineReference(lineId, "line-side note");
+        var usage = new FactoryMaterialUsage
+        {
+            ComponentItemId = Guid.NewGuid(), QuantityConsumed = 2m, Reference = reference
+        };
+
+        var row = Assert.Single(FactoryLineSideCorrections.Ledger([usage]));
+        Assert.Equal(lineId, row.BomLineId);
+        Assert.Null(row.ConfirmationId);
+        Assert.True(row.IsLegacyUnattributed);
+    }
 }
