@@ -449,6 +449,62 @@ assert not preview["allocations"], preview
 assert preview["lots"][0]["status"] == "Unscheduled", preview
 assert request(f"/api/v1/mrp/{mps['id']}/lot-capacity-preview?horizonDays=0",status=400)["message"]
 print("PASS: SQL net MRP proposed lot finite-center check, operation precedence and validation.")
+
+# Stage 68: a frozen MRP run creates only draft manufacturing orders, preserving
+# lot identity, dates, BOM and direct MPS demand; retry is idempotent.
+conversion_mps = request("/api/v1/mps", "POST", {"code": "CI-MPS-MRP-DRAFT-CONVERSION"}, 201)
+request(f"/api/v1/mps/{conversion_mps['id']}/lines", "POST", {
+    "itemId": product["id"], "neededOnJalali": JALALI_NOW,
+    "quantity": 10, "reference": "CI saved MRP to draft order"
+}, 201)
+request(f"/api/v1/mps/{conversion_mps['id']}/approve", "POST")
+request(f"/api/v1/planning-balances/{raw['id']}", "PUT", {
+    "itemId": raw["id"], "physicalQuantity": 0, "reservedQuantity": 0,
+    "quarantinedQuantity": 0, "safetyQuantity": 0, "leadDays": 0,
+    "minimumBatch": 1, "batchMultiple": 1, "snapshotDateJalali": JALALI_NOW
+})
+conversion_run = request(f"/api/v1/mrp/{conversion_mps['id']}/calculate", "POST")["runId"]
+proposals = request(f"/api/v1/mrp/runs/{conversion_run}/manufacturing-proposals")
+assert proposals["count"] == 1 and proposals["proposals"][0]["itemId"] == product["id"], proposals
+proposal = proposals["proposals"][0]
+assert proposal["routingReady"] and not proposal["alreadyCreated"], proposal
+created = request(f"/api/v1/mrp/runs/{conversion_run}/manufacturing-drafts", "POST", {
+    "lotKeys": [proposal["lotKey"]]
+})
+assert created["created"] == 1 and created["results"][0]["outcome"] == "Created", created
+draft_id = created["results"][0]["orderId"]
+draft_order = request(f"/api/v1/manufacturing-orders/{draft_id}")
+assert draft_order["status"] == 0 and draft_order["operations"] == [], draft_order
+assert draft_order["itemId"] == product["id"] and draft_order["plannedQuantity"] == 10, draft_order
+assert draft_order["plannedStart"] == JALALI_NOW.replace("/", "-") and draft_order["dueOn"] == JALALI_NOW.replace("/", "-"), draft_order
+assert draft_order["bomRevisionId"] == bom["id"] and draft_order["routingRevisionId"] == route_id, draft_order
+draft_check = request(f"/api/v1/manufacturing-orders/{draft_id}/release-check")
+assert draft_check["canRelease"] and not draft_check["issues"], draft_check
+converted_pegging = request(f"/api/v1/production-pegging/mps/{conversion_mps['id']}")
+assert converted_pegging["rows"][0]["assignedQuantity"] == 10, converted_pegging
+retry = request(f"/api/v1/mrp/runs/{conversion_run}/manufacturing-drafts", "POST", {
+    "lotKeys": [proposal["lotKey"]]
+})
+assert retry["created"] == 0 and retry["results"][0]["outcome"] == "AlreadyCreated", retry
+assert request(f"/api/v1/manufacturing-orders/{draft_id}")["status"] == 0
+# A second saved run cannot create another draft that over-allocates the same
+# approved MPS line; external raw-material proposals are not order candidates.
+second_conversion_run = request(f"/api/v1/mrp/{conversion_mps['id']}/calculate", "POST")["runId"]
+second_proposals = request(f"/api/v1/mrp/runs/{second_conversion_run}/manufacturing-proposals")
+second_fg = next(x for x in second_proposals["proposals"] if x["itemId"] == product["id"])
+request(f"/api/v1/mrp/runs/{second_conversion_run}/manufacturing-drafts", "POST", {
+    "lotKeys": [second_fg["lotKey"]]
+}, 409)
+second_graph = request(f"/api/v1/mrp/runs/{second_conversion_run}/net-demand-pegging")
+external_lots = [x for x in second_graph["plannedLots"] if x["proposalType"] == "ExternalPlanningOnly"]
+assert external_lots and all(x["lotKey"] not in [p["lotKey"] for p in second_proposals["proposals"]]
+                             for x in external_lots), second_graph
+request(f"/api/v1/mrp/runs/{second_conversion_run}/manufacturing-drafts", "POST", {
+    "lotKeys": [external_lots[0]["lotKey"]]
+}, 400)
+print("PASS: saved MRP manufacturing lots create idempotent Draft orders, preserve BOM/route/dates, "
+      "peg direct MPS demand, block over-allocation, and exclude external supply proposals.")
+
 # Stage 9.6: no false capacity availability while an active production order
 # still uses the same operation center. This is an independent IPPCS order.
 competing = request("/api/v1/manufacturing-orders", "POST", {
