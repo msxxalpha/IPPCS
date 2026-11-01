@@ -28,6 +28,11 @@ public static class FactoryLineSideCorrections
     public static string LotReference(Guid confirmationId,Guid bomLineId,string note)
         =>LotPrefix+confirmationId.ToString("N")+"|"+bomLineId.ToString("N")+"|"+note.Trim();
 
+    // Compatibility helper for tests/imported historical records; new writes
+    // must use the BOM-line overload above.
+    public static string LotReference(Guid confirmationId,string note)
+        =>LotPrefix+confirmationId.ToString("N")+"|"+note.Trim();
+
     public const string BomLinePrefix="IPBOM:";
     public static string BomLineReference(Guid bomLineId,string note)
         =>BomLinePrefix+bomLineId.ToString("N")+"|"+note.Trim();
