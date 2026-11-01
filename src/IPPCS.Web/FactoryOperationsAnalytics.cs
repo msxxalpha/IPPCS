@@ -20,7 +20,7 @@ public sealed class FactoryCenterCostRate
     public DateOnly EffectiveFrom { get; set; }
     public string Note { get; set; } = "";
 }
-public record MaterialConsumptionInput(Guid BomLineId,decimal Quantity,string Reference);
+public record MaterialConsumptionInput(Guid BomLineId,decimal Quantity,string Reference,Guid? ComponentItemId=null);
 public record CenterCostInput(Guid WorkCenterId,decimal ConversionRialsPerMinute,
     decimal ScrapRialsPerUnit,string EffectiveFromJalali,string? Note);
 public record FactoryScenarioInput(Guid MpsVersionId,string StartJalali,int HorizonDays,
@@ -122,8 +122,18 @@ public static class FactoryOperationsAnalyticsEndpoints
                 return Results.Conflict(new{message="فقط هنگام اجرای دستور می‌توان مصرف پای خط ثبت کرد."});
             var bom=await db.ManufacturingBomRevisions.AsNoTracking().Include(x=>x.Lines)
                 .SingleOrDefaultAsync(x=>x.Id==order.BomRevisionId,ct);
-            var component=bom?.Lines.SingleOrDefault(x=>x.Id==input.BomLineId);
-            if(bom is null||component is null)
+            if(bom is null)return Results.BadRequest(new{message="BOM منجمد دستور موجود نیست."});
+            ManufacturingBomLine? component=null;
+            if(input.BomLineId!=Guid.Empty)
+                component=bom.Lines.SingleOrDefault(x=>x.Id==input.BomLineId);
+            else if(input.ComponentItemId.HasValue&&input.ComponentItemId.Value!=Guid.Empty)
+            {
+                var legacyMatches=bom.Lines.Where(x=>x.ComponentItemId==input.ComponentItemId.Value).ToArray();
+                if(legacyMatches.Length>1)
+                    return Results.Conflict(new{message="این قطعه در چند ردیف BOM وجود دارد؛ برای جلوگیری از انتساب مبهم، شناسه ردیف BOM را ارسال کنید."});
+                component=legacyMatches.SingleOrDefault();
+            }
+            if(component is null)
                 return Results.BadRequest(new{message="ردیف BOM انتخاب‌شده در نسخه منجمد دستور وجود ندارد."});
             var allocations=await db.Set<ManufacturingOrderMaterialAllocation>().AsNoTracking()
                 .Where(x=>x.OrderId==orderId).ToListAsync(ct);
