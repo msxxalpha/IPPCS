@@ -46,15 +46,14 @@ public static class BomAlternativeExecution
     {
         var issues = new List<string>();
         var byId = bomLines.ToDictionary(x => x.Id);
-        if (allocations.Any(x => !byId.ContainsKey(x.BomLineId)) ||
+        if (allocations.Any(x => x.OrderId != order.Id || !byId.ContainsKey(x.BomLineId)) ||
             allocations.GroupBy(x => x.BomLineId).Any(x => x.Count() != 1))
-        {
-            issues.Add("تخصیص مواد به جزء BOM نامعتبر یا تکراری متصل شده است.");
-            return issues;
-        }
+            issues.Add("تخصیص مواد به دستور یا جزء BOM نامعتبر یا تکراری متصل شده است.");
+        var validAllocations = allocations.Where(x => x.OrderId == order.Id && byId.ContainsKey(x.BomLineId))
+            .GroupBy(x => x.BomLineId).Select(x => x.First()).ToArray();
 
         foreach (var mandatory in bomLines.Where(x => string.IsNullOrWhiteSpace(x.AlternativeGroupCode)))
-            if (allocations.Any(x => x.BomLineId == mandatory.Id))
+            if (validAllocations.Any(x => x.BomLineId == mandatory.Id))
                 issues.Add($"جزء اجباری {mandatory.Id} نباید به عنوان آلترناتیو تخصیص داده شود.");
 
         foreach (var group in bomLines.Where(x => !string.IsNullOrWhiteSpace(x.AlternativeGroupCode))
@@ -69,7 +68,7 @@ public static class BomAlternativeExecution
                 continue;
             }
 
-            var selected = allocations.Where(x => lines.Any(line => line.Id == x.BomLineId)).ToArray();
+            var selected = validAllocations.Where(x => lines.Any(line => line.Id == x.BomLineId)).ToArray();
             if (selected.Length == 0) continue; // The approved engineering default is the effective option.
             if (selected.Any(x => x.SharePercent <= 0 || x.SharePercent > 100 ||
                 x.PlannedQuantity <= 0) || selected.Sum(x => x.SharePercent) != 100m)
