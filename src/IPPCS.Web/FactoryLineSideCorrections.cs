@@ -96,13 +96,20 @@ public static class FactoryLineSideCorrections
             throw new InvalidOperationException("ضرایب BOM دستور نامعتبر است.");
         var reported=confirmation.GoodQuantity+confirmation.ScrapQuantity+
             confirmation.ReworkQuantity;
+        var duplicateComponentIds=bom.GroupBy(x=>x.ComponentItemId)
+            .Where(g=>g.Count()>1).Select(g=>g.Key).ToHashSet();
+        if(entries.Any(x=>x.ConfirmationId==confirmation.Id&&
+            x.BomLineId is null&&x.NetQuantity!=0m&&duplicateComponentIds.Contains(x.ComponentItemId)))
+            throw new InvalidOperationException("مصرف قدیمی این بچ برای قطعه‌ای با چند ردیف BOM قابل انتساب قطعی نیست؛ ثبت جدید متوقف شد.");
         // A material requirement is a BOM-line fact, not merely an item fact.
         // The same item may occur in more than one engineering line/group.
         return bom.OrderBy(x=>x.Sequence).ThenBy(x=>x.Id).Select(line=>{
             var standard=BomAlternativeExecution.CalculateSelectedComponentQuantity(
                 reported,line,bom,allocations);
+            var sameItemLineCount=bom.Count(x=>x.ComponentItemId==line.ComponentItemId);
             var matching=entries.Where(x=>x.ConfirmationId==confirmation.Id&&
-                x.BomLineId==line.Id&&x.ComponentItemId==line.ComponentItemId).ToArray();
+                x.ComponentItemId==line.ComponentItemId&&
+                (x.BomLineId==line.Id||(x.BomLineId is null&&sameItemLineCount==1))).ToArray();
             var net=matching.Sum(x=>x.NetQuantity);
             return new FactoryLotMaterialBalance(line.Id,line.ComponentItemId,standard,net,
                 net-standard,matching.Count(x=>x.NetQuantity>0),
