@@ -241,20 +241,10 @@ public static class ManufacturingExecutionEndpoints
                 return Results.Conflict(new{message="پیش‌شرط‌های آزادسازی دستور برقرار نیست.",issues=releaseIssues});
             var materialAllocations=await db.Set<ManufacturingOrderMaterialAllocation>().AsNoTracking()
                 .Where(x=>x.OrderId==id).ToListAsync(ct);
-            var bomLinesById=bom!.Lines.ToDictionary(x=>x.Id);
-            if(materialAllocations.Any(x=>!bomLinesById.TryGetValue(x.BomLineId,out var line)||
-                string.IsNullOrWhiteSpace(line.AlternativeGroupCode)))
-                return Results.Conflict(new{message="تخصیص مواد باید به یک گزینه آلترناتیو از نسخه منجمد BOM تعلق داشته باشد."});
-            foreach(var group in bom.Lines.Where(x=>!string.IsNullOrWhiteSpace(x.AlternativeGroupCode))
-                .GroupBy(x=>x.AlternativeGroupCode!,StringComparer.OrdinalIgnoreCase))
-            {
-                if(group.Count()<2||group.Count(x=>x.IsDefaultAlternative)!=1)
-                    return Results.Conflict(new{message=$"گروه آلترناتیو {group.Key} باید حداقل دو گزینه و دقیقاً یک پیش‌فرض داشته باشد."});
-                var selected=materialAllocations.Where(a=>group.Any(line=>line.Id==a.BomLineId)).ToArray();
-                if(selected.Length>0&&(selected.Any(x=>x.SharePercent<=0||x.SharePercent>100||x.PlannedQuantity<=0)
-                    ||selected.Sum(x=>x.SharePercent)!=100m))
-                    return Results.Conflict(new{message=$"سهم آلترناتیوهای گروه {group.Key} باید دقیقاً ۱۰۰٪ باشد."});
-            }
+            var materialIssues = BomAlternativeExecution.ValidateReleaseAllocations(
+                order, bom!.Lines, materialAllocations);
+            if(materialIssues.Count > 0)
+                return Results.Conflict(new { message = "تخصیص آلترناتیوهای مواد معتبر نیست؛ دستور آزاد نشد.", issues = materialIssues });
             var controlPlans=await db.ManufacturingControlPlans.AsNoTracking()
                 .Include(x=>x.Characteristics)
                 .Where(x=>x.RoutingRevisionId==order.RoutingRevisionId && x.State==ControlPlanState.Approved
