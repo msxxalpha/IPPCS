@@ -219,3 +219,14 @@ These rows are implementation evidence, **not an attestation of successfully run
 - Current approved routings, product-dependent capacity rates, shifts, active order reservations and operation-clock evidence are read at preview time. The response explicitly distinguishes the frozen MRP input basis from current capacity evidence.
 - The planning workbench now uses the selected saved MRP run for both net pegging and lot-capacity preview. The old MPS-based preview remains for compatibility.
 - This is still a preview. It does not release orders or reserve material/capacity. The end-to-end MRP-to-order conversion and factory UAT acceptance remain open.
+
+
+## Stage 68 — saved MRP proposals to draft manufacturing orders (implementation committed; exact-head CI pending)
+
+- Module 05 → 08: added a planner-controlled batch conversion endpoint for a specifically selected, saved MRP run. It restores and validates the immutable input/result snapshot and converts **only** `ProposalType=Manufacturing`; external supply proposals are excluded.
+- New orders retain the MRP lot quantity, planned release date, receipt/due date and the BOM revision selected by the saved MRP snapshot. A single approved Routing with operations is resolved by the planned release date. Each order is created as `Draft`; the existing release workflow, including revision, control-plan, quality, cost and capacity gates, remains the only release path.
+- Stable run+lot order numbers plus the existing unique order-number index protect retries and concurrent duplicate creation. The batch is transactional: a failure rolls back the selected batch. Existing conversions are reported as already created.
+- Direct MPS source allocations receive normal order-to-MPS pegs. Component/subassembly orders do not get a misleading direct MPS link; every contributing demand and parent-lot key is preserved in immutable order-audit evidence, including multiple parent lots.
+- The planning workbench now lists eligible manufacturing proposals, disables already-created or routing-invalid rows, supports multi-selection and displays the created draft order identities.
+- No new schema was needed: source idempotency and multi-parent provenance use the existing order audit journal; direct MPS links use the existing pegging table. No inventory, material or capacity reservation, warehouse issue, purchase order or order release is performed.
+- Regression tests cover stable run/lot identity, exclusion of external proposals, direct MPS pegging and multi-parent subassembly provenance. Exact-head CI, SQL concurrency/rollback acceptance and representative factory UAT remain required; this stage is not factory acceptance.
