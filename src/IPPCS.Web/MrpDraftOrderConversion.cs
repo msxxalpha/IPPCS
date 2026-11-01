@@ -197,6 +197,7 @@ public static class MrpDraftOrderConversion
             var existingByKey = existingEvents.ToDictionary(x => x.Details!, x => x.OrderId, StringComparer.Ordinal);
             var results = new List<object>();
             var createdCount = 0;
+            var pendingMpsPegQuantities = new Dictionary<Guid, decimal>();
             var actor = context.User.Identity?.Name ?? "unknown";
             foreach (var entry in contexts)
             {
@@ -245,10 +246,24 @@ public static class MrpDraftOrderConversion
                 // subassembly lot keeps all parent-lot genealogy in the audit journal.
                 foreach (var link in entry.Evidence.DirectMpsLinks)
                 {
-                    var lineExists = await db.MpsDemandLines.AsNoTracking()
-                        .AnyAsync(x => x.Id == link.MpsLineId && x.MpsVersionId == run.MpsVersionId, ct);
-                    if (!lineExists)
+                    var line = await db.MpsDemandLines.AsNoTracking()
+                        .SingleOrDefaultAsync(x => x.Id == link.MpsLineId && x.MpsVersionId == run.MpsVersionId, ct);
+                    if (line is null)
                         return Results.Conflict(new { message = "ردیف MPS منشأ بچ دیگر در دسترس نیست.", lotKey = entry.Lot.LotKey });
+                    var alreadyAssigned = await db.ManufacturingOrderPegs
+                        .Where(x => x.MpsLineId == link.MpsLineId)
+                        .Join(db.ManufacturingOrders, x => x.OrderId, o => o.Id,
+                            (x, o) => new { x.LinkedQuantity, o.Status })
+                        .Where(x => x.Status != ManufacturingOrderStatus.Cancelled)
+                        .SumAsync(x => (decimal?)x.LinkedQuantity, ct) ?? 0m;
+                    var pendingForLine = pendingMpsPegQuantities.GetValueOrDefault(link.MpsLineId);
+                    if (alreadyAssigned + pendingForLine + link.Quantity > line.Quantity)
+                        return Results.Conflict(new {
+                            message = "تخصیص‌های قبلی دستورهای فعال به این ردیف MPS با مقدار پیشنهاد ساخت تداخل دارد؛ ابتدا MRP را با وضعیت تعهدات تولید تطبیق دهید.",
+                            lotKey = entry.Lot.LotKey, mpsLineId = link.MpsLineId,
+                            required = line.Quantity, alreadyAssigned, proposed = link.Quantity
+                        });
+                    pendingMpsPegQuantities[link.MpsLineId] = pendingForLine + link.Quantity;
                     db.ManufacturingOrderPegs.Add(new ManufacturingOrderPeg {
                         OrderId = order.Id, MpsLineId = link.MpsLineId,
                         LinkedQuantity = link.Quantity, LinkedBy = actor
