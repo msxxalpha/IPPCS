@@ -80,7 +80,20 @@ function render(){
     const q=new URLSearchParams({kind:"order",id:x.id,back:"/execution.html"});
     window.open("/factory-print.html?"+q.toString(),"_blank","noopener");
   }},
-  {label:"آزادسازی",show:x=>can("Planner")&&x.status===0,run:async x=>{await request("/manufacturing-orders/"+x.id+"/release","POST");flash("دستور آزاد شد و عملیات مسیر ساخت ثبت شدند.");await reload();}},
+  {label:"بررسی و آزادسازی",show:x=>can("Planner")&&x.status===0,run:async x=>{
+   const check=await request("/manufacturing-orders/"+x.id+"/release-check");
+   table("#release-issues",[["کد","code"],["مانع یا کنترل","description"]],
+    check.issues.length?check.issues:[{code:"آماده",description:"نسخه‌های BOM و Routing، انتساب MPS، آلترناتیوهای مواد و کنترل پلن قابل قبول‌اند."}]);
+   if(!check.canRelease){
+    flash("آزادسازی دستور "+x.number+" مجاز نیست؛ ابتدا موانع نمایش‌داده‌شده را رفع کنید.",true);
+    $("#release-issues").scrollIntoView({behavior:"smooth",block:"center"});
+    return;
+   }
+   if(!window.confirm("کنترل‌های آزادسازی موفق بود. دستور "+x.number+" آزاد شود؟ پس از آزادسازی، نسخه عملیات و کنترل پلن منجمد می‌شوند."))return;
+   await request("/manufacturing-orders/"+x.id+"/release","POST");
+   flash("دستور آزاد شد؛ عملیات مسیر ساخت و الزامات کنترل کیفیت ایجاد شدند.");
+   await reload();
+  }},
   {label:"تعلیق",show:x=>canHold()&&(x.status===1||x.status===2),run:async x=>{
    const reason=window.prompt("علت توقف یا قرنطینه دستور را وارد کنید:");if(reason===null)return;
    if(!reason.trim()){flash("علت تعلیق اجباری است.",true);return;}
