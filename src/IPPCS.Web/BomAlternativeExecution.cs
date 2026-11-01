@@ -211,7 +211,27 @@ public static class BomAlternativeExecution
                 return Results.NotFound();
             var records = await db.FactoryMaterialUsages.AsNoTracking()
                 .Where(x => x.OrderId == id).ToListAsync(ct);
-            try { return Results.Ok(new { orderId = id, rows = FactoryLineSideCorrections.Ledger(records) }); }
+            var lots = await db.ManufacturingConfirmations.AsNoTracking()
+                .Include(x => x.Operation).Where(x => x.Operation.OrderId == id)
+                .ToDictionaryAsync(x => x.Id, ct);
+            try
+            {
+                var ledger = FactoryLineSideCorrections.Ledger(records);
+                return Results.Ok(new
+                {
+                    orderId = id,
+                    rows = ledger.Select(x => new
+                    {
+                        x.EntryId, x.ComponentItemId, x.BomLineId, x.RecordedQuantity,
+                        x.NetQuantity, x.ConfirmationId, x.Reference, x.RecordedBy,
+                        x.RecordedUtc, x.ReversedById, x.IsLegacyUnattributed,
+                        operationId = x.ConfirmationId.HasValue && lots.ContainsKey(x.ConfirmationId.Value)
+                            ? lots[x.ConfirmationId.Value].OperationId : (Guid?)null,
+                        operationSequence = x.ConfirmationId.HasValue && lots.ContainsKey(x.ConfirmationId.Value)
+                            ? lots[x.ConfirmationId.Value].Operation.Sequence : (int?)null
+                    })
+                });
+            }
             catch (InvalidOperationException ex) { return Results.Conflict(new { message = ex.Message }); }
         });
 
