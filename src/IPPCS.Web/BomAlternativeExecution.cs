@@ -158,8 +158,17 @@ public static class BomAlternativeExecution
             IReadOnlyList<FactoryConsumptionLedgerRow> usageLedger;
             try { usageLedger = FactoryLineSideCorrections.Ledger(usageRecords); }
             catch (InvalidOperationException ex) { return Results.Conflict(new { message = ex.Message }); }
-            var usedByComponent = usageLedger.GroupBy(x => x.ComponentItemId)
-                .ToDictionary(g => g.Key, g => g.Sum(x => x.NetQuantity));
+            var uniqueLineByComponent = lines.GroupBy(x => x.ComponentItemId)
+                .Where(g => g.Count() == 1).ToDictionary(g => g.Key, g => g.Single().Id);
+            var usedByLine = new Dictionary<Guid, decimal>();
+            foreach (var entry in usageLedger)
+            {
+                var lineId = entry.BomLineId;
+                if (!lineId.HasValue && uniqueLineByComponent.TryGetValue(entry.ComponentItemId, out var uniqueId))
+                    lineId = uniqueId;
+                if (lineId.HasValue)
+                    usedByLine[lineId.Value] = usedByLine.GetValueOrDefault(lineId.Value) + entry.NetQuantity;
+            }
             var allocationByLine = allocations.ToDictionary(x => x.BomLineId);
             return Results.Ok(new
             {
@@ -181,7 +190,7 @@ public static class BomAlternativeExecution
                                 ?? (line.IsDefaultAlternative && !allocations.Any(a => g.Any(gl => gl.Id == a.BomLineId))
                                     ? 100m : 0m)) is var share && share > 0
                                 ? CalculatePlannedComponentQuantity(order.PlannedQuantity, line, share) : 0m,
-                            actualQuantity = usedByComponent.GetValueOrDefault(line.ComponentItemId)
+                            actualQuantity = usedByLine.GetValueOrDefault(line.Id)
                         })
                     }),
                 mandatoryComponents = lines.Where(x => string.IsNullOrWhiteSpace(x.AlternativeGroupCode))
@@ -191,6 +200,7 @@ public static class BomAlternativeExecution
                         plannedQuantity = CalculatePlannedComponentQuantity(order.PlannedQuantity, line),
                         actualQuantity = usedByComponent.GetValueOrDefault(line.ComponentItemId)
                     }),
+                unattributedLegacyQuantity = usageLedger.Where(x => x.BomLineId is null).Sum(x => x.NetQuantity),
                 lots = order.Operations.SelectMany(op => op.Confirmations.Select(c => new
                 {
                     id = c.Id,
