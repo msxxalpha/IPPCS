@@ -198,6 +198,7 @@ app.MapDemandTrace();
 app.MapTimePhasedPegging();
 app.MapNetMrpDemandPegging();
 app.MapMrpLotCapacityPreview();
+app.MapMrpDraftOrderConversion();
 app.MapFactoryOperationClock();
 app.MapTimedDowntime();
 app.MapCostRateHistory();
