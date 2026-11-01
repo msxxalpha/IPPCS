@@ -253,7 +253,7 @@ public static class FactoryRevisionGovernance
                 var materialAllocations=await db.Set<ManufacturingOrderMaterialAllocation>()
                     .AsNoTracking().Where(x=>x.OrderId==id).ToListAsync(ct);
                 foreach(var issue in BomAlternativeExecution.ValidateReleaseAllocations(
-                    order,bom?.Lines??Array.Empty<ManufacturingBomLine>(),materialAllocations))
+                    order,bom?.Lines??new List<ManufacturingBomLine>(),materialAllocations))
                     issues.Add(new("MaterialAlternativeInvalid",issue));
                 var controlPlans=await db.ManufacturingControlPlans.AsNoTracking()
                     .Include(x=>x.Characteristics)
