@@ -231,4 +231,40 @@ public sealed class BomAlternativeMaterialExecutionTests
         Assert.Null(row.ConfirmationId);
         Assert.True(row.IsLegacyUnattributed);
     }
+
+    [Fact]
+    public void Legacy_lot_usage_is_assigned_only_when_component_has_one_bom_line()
+    {
+        var lotId = Guid.NewGuid();
+        var component = Guid.NewGuid();
+        var line = new ManufacturingBomLine
+        {
+            Id = Guid.NewGuid(), ComponentItemId = component,
+            QuantityPer = 1m, ScrapPercent = 0, Sequence = 10
+        };
+        var confirmation = new ManufacturingConfirmation
+        {
+            Id = lotId, GoodQuantity = 10m
+        };
+        var legacy = new FactoryMaterialUsage
+        {
+            ComponentItemId = component, QuantityConsumed = 3m,
+            Reference = FactoryLineSideCorrections.LotPrefix +
+                lotId.ToString("N") + "|legacy"
+        };
+        var ledger = FactoryLineSideCorrections.Ledger([legacy]);
+
+        var balance = Assert.Single(FactoryLineSideCorrections.LotBalances(
+            confirmation, [line], ledger, []));
+        Assert.Equal(3m, balance.RecordedNetQuantity);
+
+        var duplicate = new ManufacturingBomLine
+        {
+            Id = Guid.NewGuid(), ComponentItemId = component,
+            QuantityPer = 2m, ScrapPercent = 0, Sequence = 20
+        };
+        Assert.Throws<InvalidOperationException>(() =>
+            FactoryLineSideCorrections.LotBalances(
+                confirmation, [line, duplicate], ledger, []));
+    }
 }
