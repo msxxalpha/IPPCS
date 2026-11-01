@@ -43,6 +43,7 @@ test('order UI saves alternative groups atomically and records real lot usage hi
   assert.match(executionJs, /x\.recordedQuantity/);
   assert.match(executionJs, /x\.netQuantity/);
   assert.match(executionJs, /x\.confirmationId/);
+  assert.match(executionJs, /x\.operationSequence/);
   assert.match(executionJs, /x\.reversedById/);
   assert.match(service, /CalculatePlannedComponentQuantity/);
   assert.match(service, /usageLedger/);
