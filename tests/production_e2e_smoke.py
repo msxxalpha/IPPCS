@@ -476,7 +476,7 @@ draft_id = created["results"][0]["orderId"]
 draft_order = request(f"/api/v1/manufacturing-orders/{draft_id}")
 assert draft_order["status"] == 0 and draft_order["operations"] == [], draft_order
 assert draft_order["itemId"] == product["id"] and draft_order["plannedQuantity"] == 10, draft_order
-assert draft_order["plannedStart"] == JALALI_NOW.replace("/", "-") and draft_order["dueOn"] == JALALI_NOW.replace("/", "-"), draft_order
+assert draft_order["plannedStartJalali"] == JALALI_NOW and draft_order["dueOnJalali"] == JALALI_NOW, draft_order
 assert draft_order["bomRevisionId"] == bom["id"] and draft_order["routingRevisionId"] == route_id, draft_order
 draft_check = request(f"/api/v1/manufacturing-orders/{draft_id}/release-check")
 assert draft_check["canRelease"] and not draft_check["issues"], draft_check
