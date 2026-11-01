@@ -198,7 +198,7 @@ public static class BomAlternativeExecution
                     {
                         line.Id, line.ComponentItemId, line.QuantityPer, line.ScrapPercent,
                         plannedQuantity = CalculatePlannedComponentQuantity(order.PlannedQuantity, line),
-                        actualQuantity = usedByComponent.GetValueOrDefault(line.ComponentItemId)
+                        actualQuantity = usedByLine.GetValueOrDefault(line.Id)
                     }),
                 unattributedLegacyQuantity = usageLedger.Where(x => x.BomLineId is null).Sum(x => x.NetQuantity),
                 lots = order.Operations.SelectMany(op => op.Confirmations.Select(c => new
