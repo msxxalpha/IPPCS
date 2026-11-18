@@ -3,8 +3,8 @@ using Xunit;
 public sealed class FactoryApsMrpBridgeTests
 {
     private static NetPegPlannedLot Lot(string key,Guid item,DateOnly receipt,DateOnly release,
-        string type="Manufacturing") =>
-        new(key,item,receipt,release,10,8,2,type,null,false,0);
+        string type="Manufacturing",decimal quantity=10m) =>
+        new(key,item,receipt,release,quantity,quantity,0,type,null,false,0);
 
     [Fact]
     public void APS_uses_net_manufacturing_lots_instead_of_gross_MPS_demand()
@@ -17,7 +17,7 @@ public sealed class FactoryApsMrpBridgeTests
                 new NetPegAllocation("MPS:ROOT",finished,day,"PlanningOpeningBalance","BASE",day,6,true),
                 new NetPegAllocation("MPS:ROOT",finished,day,"ProposedManufacturingReceipt","PLAN:FG",day,4,false)
             ],
-            [Lot("PLAN:FG",finished,day,day.AddDays(-2))]);
+            [Lot("PLAN:FG",finished,day,day.AddDays(-2),quantity:4m)]);
 
         var bridge=FactoryApsMrpBridge.Build(report,day.AddDays(-1));
 
@@ -83,7 +83,7 @@ public sealed class FactoryApsMrpBridgeTests
             [new NetPegAllocation("COMP:FG:RAW",raw,day.AddDays(-2),
                 "ProposedExternalReceipt","PLAN:RAW",day.AddDays(-2),7,false)],
             [Lot(parentKey,finished,day,day.AddDays(-3)),
-             Lot("PLAN:RAW",raw,day.AddDays(-2),day.AddDays(-4),"ExternalPlanningOnly")]);
+             Lot("PLAN:RAW",raw,day.AddDays(-2),day.AddDays(-4),"ExternalPlanningOnly",7m)]);
 
         var bridge=FactoryApsMrpBridge.Build(report,day.AddDays(-5));
 
