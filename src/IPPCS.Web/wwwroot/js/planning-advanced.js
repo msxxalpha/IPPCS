@@ -357,7 +357,7 @@ function register(){
    unavailableSlots:apsSlots,sharedTools
   });
   renderAps(result);
-  flash("زمان‌بندی محدودیت‌دار ثبت شد. عملیات فاقد ظرفیت به‌صورت جداگانه نمایش داده می‌شوند.");
+  flash("زمان‌بندی بر مبنای "+format(result.plannedManufacturingLots||0)+" بچ ساخت خالص MRP انجام شد؛ موجودی و دریافت‌های مبنا از تقاضای ناخالص کسر شده‌اند. عملیات فاقد ظرفیت جداگانه نمایش داده می‌شوند.");
  });
  addForm("#sop-mps-bridge-form",async f=>{
   const x=await api("/factory-sop/"+formval(f,"sopId")+"/reconcile-mps/"+formval(f,"mpsId"));
