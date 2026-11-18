@@ -667,17 +667,33 @@ public static class FactoryDemandApsEndpoints
             var balances=await db.PlanningBalances.AsNoTracking().ToListAsync(ct);
             var expectedReceipts=await db.PlanningExpectedReceipts.AsNoTracking().ToListAsync(ct);
             var itemTypes=await db.Items.AsNoTracking().ToDictionaryAsync(x=>x.Id,x=>x.Type,ct);
-            var material=MaterialConstrainedPlanning.Check(
-                plan.Lines,bomRevisions,balances,expectedReceipts,itemTypes,start);
-            var failedMaterial=material.Where(x=>!x.Feasible).ToList();
-            if(failedMaterial.Count>0)
+            IReadOnlyList<MrpRow> mrpRows;
+            NetPeggingReport pegging;
+            FactoryApsMrpBridgeResult bridge;
+            try
+            {
+                mrpRows=PlanningCalculators.RunMrp(plan.Lines,bomRevisions,balances,
+                    expectedReceipts,itemTypes);
+                pegging=NetMrpDemandPegging.Build(plan.Lines,bomRevisions,balances,
+                    expectedReceipts,itemTypes,mrpRows);
+                bridge=FactoryApsMrpBridge.Build(pegging,start);
+            }
+            catch(Exception ex)when(ex is InvalidOperationException or ArgumentException
+                or OverflowException or KeyNotFoundException)
+            {
                 return Results.UnprocessableEntity(new{
-                    message="برنامه از نظر تامین مواد اولیه قابل اجرا نیست. ابتدا موجودی‌ها و دریافت‌های برنامه‌ای را بازنگری کنید.",
-                    materialWarnings=failedMaterial
+                    message="تبدیل برنامه MPS به پیشنهادهای خالص MRP برای APS ناموفق بود.",
+                    detail=ex.Message
+                });
+            }
+            if(bridge.MaterialShortages.Count>0)
+                return Results.UnprocessableEntity(new{
+                    message="برای برخی اجزای ساخت، موجودی مبنا یا دریافت برنامه‌ای کافی وجود ندارد؛ پیشنهاد تامین خارجی هنوز قطعی نیست.",
+                    materialWarnings=bridge.MaterialShortages
                 });
             var tasks=new List<ApsTask>();
             var errors=new List<string>();
-            foreach(var line in plan.Lines.OrderBy(x=>x.NeededOn).ThenBy(x=>x.ItemId))
+            foreach(var line in bridge.DemandLines.OrderBy(x=>x.NeededOn).ThenBy(x=>x.ItemId))
             {
                 var active=routes.Where(x=>x.ItemId==line.ItemId&&x.EffectiveFrom<=line.NeededOn
                     && (x.EffectiveTo==null||line.NeededOn<=x.EffectiveTo)).ToList();
@@ -716,6 +732,8 @@ public static class FactoryDemandApsEndpoints
                 unavailable.UnionWith(evidence.ReservedDays);
                 result=FiniteFactoryScheduler.Schedule(tasks,shifts,start,
                     input.HorizonDays,input.CapacityMultiplier,unavailable,
+                    earliestStartDates:bridge.EarliestStartDates,
+                    prerequisites:bridge.Prerequisites,
                     occupiedIntervals:evidence.OccupiedIntervals.Concat(scenarioSlots).ToArray(),
                     sharedToolGroups:sharedTools);
             }
@@ -727,7 +745,11 @@ public static class FactoryDemandApsEndpoints
                 .Where(x=>usedRoutingRevisionIds.Contains(x.RoutingRevisionId)).ToArray();
             var snapshot=new FactoryApsRun{MpsVersionId=plan.Id,StartOn=start,HorizonDays=input.HorizonDays,
                 InputJson=JsonSerializer.Serialize(new{mps=plan.Lines.Select(x=>new{x.ItemId,x.Quantity,x.NeededOn}),
-                    tasks,productCapacityEvidence=usedProductCapacityEvidence,materialFeasibility=material,shifts=shifts.Select(x=>new{x.WorkCenterId,x.DayOfWeek,x.StartTime,x.EndTime,
+                    mrp=new{rows=mrpRows,demands=pegging.Demands,allocations=pegging.Allocations,
+                        plannedLots=pegging.PlannedLots},
+                    apsManufacturingLots=bridge.Lots,apsPrerequisites=bridge.Prerequisites,
+                    tasks,productCapacityEvidence=usedProductCapacityEvidence,
+                    materialFeasibility=bridge.MaterialShortages,shifts=shifts.Select(x=>new{x.WorkCenterId,x.DayOfWeek,x.StartTime,x.EndTime,
                         x.EffectiveCapacityPercent}),input.CapacityMultiplier,
                         executionEvidence=new{evidence.ActiveOrders,evidence.ActiveReservations,
                             evidence.OpenClocks,evidence.BlockedOperations,
@@ -740,6 +762,7 @@ public static class FactoryDemandApsEndpoints
                 OutputJson=JsonSerializer.Serialize(result)};
             db.FactoryApsRuns.Add(snapshot);await db.SaveChangesAsync(ct);
             return Results.Ok(new{runId=snapshot.Id,snapshot.Algorithm,
+                plannedManufacturingLots=bridge.Lots.Count,
                 productCapacityEvidence=usedProductCapacityEvidence,
                 allocations=result.Allocations.Select(x=>new{x.ItemId,x.WorkCenterId,x.Sequence,
                     x.Quantity,x.OperationName,x.DurationMinutes,x.Late,
