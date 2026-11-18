@@ -71,8 +71,8 @@ public static class FactoryPlanningReconciliation
                 .Sum(x=>x.Quantity);
             return new FactoryMpsDemandGap(demand.Id,demand.ItemId,demand.Reference,
                 demand.DueOn,demand.Quantity,exact,Math.Max(0m,demand.Quantity-exact),
-                linked.Any(x=>x.ItemId!=demand.ItemId||x.NeededOn!=demand.DueOn||
-                    x.Quantity!=demand.Quantity));
+                linked.Any(x=>x.ItemId!=demand.ItemId||x.NeededOn!=demand.DueOn) ||
+                    exact!=demand.Quantity);
         }).OrderBy(x=>x.NeededOn).ThenBy(x=>x.DemandId).ToArray();
         var nonref=version.Lines.Where(x=>!x.Reference.StartsWith("DEMAND:",StringComparison.Ordinal))
             .Sum(x=>x.Quantity);
