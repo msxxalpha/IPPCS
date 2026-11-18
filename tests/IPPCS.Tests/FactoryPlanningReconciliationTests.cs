@@ -51,6 +51,49 @@ public sealed class FactoryPlanningReconciliationTests
     }
 
     [Fact]
+    public void Split_mps_lines_with_same_demand_reference_are_valid_when_their_total_matches()
+    {
+        var demandId=Guid.NewGuid();
+        var item=Guid.NewGuid();
+        var due=new DateOnly(2026,10,27);
+        var demand=new FactoryDemand{Id=demandId,ItemId=item,Category="Confirmed",
+            DueOn=due,Quantity=10,Reference="internal-need"};
+        var reference="DEMAND:"+demandId.ToString("N");
+        var mps=new MpsVersion{State=PlanningApproval.Approved,Lines=[
+            new MpsDemandLine{ItemId=item,NeededOn=due,Quantity=6,Reference=reference},
+            new MpsDemandLine{ItemId=item,NeededOn=due,Quantity=4,Reference=reference}
+        ]};
+
+        var report=FactoryPlanningReconciliation.AuditDemandReferences(mps,[demand]);
+
+        var gap=Assert.Single(report.DemandGaps);
+        Assert.Equal(10,gap.ExactlyReferencedQuantity);
+        Assert.Equal(0,gap.UncoveredQuantity);
+        Assert.False(gap.ReferenceChanged);
+    }
+
+    [Fact]
+    public void Split_mps_lines_with_wrong_total_or_item_are_flagged_as_changed()
+    {
+        var demandId=Guid.NewGuid();
+        var item=Guid.NewGuid();
+        var due=new DateOnly(2026,10,27);
+        var demand=new FactoryDemand{Id=demandId,ItemId=item,Category="Confirmed",
+            DueOn=due,Quantity=10};
+        var reference="DEMAND:"+demandId.ToString("N");
+        var mps=new MpsVersion{State=PlanningApproval.Approved,Lines=[
+            new MpsDemandLine{ItemId=item,NeededOn=due,Quantity=6,Reference=reference},
+            new MpsDemandLine{ItemId=Guid.NewGuid(),NeededOn=due,Quantity=3,Reference=reference}
+        ]};
+
+        var gap=Assert.Single(FactoryPlanningReconciliation.AuditDemandReferences(mps,[demand]).DemandGaps);
+
+        Assert.Equal(6,gap.ExactlyReferencedQuantity);
+        Assert.Equal(4,gap.UncoveredQuantity);
+        Assert.True(gap.ReferenceChanged);
+    }
+
+    [Fact]
     public void Mrp_source_risk_separates_assumed_balances_receipts_and_unfirm_plans()
     {
         var item=Guid.NewGuid();var today=new DateOnly(2026,10,27);
