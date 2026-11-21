@@ -132,7 +132,7 @@ public sealed class MrpDraftOrderConversionTests
     {
         var item = Guid.NewGuid();
         var requirement = new MrpDraftOrderConversion.MrpDraftChildLotRequirement(
-            "PLAN:SEMI:20261108", item, 12m);
+            "PLAN:SEMI:20261108", item, 13m);
 
         Assert.Equal("ChildDraftMissing",
             MrpDraftOrderConversion.EvaluateChildReadiness(requirement, null, false)!.Code);
