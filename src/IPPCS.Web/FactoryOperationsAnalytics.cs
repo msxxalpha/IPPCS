@@ -263,28 +263,65 @@ public static class FactoryOperationsAnalyticsEndpoints
             if(version is null)return Results.NotFound();
             if(version.State!=PlanningApproval.Approved)
                 return Results.Conflict(new{message="فقط MPS مصوب برای سناریو پذیرفته می‌شود."});
+            var boms=await db.ManufacturingBomRevisions.AsNoTracking().Include(x=>x.Lines)
+                .Where(x=>x.State==ManufacturingRevisionState.Approved).ToListAsync(ct);
+            var balances=await db.PlanningBalances.AsNoTracking().ToListAsync(ct);
+            var receipts=await db.PlanningExpectedReceipts.AsNoTracking().ToListAsync(ct);
+            var types=await db.Items.AsNoTracking().ToDictionaryAsync(x=>x.Id,x=>x.Type,ct);
             var routings=await db.RoutingRevisions.AsNoTracking().Include(x=>x.Operations)
                 .Where(x=>x.State==RoutingState.Approved).ToListAsync(ct);
             var shifts=await db.WorkShifts.AsNoTracking().ToListAsync(ct);
-            var tasks=new List<ApsTask>();
-            foreach(var line in version.Lines)
+            var capacityRates=await WorkCenterProductCapacityRules.LoadActiveRates(db,ct);
+            WorkCenterProductCapacityRules.ApplyToRoutes(routings,capacityRates);
+            try
             {
-                var selection=routings.Where(x=>x.ItemId==line.ItemId&&x.EffectiveFrom<=line.NeededOn
-                    && (x.EffectiveTo is null||line.NeededOn<=x.EffectiveTo.Value)).ToList();
-                if(selection.Count!=1 || selection[0].Operations.Count==0
-                    ||selection[0].Operations.Any(x=>x.YieldPercent<=0))
-                    return Results.UnprocessableEntity(new{message="مسیر ساخت مصوب یکتا با بازده معتبر وجود ندارد."});
-                tasks.AddRange(selection[0].Operations.Select(x=>new ApsTask(line.Id,line.ItemId,
-                    line.NeededOn,line.Quantity,selection[0].Id,x.Sequence,x.WorkCenterId,
-                    x.SetupMinutes+x.RunMinutesPerUnit*line.Quantity*100m/x.YieldPercent,x.Name)));
+                var net=PlanningCalculators.FactoryNetMrpCapacityPlanning.BuildNetPlan(
+                    version.Lines,boms,balances,receipts,types);
+                var bridge=FactoryApsMrpBridge.Build(net.Pegging,start);
+                if(bridge.MaterialShortages.Count>0)
+                    return Results.UnprocessableEntity(new{
+                        message="سناریو به علت کمبود اجزای ساخت با پیشنهاد تأمین خارجی قابل زمان‌بندی نیست.",
+                        materialWarnings=bridge.MaterialShortages
+                    });
+                var tasks=new List<ApsTask>();
+                foreach(var line in bridge.DemandLines.OrderBy(x=>x.NeededOn).ThenBy(x=>x.ItemId))
+                {
+                    var selection=routings.Where(x=>x.ItemId==line.ItemId&&x.EffectiveFrom<=line.NeededOn
+                        &&(x.EffectiveTo is null||line.NeededOn<=x.EffectiveTo.Value)).ToArray();
+                    if(selection.Length!=1)
+                        return Results.UnprocessableEntity(new{
+                            message="برای هر بچ ساخت خالص دقیقاً یک مسیر ساخت مصوب و معتبر لازم است.",
+                            itemId=line.ItemId,neededOnJalali=PersianPlanningDates.Format(line.NeededOn)
+                        });
+                    tasks.AddRange(FactoryApsTaskExpansion.Expand(line,selection[0]));
+                }
+                var baseline=FiniteFactoryScheduler.Schedule(tasks,shifts,start,input.HorizonDays,
+                    input.BaselineCapacity,earliestStartDates:bridge.EarliestStartDates,
+                    prerequisites:bridge.Prerequisites);
+                var scenario=FiniteFactoryScheduler.Schedule(tasks,shifts,start,input.HorizonDays,
+                    input.ScenarioCapacity,earliestStartDates:bridge.EarliestStartDates,
+                    prerequisites:bridge.Prerequisites);
+                var lots=bridge.Lots.Where(x=>x.ProposalType=="Manufacturing").ToArray();
+                return Results.Ok(new{
+                    baseline=new{scheduled=baseline.Allocations.Count,
+                        unscheduled=baseline.Unscheduled.Count,late=baseline.TotalLateOperations,
+                        allocatedMinutes=baseline.Allocations.Sum(x=>x.DurationMinutes)},
+                    scenario=new{scheduled=scenario.Allocations.Count,
+                        unscheduled=scenario.Unscheduled.Count,late=scenario.TotalLateOperations,
+                        allocatedMinutes=scenario.Allocations.Sum(x=>x.DurationMinutes)},
+                    calculationBasis="NetMrpManufacturingLots",
+                    plannedManufacturingLots=lots.Length,
+                    netManufacturingQuantitiesByItem=lots.GroupBy(x=>x.ItemId)
+                        .OrderBy(x=>x.Key).Select(x=>new{itemId=x.Key,quantity=x.Sum(y=>y.Quantity)}),
+                    planningBaselineJalali=PersianPlanningDates.Format(net.BaselineDate),
+                    note="سناریوی ظرفیت فقط برای بچ‌های ساخت خالص MRP اجرا شده است؛ موجودی و دریافت‌های برنامه‌ای از تقاضای ناخالص کسر شده‌اند. تاریخ آزادسازی، بازده تجمعی عملیات و تقدم نیمه‌ساخته‌ها رعایت می‌شود. این محاسبه فقط شبیه‌سازی است؛ هیچ برنامه، سفارش یا ظرفیت واقعی تغییر نکرده است."
+                });
             }
-            var baseline=FiniteFactoryScheduler.Schedule(tasks,shifts,start,input.HorizonDays,input.BaselineCapacity);
-            var scenario=FiniteFactoryScheduler.Schedule(tasks,shifts,start,input.HorizonDays,input.ScenarioCapacity);
-            return Results.Ok(new{baseline=new{scheduled=baseline.Allocations.Count,
-                unscheduled=baseline.Unscheduled.Count,late=baseline.TotalLateOperations},
-                scenario=new{scheduled=scenario.Allocations.Count,
-                    unscheduled=scenario.Unscheduled.Count,late=scenario.TotalLateOperations},
-                note="این محاسبه فقط شبیه‌سازی است؛ هیچ برنامه یا ظرفیت واقعی تغییر نکرده است."});
+            catch(Exception ex)when(ex is InvalidOperationException or ArgumentException
+                or OverflowException or KeyNotFoundException)
+            {
+                return Results.UnprocessableEntity(new{message=ex.Message});
+            }
         }).RequireAuthorization("IpPlanningWrite");
         return endpoints;
     }
