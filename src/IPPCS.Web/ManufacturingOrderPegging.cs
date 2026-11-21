@@ -32,7 +32,8 @@ public static class ManufacturingOrderPegging
         var finalGood = order.Operations.OrderBy(x => x.Sequence)
             .LastOrDefault()?.GoodQuantity ?? 0m;
         var cappedGood = Math.Min(order.PlannedQuantity, Math.Max(0m, finalGood));
-        return Math.Min(linkedQuantity, cappedGood * linkedQuantity / order.PlannedQuantity);
+        var validLinked = Math.Min(linkedQuantity, order.PlannedQuantity);
+        return Math.Min(validLinked, cappedGood * validLinked / order.PlannedQuantity);
     }
 
     public static bool IsEligible(ManufacturingOrder order,MpsDemandLine line,
