@@ -208,8 +208,31 @@ public static class PlanningCalculators
 
 // Net MRP-to-CRP bridge. Capacity is loaded only for manufacturing proposals,
 // never for gross MPS quantities already covered by planning supply.
+public sealed record FactoryNetMrpCapacitySnapshot(
+    IReadOnlyList<MrpRow> MrpRows, NetPeggingReport Pegging, DateOnly BaselineDate);
+
 public static class FactoryNetMrpCapacityPlanning
 {
+    public static FactoryNetMrpCapacitySnapshot BuildNetPlan(
+        IReadOnlyList<MpsDemandLine> mpsLines,
+        IReadOnlyList<ManufacturingBomRevision> boms,
+        IReadOnlyList<PlanningBalance> balances,
+        IReadOnlyList<PlanningExpectedReceipt> receipts,
+        IReadOnlyDictionary<Guid, PlanningItemType> itemTypes)
+    {
+        if (balances.Count == 0)
+            throw new InvalidOperationException("برای محاسبه CRP مبتنی بر MRP، مبنای موجودی تمام اقلام موردنیاز باید ثبت شود.");
+        var baseline = balances[0].SnapshotDate;
+        if (balances.Any(x => x.SnapshotDate != baseline))
+            throw new InvalidOperationException("تاریخ مبنای موجودی‌های برنامه‌ریزی یکسان نیست.");
+        if (receipts.Any(x => x.AvailableOn <= baseline))
+            throw new InvalidOperationException("دریافت برنامه‌ای باید پس از تاریخ مبنای موجودی باشد؛ مانده مبنا را اصلاح کنید.");
+        var mrpRows = PlanningCalculators.RunMrp(mpsLines, boms, balances, receipts, itemTypes);
+        var pegging = NetMrpDemandPegging.Build(
+            mpsLines, boms, balances, receipts, itemTypes, mrpRows);
+        return new FactoryNetMrpCapacitySnapshot(mrpRows, pegging, baseline);
+    }
+
     public static List<CrpProductCapacityRow> RunProductCapacityCrp(
         IReadOnlyList<NetPegPlannedLot> plannedLots,
         IReadOnlyList<RoutingRevision> routings,
@@ -786,37 +809,79 @@ public static class PlanningStageThreeEndpoints
             if(version is null)return Results.NotFound();
             if(version.State!=PlanningApproval.Approved)
                 return Results.Conflict(new{message="نسخه MPS باید مصوب باشد."});
-            var routes=await db.RoutingRevisions.AsNoTracking().Include(x=>x.Operations).ToListAsync(ct);
+            var boms=await db.ManufacturingBomRevisions.AsNoTracking().Include(x=>x.Lines).ToListAsync(ct);
+            var balances=await db.PlanningBalances.AsNoTracking().ToListAsync(ct);
+            var receipts=await db.PlanningExpectedReceipts.AsNoTracking().ToListAsync(ct);
+            var types=await db.Items.AsNoTracking().ToDictionaryAsync(x=>x.Id,x=>x.Type,ct);
+            var routes=await db.RoutingRevisions.AsNoTracking().Include(x=>x.Operations)
+                .Where(x=>x.State==RoutingState.Approved).ToListAsync(ct);
             var shifts=await db.WorkShifts.AsNoTracking().ToListAsync(ct);
-            var productCapacityRates=await WorkCenterProductCapacityRules.LoadActiveRates(db,ct);
+            var rates=await WorkCenterProductCapacityRules.LoadActiveRates(db,ct);
             try{
-                var rows=PlanningCalculators.RunProductCapacityCrp(version.Lines,routes,shifts,productCapacityRates);
+                var net=FactoryNetMrpCapacityPlanning.BuildNetPlan(version.Lines,boms,balances,receipts,types);
+                var lots=net.Pegging.PlannedLots.Where(x=>x.ProposalType=="Manufacturing").ToArray();
+                var detail=FactoryNetMrpCapacityPlanning.RunProductCapacityCrp(
+                    lots,routes,shifts,net.BaselineDate,rates);
+                var byId=lots.ToDictionary(x=>FactoryApsMrpBridge.StableLotId(x.LotKey));
                 return Results.Ok(new{
-                    mode="ProductDependentRoughCutCapacity",
-                    disclaimer="ظرفیت خروجی به محصول، مسیر، زمان آماده‌سازی، زمان واحد و بازده عملیات وابسته است. ظرفیت مستقل هر ردیف فرض می‌کند محصول دیگری از دقایق همان مرکز استفاده نمی‌کند؛ این عدد ظرفیت ترکیبی قابل‌تعهد نیست. تداخل زمانی و توالی واقعی را در APS بررسی کنید.",
-                    rows=rows.Select(x=>new{x.MpsLineId,x.ItemId,demandOnJalali=PersianPlanningDates.Format(x.NeededOn),
-                        x.DemandQuantity,x.WorkCenterId,x.OperationSequence,x.OperationName,
-                        x.SetupMinutes,x.RunMinutesPerUnit,x.YieldPercent,
-                        x.ProductCapacityUnitsPerHour,x.HasProductCapacityOverride,x.RequiredMinutes,
-                        x.AvailableMinutes,x.StandaloneCapacityUnits,x.UtilizationPercent,x.OverloadMinutes})
+                    mode="NetMrpManufacturingLotProductCapacity",
+                    calculationBasis="NetMrpManufacturingLots",
+                    grossMpsQuantity=version.Lines.Sum(x=>x.Quantity),
+                    netManufacturingLots=lots.Length,
+                    netManufacturingQuantity=lots.Sum(x=>x.Quantity),
+                    planningBaselineJalali=PersianPlanningDates.Format(net.BaselineDate),
+                    disclaimer="ظرفیت فقط برای بچ‌های ساخت خالص MRP محاسبه شده است؛ موجودی مبنا و دریافت‌های برنامه‌ای از تقاضای ناخالص کسر می‌شوند. بار هر عملیات در تاریخ آزادسازی بچ منظور می‌شود؛ آزادسازی‌های قبل از مبنا در روز مبنا نشان داده می‌شوند. ظرفیت مستقل هر ردیف به‌معنای ظرفیت ترکیبی قابل‌تعهد نیست.",
+                    rows=detail.Select(x=>{
+                        var lot=byId[x.MpsLineId];
+                        return new{x.MpsLineId,lotKey=lot.LotKey,x.ItemId,
+                            demandOnJalali=PersianPlanningDates.Format(x.NeededOn),
+                            releaseOnJalali=PersianPlanningDates.Format(lot.ReleaseOn),
+                            receiptOnJalali=PersianPlanningDates.Format(lot.ReceiptOn),
+                            releaseBeforeBaseline=lot.ReleaseBeforeBaseline,
+                            x.DemandQuantity,x.WorkCenterId,x.OperationSequence,x.OperationName,
+                            x.SetupMinutes,x.RunMinutesPerUnit,x.YieldPercent,
+                            x.ProductCapacityUnitsPerHour,x.HasProductCapacityOverride,x.RequiredMinutes,
+                            x.AvailableMinutes,x.StandaloneCapacityUnits,x.UtilizationPercent,x.OverloadMinutes};
+                    })
                 });
-            }catch(InvalidOperationException ex){
+            }catch(Exception ex)when(ex is InvalidOperationException or OverflowException
+                or ArgumentException or KeyNotFoundException){
                 return Results.UnprocessableEntity(new{message=ex.Message});
             }
         });
         api.MapGet("/crp/{id:guid}/preview",async(Guid id,ProductionDb db,CancellationToken ct)=>{
-            var version=await db.MpsVersions.AsNoTracking().Include(x=>x.Lines).SingleOrDefaultAsync(x=>x.Id==id,ct);
+            var version=await db.MpsVersions.AsNoTracking().Include(x=>x.Lines)
+                .SingleOrDefaultAsync(x=>x.Id==id,ct);
             if(version is null)return Results.NotFound();
-            var routes=await db.RoutingRevisions.AsNoTracking().Include(x=>x.Operations).ToListAsync(ct);
+            if(version.State!=PlanningApproval.Approved)
+                return Results.Conflict(new{message="نسخه MPS باید مصوب باشد."});
+            var boms=await db.ManufacturingBomRevisions.AsNoTracking().Include(x=>x.Lines).ToListAsync(ct);
+            var balances=await db.PlanningBalances.AsNoTracking().ToListAsync(ct);
+            var receipts=await db.PlanningExpectedReceipts.AsNoTracking().ToListAsync(ct);
+            var types=await db.Items.AsNoTracking().ToDictionaryAsync(x=>x.Id,x=>x.Type,ct);
+            var routes=await db.RoutingRevisions.AsNoTracking().Include(x=>x.Operations)
+                .Where(x=>x.State==RoutingState.Approved).ToListAsync(ct);
             var shifts=await db.WorkShifts.AsNoTracking().ToListAsync(ct);
-            var productCapacityRates=await WorkCenterProductCapacityRules.LoadActiveRates(db,ct);
+            var rates=await WorkCenterProductCapacityRules.LoadActiveRates(db,ct);
             try{
-                var rows=PlanningCalculators.RunRoughCutCrp(version.Lines,routes,shifts,productCapacityRates);
-                return Results.Ok(new{mode="RoughCutSingleDay",rows=rows.Select(x=>new{
-                    x.WorkCenterId,neededOnJalali=PersianPlanningDates.Format(x.NeededOn),
-                    x.RequiredMinutes,x.CapacityMinutes,x.OverloadMinutes,x.UtilizationPercent})});
+                var net=FactoryNetMrpCapacityPlanning.BuildNetPlan(version.Lines,boms,balances,receipts,types);
+                var lots=net.Pegging.PlannedLots.Where(x=>x.ProposalType=="Manufacturing").ToArray();
+                var rows=FactoryNetMrpCapacityPlanning.RunRoughCutCrp(
+                    lots,routes,shifts,net.BaselineDate,rates);
+                return Results.Ok(new{
+                    mode="NetMrpRoughCutCapacity",
+                    calculationBasis="NetMrpManufacturingLots",
+                    plannedManufacturingLots=lots.Length,
+                    netManufacturingQuantity=lots.Sum(x=>x.Quantity),
+                    planningBaselineJalali=PersianPlanningDates.Format(net.BaselineDate),
+                    disclaimer="بار مراکز از بچ‌های ساخت خالص MRP و در تاریخ آزادسازی آن‌ها محاسبه شده است؛ تقاضای ناخالص MPS به‌تنهایی بار تولید محسوب نمی‌شود.",
+                    rows=rows.Select(x=>new{x.WorkCenterId,neededOnJalali=PersianPlanningDates.Format(x.NeededOn),
+                        x.RequiredMinutes,x.CapacityMinutes,x.OverloadMinutes,x.UtilizationPercent})
+                });
+            }catch(Exception ex)when(ex is InvalidOperationException or OverflowException
+                or ArgumentException or KeyNotFoundException){
+                return Results.UnprocessableEntity(new{message=ex.Message});
             }
-            catch(InvalidOperationException ex){return Results.UnprocessableEntity(new{message=ex.Message});}
         });
         return routes;
     }
