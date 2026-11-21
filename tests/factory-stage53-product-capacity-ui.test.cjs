@@ -62,8 +62,12 @@ test("CRP loads product capacity overrides and reports the effective product rat
 test("S&OP, finite APS and MPS revision impact use the same active product rates",()=>{
  assert.equal((aps.match(/WorkCenterProductCapacityRules\.ApplyToRoutes\(routes,capacityRates\)/g)||[]).length,2);
  assert.match(mpsChange,/LoadActiveRates\(db,ct\)/);
- assert.match(mpsChange,/RunRoughCutCrp\(source\.Lines,routings,shifts,productCapacityRates\)/);
- assert.match(mpsChange,/RunRoughCutCrp\(candidate\.Lines,routings,shifts,productCapacityRates\)/);
+ assert.match(mpsChange,/FactoryNetMrpCapacityPlanning\.BuildNetPlan\(\s*source\.Lines,boms,balances,receipts,types\)/);
+ assert.match(mpsChange,/FactoryNetMrpCapacityPlanning\.BuildNetPlan\(\s*candidate\.Lines,boms,balances,receipts,types\)/);
+ assert.match(mpsChange,/sourceNet\.Pegging\.PlannedLots\s*\.Where\(x=>x\.ProposalType=="Manufacturing"\)/);
+ assert.match(mpsChange,/candidateNet\.Pegging\.PlannedLots\s*\.Where\(x=>x\.ProposalType=="Manufacturing"\)/);
+ assert.match(mpsChange,/RunRoughCutCrp\(\s*sourceLots,routings,shifts,sourceNet\.BaselineDate,productCapacityRates\)/);
+ assert.match(mpsChange,/RunRoughCutCrp\(\s*candidateLots,routings,shifts,candidateNet\.BaselineDate,productCapacityRates\)/);
 });
 
 test("net MRP lot capacity preview applies product overrides and cumulative downstream yields",()=>{
