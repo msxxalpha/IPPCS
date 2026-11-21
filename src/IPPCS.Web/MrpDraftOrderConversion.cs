@@ -213,7 +213,7 @@ public static class MrpDraftOrderConversion
         if (run is null)
             return [new("InvalidMrpSnapshot", "اجرای مرجع MRP یافت نشد.",
                 parentLotKey, parentOrder.ItemId, 0m, parentOrder.Id, parentOrder.Number)];
-        if (!TryBuildFromRunSnapshot(run, out var graph, out var error))
+        if (!NetMrpDemandPegging.TryBuildFromRunSnapshot(run, out var graph, out var error))
             return [new("InvalidMrpSnapshot", "تصویر ذخیره‌شده MRP برای کنترل پیش‌نیاز قابل بازسازی نیست: " + error,
                 parentLotKey, parentOrder.ItemId, 0m, parentOrder.Id, parentOrder.Number)];
 
