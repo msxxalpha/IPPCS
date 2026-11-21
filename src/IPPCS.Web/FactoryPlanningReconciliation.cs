@@ -213,9 +213,9 @@ public static class FactoryPlanningReconciliation
             var shifts=await db.WorkShifts.AsNoTracking().ToListAsync(ct);
             var rates=await WorkCenterProductCapacityRules.LoadActiveRates(db,ct);
             try{
-                var net=FactoryNetMrpCapacityPlanning.BuildNetPlan(mps.Lines,boms,balances,receipts,types);
+                var net=PlanningCalculators.FactoryNetMrpCapacityPlanning.BuildNetPlan(mps.Lines,boms,balances,receipts,types);
                 var lots=net.Pegging.PlannedLots.Where(x=>x.ProposalType=="Manufacturing").ToArray();
-                var rows=FactoryNetMrpCapacityPlanning.RunRoughCutCrp(
+                var rows=PlanningCalculators.FactoryNetMrpCapacityPlanning.RunRoughCutCrp(
                     lots,routes,shifts,net.BaselineDate,rates);
                 var summary=CenterStress(mpsId,rows);
                 return Results.Ok(new{
