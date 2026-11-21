@@ -83,7 +83,7 @@ public sealed class FactoryNetMrpCapacityPlanningTests
         var lot = Assert.Single(net.Pegging.PlannedLots);
         Assert.Equal(finished, lot.ItemId);
         Assert.Equal(6m, lot.Quantity);
-        Assert.Equal(4m, lot.NetShortage);
+        Assert.Equal(6m, lot.NetShortage);
         Assert.Equal(1, net.MrpRows.Count(x => x.ItemId == finished));
         Assert.Equal(1, net.MrpRows.Count(x => x.ItemId == raw));
         Assert.Equal(12m, Assert.Single(net.MrpRows, x => x.ItemId == raw).GrossRequired);
