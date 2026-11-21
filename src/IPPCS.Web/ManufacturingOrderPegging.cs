@@ -17,6 +17,24 @@ public record PegSummary(Guid MpsLineId,Guid ItemId,decimal Required,decimal Ass
 
 public static class ManufacturingOrderPegging
 {
+    /// <summary>
+    /// Attributes final-operation good output to an MPS line in proportion to
+    /// the order quantity explicitly pegged to that line. Partial output is
+    /// available while the order is still in progress; cancelled orders are
+    /// excluded by the callers. The result is bounded by both linked and
+    /// reported/planned quantities.
+    /// </summary>
+    public static decimal AllocatedGoodQuantity(
+        ManufacturingOrder order, decimal linkedQuantity)
+    {
+        if (linkedQuantity <= 0m || order.PlannedQuantity <= 0m)
+            return 0m;
+        var finalGood = order.Operations.OrderBy(x => x.Sequence)
+            .LastOrDefault()?.GoodQuantity ?? 0m;
+        var cappedGood = Math.Min(order.PlannedQuantity, Math.Max(0m, finalGood));
+        return Math.Min(linkedQuantity, cappedGood * linkedQuantity / order.PlannedQuantity);
+    }
+
     public static bool IsEligible(ManufacturingOrder order,MpsDemandLine line,
         decimal quantity,decimal orderAlreadyLinked,decimal lineAlreadyLinked,
         out string reason)
@@ -63,14 +81,8 @@ public static class ManufacturingOrderPegging
                     .Where(x=>byOrder.TryGetValue(x.OrderId,out var order)
                         && order.Status!=ManufacturingOrderStatus.Cancelled).ToList();
                 var qty=assigned.Sum(x=>x.LinkedQuantity);
-                decimal completed=0;
-                foreach(var link in assigned){
-                    var order=byOrder[link.OrderId];
-                    if(order.Status!=ManufacturingOrderStatus.Completed)continue;
-                    var good=order.Operations.OrderBy(x=>x.Sequence).LastOrDefault()?.GoodQuantity??0m;
-                    completed+=order.PlannedQuantity>0?
-                        Math.Min(link.LinkedQuantity,good*link.LinkedQuantity/order.PlannedQuantity):0m;
-                }
+                var completed=assigned.Sum(link=>
+                    AllocatedGoodQuantity(byOrder[link.OrderId],link.LinkedQuantity));
                 return new{
                     line.Id,line.ItemId,line.Quantity,
                     neededOnJalali=PersianPlanningDates.Format(line.NeededOn),
