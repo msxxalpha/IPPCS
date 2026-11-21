@@ -204,13 +204,31 @@ public static class FactoryPlanningReconciliation
             if(mps is null)return Results.NotFound();
             if(mps.State!=PlanningApproval.Approved)
                 return Results.Conflict(new{message="نسخه MPS باید مصوب باشد."});
+            var boms=await db.ManufacturingBomRevisions.AsNoTracking().Include(x=>x.Lines).ToListAsync(ct);
+            var balances=await db.PlanningBalances.AsNoTracking().ToListAsync(ct);
+            var receipts=await db.PlanningExpectedReceipts.AsNoTracking().ToListAsync(ct);
+            var types=await db.Items.AsNoTracking().ToDictionaryAsync(x=>x.Id,x=>x.Type,ct);
             var routes=await db.RoutingRevisions.AsNoTracking().Include(x=>x.Operations)
-                .ToListAsync(ct);
+                .Where(x=>x.State==RoutingState.Approved).ToListAsync(ct);
             var shifts=await db.WorkShifts.AsNoTracking().ToListAsync(ct);
+            var rates=await WorkCenterProductCapacityRules.LoadActiveRates(db,ct);
             try{
-                return Results.Ok(CenterStress(mpsId,
-                    PlanningCalculators.RunRoughCutCrp(mps.Lines,routes,shifts)));
-            }catch(Exception ex)when(ex is InvalidOperationException or OverflowException){
+                var net=FactoryNetMrpCapacityPlanning.BuildNetPlan(mps.Lines,boms,balances,receipts,types);
+                var lots=net.Pegging.PlannedLots.Where(x=>x.ProposalType=="Manufacturing").ToArray();
+                var rows=FactoryNetMrpCapacityPlanning.RunRoughCutCrp(
+                    lots,routes,shifts,net.BaselineDate,rates);
+                var summary=CenterStress(mpsId,rows);
+                return Results.Ok(new{
+                    summary.MpsId,summary.DayCenterRows,centers=summary.Centers,
+                    calculationBasis="NetMrpManufacturingLots",
+                    grossMpsQuantity=mps.Lines.Sum(x=>x.Quantity),
+                    plannedManufacturingLots=lots.Length,
+                    netManufacturingQuantity=lots.Sum(x=>x.Quantity),
+                    planningBaselineJalali=PersianPlanningDates.Format(net.BaselineDate),
+                    disclaimer="این گزارش CRP از بچ‌های ساخت خالص MRP محاسبه شده است؛ پوشش موجودی و دریافت‌های برنامه‌ای از تقاضای ناخالص کسر می‌شوند. این محاسبه ظرفیت تجمعی روز/مرکز است و جایگزین زمان‌بندی محدود APS نیست."
+                });
+            }catch(Exception ex)when(ex is InvalidOperationException or OverflowException
+                or ArgumentException or KeyNotFoundException){
                 return Results.UnprocessableEntity(new{message=ex.Message});
             }
         });
