@@ -673,9 +673,16 @@ function register(){
   const data=await api("/factory-kpis/adherence/"+formval(f,"mpsId")+
    "?fromJalali="+encodeURIComponent(formval(f,"from"))+
    "&throughJalali="+encodeURIComponent(formval(f,"through")));
-  table("#adherence-table",[["محصول",x=>item(x.itemId)],
-   ["مقدار MPS",x=>format(x.mpsRequired)],["تولید سالم تکمیل",x=>format(x.completedGood)],
-   ["انحراف",x=>format(x.variance)],["تحقق",x=>x.fulfilmentPercent===null?"نامشخص":format(x.fulfilmentPercent)+"٪"]],data.rows);
+  table("#adherence-table",[
+   ["محصول",x=>item(x.itemId)],["ردیف MPS",x=>String(x.lineId).slice(0,8)],
+   ["موعد شمسی","neededOnJalali"],["نیاز برنامه",x=>format(x.quantity)],
+   ["تخصیص دستور",x=>format(x.assignedQuantity)],
+   ["تولید سالم نهایی",x=>format(x.completedGood)],
+   ["مانده دستور باز",x=>format(x.outstandingQuantity)],
+   ["تخصیص‌نیافته",x=>format(x.unassignedQuantity)],
+   ["انحراف تحقق",x=>format(x.variance)],
+   ["تحقق",x=>x.fulfilmentPercent===null?"نامشخص":format(x.fulfilmentPercent)+"٪"]
+  ],data.lineRows);
  });
  load().catch(e=>flash("بارگذاری اطلاعات برنامه‌ریزی ممکن نیست: "+e.message,true));
 }
