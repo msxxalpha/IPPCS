@@ -250,10 +250,14 @@ public static class FactoryOperationsAnalyticsEndpoints
             var scopedLines=mps.Lines.Where(x=>x.NeededOn>=from&&x.NeededOn<=through)
                 .OrderBy(x=>x.NeededOn).ThenBy(x=>x.ItemId).ToArray();
             var lineIds=scopedLines.Select(x=>x.Id).ToArray();
+            var allMpsLineIds=mps.Lines.Select(x=>x.Id).ToArray();
             var itemIds=scopedLines.Select(x=>x.ItemId).Distinct().ToArray();
             var links=await db.ManufacturingOrderPegs.AsNoTracking()
                 .Where(x=>lineIds.Contains(x.MpsLineId)).ToListAsync(ct);
             var linkedOrderIds=links.Select(x=>x.OrderId).Distinct().ToArray();
+            var allMpsLinkedOrderIds=await db.ManufacturingOrderPegs.AsNoTracking()
+                .Where(x=>allMpsLineIds.Contains(x.MpsLineId))
+                .Select(x=>x.OrderId).Distinct().ToArrayAsync(ct);
             var linkedOrders=await db.ManufacturingOrders.AsNoTracking().Include(x=>x.Operations)
                 .Where(x=>linkedOrderIds.Contains(x.Id)).ToListAsync(ct);
             var byOrder=linkedOrders.ToDictionary(x=>x.Id);
@@ -310,7 +314,7 @@ public static class FactoryOperationsAnalyticsEndpoints
             }).ToArray();
             var unlinked=await db.ManufacturingOrders.AsNoTracking().Include(x=>x.Operations)
                 .Where(x=>itemIds.Contains(x.ItemId)&&x.DueOn>=from&&x.DueOn<=through
-                    &&!linkedOrderIds.Contains(x.Id)).ToListAsync(ct);
+                    &&!allMpsLinkedOrderIds.Contains(x.Id)).ToListAsync(ct);
             return Results.Ok(new{
                 mpsId,rows,lineRows,
                 unlinkedOrders=unlinked.Select(order=>new{
