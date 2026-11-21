@@ -255,7 +255,13 @@ request(f"/api/v1/mps/{mps['id']}/lines", "POST", {
     "quantity": 10, "reference": "CI planned shock absorbers"
 }, 201)
 request(f"/api/v1/mps/{mps['id']}/approve", "POST")
-# Material feasibility must fail closed before any raw-material baseline exists.
+# A zero finished-goods baseline is explicit: the MRP gate must not infer it.
+request(f"/api/v1/planning-balances/{product['id']}", "PUT", {
+    "itemId": product["id"], "physicalQuantity": 0, "reservedQuantity": 0,
+    "quarantinedQuantity": 0, "safetyQuantity": 0, "leadDays": 0,
+    "minimumBatch": 1, "batchMultiple": 1, "snapshotDateJalali": JALALI_NOW
+})
+# Material feasibility must still fail closed before any raw-material baseline exists.
 request("/api/v1/factory-aps/calculate", "POST", {
     "mpsVersionId": mps["id"], "startJalali": JALALI_NOW,
     "horizonDays": 7, "capacityMultiplier": 1
