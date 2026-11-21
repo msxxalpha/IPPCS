@@ -7,6 +7,7 @@ const read=p=>fs.readFileSync(path.join(root,p),"utf8");
 const app=read("app.html");
 const production=read("js/production.js");
 const crp=fs.readFileSync(path.resolve(root,"../PlanningStageThree.cs"),"utf8");
+const reconciliation=fs.readFileSync(path.resolve(root,"../FactoryPlanningReconciliation.cs"),"utf8");
 const capacity=fs.readFileSync(path.resolve(root,"../WorkCenterProductCapacity.cs"),"utf8");
 const aps=fs.readFileSync(path.resolve(root,"../FactoryDemandSopAps.cs"),"utf8");
 const mrpCapacity=fs.readFileSync(path.resolve(root,"../MrpLotCapacityPreview.cs"),"utf8");
@@ -48,8 +49,11 @@ test("a product capacity is uniquely attached to a real routing operation and ca
 
 test("CRP loads product capacity overrides and reports the effective product rate and rate source",()=>{
  assert.match(crp,/LoadActiveRates\(db,ct\)/);
- assert.match(crp,/RunProductCapacityCrp\(version\.Lines,routes,shifts,productCapacityRates\)/);
- assert.match(crp,/RunRoughCutCrp\(version\.Lines,routes,shifts,productCapacityRates\)/);
+ assert.match(crp,/FactoryNetMrpCapacityPlanning\.BuildNetPlan\(version\.Lines,boms,balances,receipts,types\)/);
+ assert.match(crp,/FactoryNetMrpCapacityPlanning\.RunProductCapacityCrp\(\s*lots,routes,shifts,net\.BaselineDate,rates\)/);
+ assert.match(crp,/FactoryNetMrpCapacityPlanning\.RunRoughCutCrp\(\s*lots,routes,shifts,net\.BaselineDate,rates\)/);
+ assert.match(reconciliation,/FactoryNetMrpCapacityPlanning\.BuildNetPlan\(mps\.Lines,boms,balances,receipts,types\)/);
+ assert.match(reconciliation,/FactoryNetMrpCapacityPlanning\.RunRoughCutCrp\(\s*lots,routes,shifts,net\.BaselineDate,rates\)/);
  assert.match(crp,/HasProductCapacityOverride/);
  assert.match(read("js/planning-stage3.js"),/r\.productCapacityUnitsPerHour/);
  assert.match(read("js/planning-stage3.js"),/r\.hasProductCapacityOverride/);
