@@ -239,6 +239,12 @@ public static class ManufacturingExecutionEndpoints
                 order,route,bom,pegs,pegLines);
             if(releaseIssues.Count>0)
                 return Results.Conflict(new{message="پیش‌شرط‌های آزادسازی دستور برقرار نیست.",issues=releaseIssues});
+            var mrpPrerequisites = await MrpDraftOrderConversion.CheckReleasePrerequisites(db, order, ct);
+            if (mrpPrerequisites.Count > 0)
+                return Results.Conflict(new {
+                    message = "دستورهای نیمه‌ساخته وابسته باید تکمیل و از گیت کیفیت عبور کنند.",
+                    issues = mrpPrerequisites
+                });
             var materialAllocations=await db.Set<ManufacturingOrderMaterialAllocation>().AsNoTracking()
                 .Where(x=>x.OrderId==id).ToListAsync(ct);
             var materialIssues = BomAlternativeExecution.ValidateReleaseAllocations(
