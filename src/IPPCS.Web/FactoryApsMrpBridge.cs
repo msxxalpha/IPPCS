@@ -71,7 +71,7 @@ public static class FactoryApsMrpBridge
         return new(demandLines,lots,earliest,prerequisiteView,external);
     }
 
-    private static Guid StableLotId(string lotKey)
+    public static Guid StableLotId(string lotKey)
     {
         var hash=SHA256.HashData(Encoding.UTF8.GetBytes(lotKey));
         return new Guid(hash.AsSpan(0,16));
