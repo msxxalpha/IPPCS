@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>IPPCS | اطلاعات پایه و فهرست‌های مرجع</title>
+<link rel="stylesheet" href="/css/production.css">
+<script defer src="/js/security-client.js"></script>
+<script defer src="/js/jalali-datepicker.js"></script>
+<script defer src="/js/factory-choices.js"></script>
+<script defer src="/js/factory-master-data.js"></script>
+</head>
+<body>
+<div class="app-shell">
+<aside class="sidebar"><div class="brand"><div class="brand-logo">IP</div><div>
+<strong>ایندامین سایپا</strong><small>اطلاعات پایه مستقل سامانه تولید</small></div></div>
+<nav aria-label="دسترسی سریع">
+<a class="planning-link" href="/app.html">صفحه اصلی / اطلاعات پایه</a>
+<a class="planning-link" href="/production-deviations.html">انحرافات و اقدامات اصلاحی</a>
+<a class="planning-link" href="/execution.html">دستورات ساخت</a></nav>
+</aside>
+<div class="main">
+<header class="topbar"><div><div class="eyebrow">کدگذاری استاندارد برای گزارش‌گیری</div>
+<h1>فهرست‌های مرجع اطلاعات پایه</h1></div>
+<button type="button" data-ip-logout class="btn-outline">خروج</button></header>
+<main class="content">
+<div class="callout">کد هر گزینه پس از ثبت ثابت می‌ماند؛ عنوان نمایشی و وضعیت فعال‌بودن را می‌توان تغییر داد. غیرفعال‌سازی باعث حذف سوابق قبلی نمی‌شود. این اطلاعات داخلی IPPCS است و هیچ ارتباطی با سیستم انبار، خرید، فروش یا منابع انسانی ندارد.</div>
+<div id="master-notice" class="notice" role="status" aria-live="polite" hidden></div>
+<div class="panel form-grid">
+<label>فهرست اطلاعات پایه<select id="master-kind">
+<option value="DeviationCategory">انواع انحراف برنامه تولید</option>
+<option value="RootCauseCategory">طبقه‌بندی علت ریشه‌ای</option>
+<option value="ActionOwner">مسئول / نقش عملیاتی پیگیری</option>
+<option value="DowntimeReason">علل استاندارد توقف تولید</option>
+<option value="QualityHoldReason">علل قرنطینه و نگهداری کیفیت</option>
+<option value="UnitOfMeasure">واحدهای اندازه‌گیری مواد، تولید و بازرسی</option>
+<option value="CapacityBlackoutReason">دلایل عدم دسترسی برنامه‌ای مراکز کاری</option>
+<option value="SharedToolGroup">گروه‌های ابزار مشترک بین مراکز کاری</option>
+</select></label>
+<label>جست‌وجو در کد یا عنوان<input type="search" id="master-query" placeholder="کد یا عنوان را وارد کنید" autocomplete="off"></label>
+<label class="choice-check"><input id="master-inactive" type="checkbox"> نمایش گزینه‌های غیرفعال</label>
+<div class="form-actions"><button class="btn-outline" type="button" id="master-reload">به‌روزرسانی فهرست</button></div>
+</div>
+<div class="summary-stats">
+<div><span>تعداد همهٔ گزینه‌ها</span><strong id="master-total">۰</strong></div>
+<div><span>گزینه‌های فعال</span><strong id="master-active">۰</strong></div>
+<div><span>گزینه‌های غیرفعال</span><strong id="master-disabled">۰</strong></div>
+</div>
+<form id="master-create" class="panel form-grid">
+<h3 class="wide">تعریف گزینهٔ جدید</h3>
+<label>کد ثابت برای گزارش‌گیری<input id="master-code" required maxlength="40" dir="ltr" placeholder="مثلاً SHIFT_LEAD"></label>
+<label>عنوان نمایشی<input id="master-label" required maxlength="100" placeholder="مثلاً سرپرست شیفت"></label>
+<label>ترتیب نمایش<input id="master-sort" type="number" min="0" max="10000" value="100" required></label>
+<div class="form-actions"><button class="btn-main" type="submit" id="master-add">ثبت گزینه</button></div>
+<p class="wide">برای نوع انحراف فقط کدهای ۰ تا ۶ تعریف شده‌اند و به‌صورت پیش‌فرض وجود دارند. برای مسئول پیگیری نام اشخاص را از منابع انسانی دریافت نمی‌کنیم؛ عنوان نقش عملیاتی کارخانه را تعریف کنید.</p>
+</form>
+<section class="panel">
+<h3>گزارش طبقه‌بندی‌شده توقف و قرنطینه</h3>
+<p>آمار براساس کد پایدار اطلاعات پایه است؛ تغییر عنوان، اطلاعات گذشته را از گروه گزارش حذف نمی‌کند. توقفات زمان‌دار فقط از نظر تعداد رخداد در این گزارش شمرده می‌شوند.</p>
+<form id="master-reason-report" class="form-grid">
+<label>نوع گزارش<select id="reason-report-kind">
+<option value="DowntimeReason">دلایل توقف تولید</option>
+<option value="QualityHoldReason">دلایل قرنطینه کیفیت</option></select></label>
+<label>از تاریخ شمسی<span class="jalali-field"><input id="reason-report-from" data-jalali-date required placeholder="۱۴۰۵/۰۸/۰۵"><button data-jalali-trigger type="button" class="date-trigger">▣</button></span></label>
+<label>تا تاریخ شمسی<span class="jalali-field"><input id="reason-report-through" data-jalali-date required placeholder="۱۴۰۵/۰۸/۰۵"><button data-jalali-trigger type="button" class="date-trigger">▣</button></span></label>
+<div class="form-actions"><button class="btn-main" type="submit">نمایش گزارش</button></div>
+</form>
+<div id="reason-report-result" role="status" aria-live="polite"></div>
+</section>
+<section class="panel"><h3>گزینه‌ها و ویرایش کنترل‌شده</h3>
+<p>برای حفاظت از سابقهٔ گزارش‌ها، کد قابل ویرایش یا حذف نیست. مدیر سامانه می‌تواند عنوان، ترتیب و وضعیت را تغییر دهد.</p>
+<div id="master-list" aria-live="polite"></div>
+</section>
+</main></div></div>
+</body></html>

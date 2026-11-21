@@ -1,0 +1,33 @@
+<!doctype html><html lang="fa" dir="rtl"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>IPPCS | تنظیمات حساب و کاربران سامانه</title><link rel="stylesheet" href="/css/production.css">
+<script defer src="/js/security-client.js"></script><script defer src="/js/ip-users.js"></script></head><body>
+<div class="app-shell"><aside class="sidebar"><div class="brand"><div class="brand-logo">IP</div><div><strong>IPPCS</strong><small>مدیریت دسترسی سامانه تولید</small></div></div>
+<nav><a class="planning-link" href="/app.html">بازگشت به داشبورد</a>
+<a class="planning-link" href="/planning-advanced.html">برنامه‌ریزی تولید</a>
+<a class="planning-link" href="/execution.html">کنترل اجرای تولید</a></nav>
+<div class="sidebar-foot">مدیریت حساب‌های مستقل IPPCS<br>بدون ارتباط با پورتال منابع انسانی</div></aside>
+<div class="main"><header class="topbar"><div><span class="eyebrow">امنیت سامانه تولید</span><h1>حساب کاربری و نقش‌ها</h1></div><button class="btn-outline" data-ip-logout>خروج</button></header>
+<main class="content">
+<div class="notice" id="ip-message" role="status" aria-live="polite" hidden></div>
+<section class="panel"><h3>تغییر رمز عبور شخصی</h3>
+<form id="password-form" class="form-grid">
+<label>رمز فعلی<input name="old" type="password" autocomplete="current-password" required></label>
+<label>رمز جدید<input name="new" type="password" autocomplete="new-password" required minlength="12"></label>
+<div class="form-actions"><button class="btn-main" type="submit">ثبت رمز جدید</button></div></form>
+<p>حداقل ۱۲ نویسه، شامل حرف کوچک و بزرگ انگلیسی، عدد و نماد. رمزها فقط از طریق سازوکار امن Identity ذخیره می‌شوند.</p></section>
+<section id="admin-panel" hidden>
+<div class="section-title"><h3>مدیریت کاربران نرم‌افزار</h3><small>مختص نقش Administrator. این داده‌ها هیچ وابستگی به کارکنان و ساختار HR ندارند.</small></div>
+<form id="user-form" class="panel form-grid">
+<label>نام کاربری<input name="username" required maxlength="100" autocomplete="off"></label>
+<label>رمز اولیه امن<input name="password" type="password" required minlength="12" autocomplete="new-password"></label>
+<label>نقش عملیاتی<select name="role">
+<option value="Planner">برنامه‌ریز تولید</option>
+<option value="ProductionOperator">اپراتور ثبت تولید</option>
+<option value="QualityInspector">بازرس کیفیت</option>
+</select></label>
+<div class="form-actions"><button class="btn-main" type="submit">ایجاد حساب مستقل سامانه</button></div></form>
+<div class="panel"><h3>کاربران، نقش‌ها و قفل حساب</h3><div id="users-table"></div></div>
+</section>
+</main><footer class="footer">IPPCS • مدیریت حساب‌های مستقل سامانه<span>Development</span></footer></div></div>
+</body></html>

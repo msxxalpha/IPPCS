@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>IPPCS | راهنمای کامل فرم‌ها و استقرار</title>
+<link rel="stylesheet" href="/css/production.css">
+<link rel="stylesheet" href="/css/help.css">
+<script defer src="/js/security-client.js"></script>
+<script defer src="/js/help-catalog.js"></script>
+<script defer src="/js/help-fields.js"></script>
+<script defer src="/js/help.js"></script>
+</head>
+<body>
+<div class="app-shell">
+<aside class="sidebar">
+<div class="brand"><div class="brand-logo">IP</div><div><strong>IPPCS ایندامین سایپا</strong><small>راهنمای کاربران و استقرار</small></div></div>
+<nav aria-label="منو">
+<a class="planning-link" href="/app.html">صفحه اصلی سامانه</a>
+<a class="planning-link" href="/factory-release-readiness.html">پذیرش آزمایشی ۱۸ ماژول</a>
+<a class="planning-link" href="/factory-analytical-verification.html">آزمون هدایت‌شده تحلیل‌ها</a>
+<a class="planning-link" href="/factory-reports.html">گزارش‌های مدیریتی</a>
+</nav>
+</aside>
+<div class="main">
+<header class="topbar"><div><span class="eyebrow">راهنمای عملیاتی و ترتیب راه‌اندازی</span><h1>راهنمای IPPCS</h1></div><button class="btn-outline" data-ip-logout>خروج</button></header>
+<main class="content">
+<div class="callout"><strong>محدوده سامانه:</strong> این راهنما فقط برای برنامه‌ریزی و کنترل تولید IPPCS است. کالیبراسیون در سامانه مستقل سازمان انجام می‌شود؛ توسعه یا اتصال به آن و نیز ماژول‌های انبار، خرید، فروش و منابع انسانی در محدوده IPPCS نیست. داشتن راهنما یا عبور از CI به معنی پذیرش عملیاتی کارخانه نیست.</div>
+<div class="help-tabs" role="tablist" aria-label="بخش راهنما">
+<button type="button" class="btn-main" id="help-show-rollout" aria-controls="help-rollout" aria-pressed="true">ترتیب استقرار و اطلاعات لازم</button>
+<button type="button" class="btn-outline" id="help-show-forms" aria-controls="help-forms" aria-pressed="false">راهنمای تک‌تک فرم‌ها</button>
+</div>
+<section id="help-rollout" aria-label="راهنمای استقرار">
+<div class="section-title"><h2>شروع اصولی استقرار — ۱۴ گام</h2><small>هر گام پس از تأمین داده و بررسی خروجی گام قبلی اجرا می‌شود.</small></div>
+<p>برای هر گام، اطلاعات مورد نیاز، اقدام در فرم و معیار بررسی نتیجه آمده است. علامت «بررسی شد» فقط پیشرفت شخصی روی صفحه است و در دیتابیس ثبت یا به معنای پذیرش رسمی نیست.</p>
+<div class="callout">
+<strong>پیش از استفاده از هر فرم، دیتابیس مستقل IPPCS را نصب کنید.</strong>
+برای اولین اجرای Visual Studio، از آخرین GitHub Actions موفقِ Draft PR، بسته <code>IPPCS_Dev_Complete_Install_SQL</code> را در قسمت Artifacts دریافت کنید؛ فایل SQL داخل آن در SSMS دیتابیس <code>IPPCS_Dev</code> و تمام جداول نسخه‌دار را می‌سازد. سپس Connection String و حساب مدیر محلی را با User Secrets تنظیم کنید. برای راهنمای کامل نصب <a href="https://github.com/msxxalpha/IPPCS/blob/feature/production-platform-foundation/database/README.md" target="_blank" rel="noopener noreferrer">مراحل ایمن SQL Server و Visual Studio</a> را بخوانید. این کار هیچ اتصال یا تغییر در دیتابیس دیگر سامانه‌های شرکت ندارد.
+</div>
+<div id="help-progress" class="help-progress" aria-live="polite"></div>
+<div id="help-steps" class="help-steps"></div>
+</section>
+<section id="help-forms" hidden aria-label="راهنمای فرم‌ها">
+<div class="section-title"><h2>راهنمای تمام صفحات و فرم‌ها</h2><small>عنوان فرم، کاربرد، پیش‌نیاز و روش ورود اطلاعات</small></div>
+<div class="help-search-bar">
+<label>جستجو در عنوان، کاربرد و نام فرم<input id="help-search" type="search" placeholder="مثلاً کنترل پلن، APS، نمونه‌برداری، دستورات ساخت"></label>
+<label>صفحه<select id="help-page-filter"><option value="">تمام صفحات</option></select></label>
+</div>
+<p id="help-result-count" role="status" aria-live="polite"></p>
+<div id="help-pages" class="help-page-grid"></div>
+</section>
+<section class="panel">
+<h3>راهنمای چاپ اسناد و گزارش‌ها</h3>
+<p>برای هر سند، ابتدا رکورد واقعی را در فرم مربوط انتخاب و سپس دکمه «نسخه چاپی» را بزنید. صفحه پیش‌نمایش مستقل دارای قالب مناسب کاغذ، وضعیت و شناسه منبع، تاریخ چاپ شمسی و جدول‌های قابل تکرار است؛ دکمه «چاپ / ذخیره PDF» از قابلیت چاپ مرورگر استفاده می‌کند.</p>
+<ul class="help-workflows">
+<li><strong>دستور تولید:</strong> از فهرست دستورات ساخت، «نسخه چاپی دستور»؛ خروجی A4 افقی شامل BOM/Routing منجمد، عملیات، تولید سالم، ضایعات و نتایج آخرین بازرسی است.</li>
+<li><strong>MPS:</strong> در صفحه برنامه‌ریزی نسخه برنامه را انتخاب و «چاپ برنامه MPS» را بزنید. نسخه پیش‌نویس با واترمارک چاپ می‌شود.</li>
+<li><strong>برنامه مقدماتی، BOM و مسیر ساخت:</strong> از صفحات اصلی و برنامه‌ریزی، نسخه/برنامه را انتخاب کنید؛ صرفاً اطلاعات همان نسخه ثبت‌شده چاپ می‌شود.</li>
+<li><strong>کنترل پلن و گواهی EOL:</strong> در صفحه کیفیت، کنترل پلن یا دستور مونتاژ را انتخاب کنید. EOL فقط پس از ثبت گواهی معتبر و نبود مغایرت جاری قابل چاپ است.</li>
+<li><strong>گزارش‌های تولید:</strong> ابتدا بازه و فیلترهای شمسی را اعمال و گزارش را محاسبه کنید؛ سپس نسخه A3 افقی را چاپ کنید. زمان استخراج و تعاریف KPI همراه گزارش هستند.</li>
+<li><strong>زمان‌بندی APS:</strong> سناریوی ذخیره‌شده را انتخاب کنید؛ چاپ آن صرفاً پیش‌نمایش ظرفیت محدود است و به‌عنوان برنامه اجرایی تأییدشده معتبر نیست.</li>
+</ul>
+<p>محل امضا در نسخه چاپی خالی است؛ چاپ یا امضای دستی سند، به‌خودی‌خود تأیید الکترونیکی سامانه ایجاد نمی‌کند. پیش از بهره‌برداری، چیدمان کاغذ و مقیاس چاپ را با چاپگر واقعی واحد تولید و کنترل کیفیت بررسی کنید.</p>
+</section>
+<section class="panel">
+<h3>چک‌لیست آماده‌سازی طرح نمونه‌برداری و مدارک MSA (بدون کالیبراسیون)</h3>
+<p>این قسمت فقط کمک می‌کند مدارک کیفیت را پیش از استقرار آماده کنید و هیچ مطالعه MSA یا تأیید کنترل کیفیت را به‌صورت خودکار صادر نمی‌کند. کنترل و سوابق کالیبراسیون در سامانه مستقل موجود سازمان باقی می‌ماند.</p>
+<ol class="help-workflows">
+<li>برای هر محصول و عملیات، کد و نسخه کنترل پلن، مشخصه، واحد اندازه‌گیری، حدود فنی و مسئول کیفیت را مشخص کنید.</li>
+<li>روش نمونه‌برداری مصوب را با شماره نسخه و تاریخ شروع/پایان، تعداد یا فاصله نمونه، شرایط ابتدای شیفت، تعویض ابزار و تغییر بچ تهیه کنید.</li>
+<li>تعریف «بچ»، نحوه اتصال هر نمونه به بچ و رویداد عملیاتی و روش تعیین تکلیف نمونه مردود را به تأیید مسئول کیفیت برسانید.</li>
+<li>برای مطالعه MSA مستقل از کالیبراسیون، مشخصه و دامنه قطعات نماینده، ارزیاب‌ها، تکرارها، ترتیب تصادفی و کورسازی، نتایج خام و روش محاسبه مورد تأیید کیفیت را فراهم کنید.</li>
+<li>شماره مدرک مطالعه، نتیجه تحلیل Gage R&amp;R / ndc یا روش معتبر دیگر، معیار پذیرش تصویب‌شده و بازبین مستقل را ثبت و نگهداری کنید؛ هیچ حد عمومی نباید بی‌تأیید به تمام مشخصه‌ها تعمیم یابد.</li>
+<li>تا زمانی که طرح نمونه‌برداری نسخه‌دار و مدارک MSA در فرآیند رسمی سازمان تأیید نشده‌اند، فقط از تحلیل مقدماتی SPC و برآورد فرضی تعداد نمونه استفاده کنید؛ آن‌ها مبنای مجوز EOL یا ترخیص نیستند.</li>
+</ol>
+</section>
+<section class="panel">
+<h3>قبل از پذیرش رسمی کارخانه</h3>
+<p>راهنمای استفاده، آزمون واحد، تحلیل آماری اولیه و وجود داده در SQL جایگزین تأیید مهندسی، MSA، آزمون فیزیکی محصول، نقش‌های معتبر، آزمون پایداری ماشین و امضای مسئول هر ماژول نمی‌شود. داده‌ها و شواهد هر گام را در مدارک پذیرش کارخانه نگهداری کنید.</p>
+<a class="planning-link" href="/factory-release-readiness.html">مشاهده صف گیت‌های باز و شواهد پذیرش</a>
+</section>
+</main></div></div>
+</body></html>

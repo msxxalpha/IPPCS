@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>IPPCS | آزمون هدایت‌شده ماژول‌های تحلیلی</title>
+<link rel="stylesheet" href="/css/production.css">
+<script defer src="/js/security-client.js"></script>
+<script defer src="/js/jalali-datepicker.js"></script>
+<script defer src="/js/factory-choices.js"></script>
+<script defer src="/js/factory-analytical-verification.js"></script>
+</head>
+<body>
+<div class="app-shell">
+<aside class="sidebar"><div class="brand"><div class="brand-logo">IP</div><div>
+<strong>ایندامین سایپا</strong><small>آزمون ماژول‌های تحلیلی IPPCS</small></div></div>
+<nav aria-label="بخش‌های آزمون">
+<a class="planning-link" href="/app.html">صفحه اصلی</a>
+<a class="planning-link" href="/factory-release-readiness.html">آمادگی ۱۸ ماژول</a>
+<a class="planning-link" href="/planning.html">MPS، MRP و CRP</a>
+<a class="planning-link" href="/planning-advanced.html">تقاضا، S&OP، APS و What-if</a>
+<a class="planning-link" href="/execution.html">ساعت عملیات و OEE</a>
+<a class="planning-link" href="/factory-master-data.html">اطلاعات پایه مستقل</a>
+</nav></aside>
+<div class="main">
+<header class="topbar"><div><span class="eyebrow">گام‌های قابل تکرار با اطلاعات واقعی SQL آزمایشی</span>
+<h1>کارگاه آزمون هشت ماژول تحلیلی</h1></div>
+<button type="button" data-ip-logout class="btn-outline">خروج</button></header>
+<main class="content">
+<div class="callout">
+<strong>فقط برای توسعه و پذیرش آزمایشی:</strong>
+این صفحه وجود داده و امکان اجرای محاسبه را بررسی می‌کند؛ خروجی عددی هنوز باید با روش محاسبه مورد تأیید کارخانه مقایسه شود. آزمون به سیستم‌های انبار، خرید، فروش یا منابع انسانی متصل نمی‌شود. اجرای سناریوی What-if برنامه‌های مصوب را تغییر نمی‌دهد.
+</div>
+<div class="summary-stats">
+<div><span>ماژول‌های در اولویت</span><strong id="analytics-total">۸</strong></div>
+<div><span>دارای حداقل ورودی برای آزمون</span><strong id="analytics-ready">—</strong></div>
+<div><span>دارای نتیجهٔ ثبت‌شده یا رخداد مرتبط</span><strong id="analytics-evidence">—</strong></div>
+</div>
+<div id="analytics-message" class="notice" hidden role="status" aria-live="polite"></div>
+<section class="panel">
+<h3>۱. ورودی‌های آزمون را تعیین کنید</h3>
+<p>مقادیر زیر برای اجرای آزمایشی محاسبات به کار می‌روند. در صورت ناقص‌بودن اطلاعات می‌توانید از همین صفحه به فرم ثبت اطلاعات پایه بروید.</p>
+<div class="form-grid">
+<label>محصول نهایی دارای دادهٔ تقاضا
+<select id="analytics-item" aria-label="محصول نهایی آزمایشی"></select></label>
+<label>نسخهٔ مصوب MPS
+<select id="analytics-mps" aria-label="نسخهٔ MPS مورد آزمون"></select></label>
+<label>دستور ساخت برای تحلیل نرخ تبدیل
+<select id="analytics-order" aria-label="دستور تولید آزمایشی"></select></label>
+<label>آخرین ماه بسته‌شده برای Backtest
+<span class="jalali-field"><input id="analytics-closed" data-jalali-date placeholder="تاریخ شمسی آخرین ماه بسته‌شده">
+<button type="button" class="date-trigger" data-jalali-trigger aria-label="انتخاب ماه آزمون">▣</button></span></label>
+<label>تاریخ OEE و شروع سناریوی ظرفیت
+<span class="jalali-field"><input id="analytics-date" data-jalali-date placeholder="تاریخ شمسی آزمون">
+<button type="button" class="date-trigger" data-jalali-trigger aria-label="انتخاب تاریخ آزمون">▣</button></span></label>
+<label>افق What-if (روز)
+<input id="analytics-horizon" type="number" min="1" max="90" value="14"></label>
+<label>ظرفیت مفروض سناریو
+<input id="analytics-factor" type="number" min="0.1" max="2" value="0.8" step="0.1"></label>
+<div class="form-actions"><button id="analytics-refresh" type="button" class="btn-main">بازخوانی شواهد از پایگاه داده</button></div>
+</div>
+</section>
+<section class="panel">
+<h3>۲. وضعیت داده‌ها و آزمون واقعی هر ماژول</h3>
+<p>«آماده اجرا» فقط به معنی وجود حداقل داده‌هاست؛ قبولی محاسبه، نتیجه KPI و صلاحیت استفادهٔ عملیاتی را ثابت نمی‌کند. نتیجهٔ هر آزمون در همان کارت نمایش داده می‌شود.</p>
+<div id="analytics-cards" class="factory-module-uat-grid" aria-live="polite"></div>
+</section>
+<section class="panel">
+<h3>۳. مدارک پذیرش را بررسی کنید</h3>
+<p>برای هر خروجی مقدار، واحد، منبع داده، مغایرت نسبت به محاسبه دستی، شناسه نسخه MPS و زمان شمسی آزمون را مستند کنید. تأیید کارخانه باید جداگانه و توسط مسئول فرایند و بازبین مستقل انجام شود.</p>
+<a class="planning-link" href="/factory-release-readiness.html">بازگشت به دروازه‌های پذیرش ۱۸ ماژول</a>
+</section>
+</main></div></div>
+</body></html>

@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#17324d">
+<title>IPPCS | بررسی دامنه اثر بچ و سریال</title>
+<link rel="stylesheet" href="/css/production.css">
+<script defer src="/js/security-client.js"></script>
+<script defer src="/js/factory-recall.js"></script>
+</head>
+<body>
+<div class="app-shell">
+<aside class="sidebar">
+<div class="brand"><div class="brand-logo">IP</div><div><strong>ایندامین سایپا</strong><small>رهگیری داخلی ساخت کمک‌فنر</small></div></div>
+<div class="side-caption">ردیابی تولید</div>
+<nav aria-label="ناوبری سامانه">
+<a class="planning-link" href="/app.html">صفحه اصلی</a>
+<a class="planning-link" href="/control-plan.html">کنترل پلن و شجره تولید</a>
+<a class="planning-link" href="/execution.html">دستورات و اجرای تولید</a>
+<a class="planning-link" href="/factory-recall.html" aria-current="page">دامنه اثر یک بچ</a>
+</nav>
+<div class="sidebar-foot">IPPCS • بررسی مستند شجره
+<br>بدون اتصال به انبار، خرید، فروش و منابع انسانی</div>
+</aside>
+<div class="main">
+<header class="topbar"><div><span class="eyebrow">ماژول‌های ۱۰، ۱۳، ۱۵ و ۱۸ | کنترل ردیابی</span><h1>بررسی دامنه اثر یک بچ تولیدی</h1></div>
+<button type="button" class="btn-outline" data-ip-logout>خروج</button></header>
+<main class="content">
+<div class="callout">این بررسی فقط مسیرهای <strong>واقعاً ثبت‌شدهٔ ساخت در IPPCS</strong> را دنبال می‌کند.
+نتیجهٔ منفی، اثبات نبود قطعه یا نبود ریسک نیست. این سامانه وضعیت موجودی انبار،
+ارسال یا محل مشتری، قرنطینهٔ فیزیکی و اجرای فراخوان واقعی را بررسی نمی‌کند.
+نتایج تا تأیید مسئول کیفیت صرفاً برای تحلیل و تصمیم‌گیری هستند.</div>
+<section class="panel">
+<h3>شناسایی بچ مبدأ برای بررسی رو به جلو</h3>
+<form id="recall-form" class="form-grid" autocomplete="off">
+<label class="wide">شناسه گزارش یا بچ تولید (GUID)
+<input id="recall-source" name="confirmation" required maxlength="36" dir="ltr"
+placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+aria-describedby="recall-help"></label>
+<label>حداکثر عمق بررسی شجره
+<select id="recall-depth" name="depth">
+<option value="16" selected>۱۶ سطح (کامل‌ترین بررسی)</option>
+<option value="12">۱۲ سطح</option>
+<option value="8">۸ سطح</option>
+<option value="4">۴ سطح</option>
+<option value="1">۱ سطح</option>
+</select></label>
+<div class="form-actions"><button type="submit" id="recall-submit" class="btn-main">بررسی بچ و محصولات متأثر</button></div>
+</form>
+<p id="recall-help">شناسه بچ را از گزارش شجره یا اطلاعات تأیید عملیات در ماژول کنترل پلن و اجرا بردارید.
+در صورت وجود ادامهٔ شجره خارج از عمق انتخابی، گزارش ناقص به‌عنوان نتیجهٔ قطعی ارائه نمی‌شود.</p>
+</section>
+<div id="recall-message" class="notice" hidden role="status" aria-live="polite"></div>
+<section id="recall-results" hidden aria-live="polite">
+<div class="summary-stats">
+<div><span>دستور مونتاژ نهایی متأثر</span><strong id="recall-orders">۰</strong></div>
+<div><span>سریال ثبت‌شدهٔ مرتبط</span><strong id="recall-serial-count">۰</strong></div>
+<div><span>بچ نهایی دارای خروجی بدون سریال</span><strong id="recall-unknown-count">۰</strong></div>
+</div>
+<div id="recall-caution" class="callout" hidden></div>
+<section class="panel">
+<h3>بچ‌های نهایی در مسیر مستند</h3>
+<p>مقدار «بدون سریال» نشان‌دهنده فقدان ثبت سریال در IPPCS است، نه موجودی یا ارسال محصول.</p>
+<div class="table-wrap"><table>
+<thead><tr><th>شماره دستور</th><th>کد بچ نهایی</th><th>شناسه بچ</th><th>خروجی سالم</th><th>سریال ثبت‌شده</th><th>بدون سریال</th></tr></thead>
+<tbody id="recall-lots"></tbody>
+</table></div>
+</section>
+<section class="panel">
+<h3>فهرست شماره‌سریال‌های مرتبط</h3>
+<div id="recall-serials" class="table-wrap"></div>
+</section>
+<section class="panel">
+<h3>حدود اعتبار گزارش</h3>
+<p id="recall-disclaimer"></p>
+<p id="recall-trace-count"></p>
+</section>
+</section>
+</main>
+<footer class="footer">IPPCS • گزارش فقط خواندنی ساخت و کیفیت <span>قابل استفاده برای آزمون کارخانه، نه مجوز فراخوان یا ارسال</span></footer>
+</div></div>
+</body></html>

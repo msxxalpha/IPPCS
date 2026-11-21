@@ -1,0 +1,261 @@
+# IPPCS — criteria for completing all 18 modules
+
+**Status:** Development, not approved for factory production. A module is *complete* only when its business rules, Persian RTL pages, granular role policy, database migration, unit + disposable SQL regression tests, and representative factory UAT have all passed. A basic menu, CRUD API or preview does not constitute completion.
+
+| No. | Module | Implemented proof of concept | Major outstanding acceptance requirements |
+|---|---|---|---|
+| 01 | Factory master data | Item/work center/BOM and routing revisions, effective-date approval and shifts; BOM alternative groups with one default, unique priority and controlled quantity/scrap per option | Complete equipment/tool/resource hierarchy, engineering approval ownership, robust revision changeover and representative import/UAT validation |
+| 02 | Demand / forecast | Internal demand entries, Jalali monthly moving-average forecasts | Rolling historical MAE/WAPE/bias backtest implemented; seasonality, versioned accuracy thresholds, approval and import validation remain |
+| 03 | S&OP | Finite horizon demand vs capacity and bottleneck snapshots | Cross-functional approval, iterative balancing scenarios and reconciliation to MPS |
+| 04 | MPS | Approved version, dated lines, draft editing, demand intake | Release calendar, revision/lock governance, exception workflows and historical baseline |
+| 05 | Net MRP / pegging | Multilevel net material plan, manual stock/receipts, lot sizing, MRP snapshot; baseline MRP/net pegging use one default from each alternative group; order-specific mixed alternatives and actual material trace are implemented in execution; new MRP run snapshots retain BOM line IDs and alternative group/default/priority semantics; lot-capacity preview returns and displays the exact product-capacity rates (Routing baseline, effective rate, yield, override/fallback) for selected route revisions | Multi-order material commitment/reconciliation and workday lead-time calendar remain; the per-order mix is not yet a firm inventory reservation or warehouse issue, and the read-only net planned-lot graph remains an unconfirmed planning proposal |
+| 06 | CRP | Rough-cut demand capacity; finite nonoverlapping shift allocation preview for proposed MRP finished/semi-finished lots with route release-date validity | Actual operation start/stop audit intervals and conservative active-order blocking exist; audited local machine reservation slots now implemented; still need lifecycle governance, synchronized clocks, labor/tool calendars, shifts spanning days and plant UAT remain |
+| 07 | APS | Finite no-overlap engine; proposed MRP batches honor earliest release dates; MPS APS maintenance days/material preflight/Gantt; S&OP and APS scenarios now persist the exact product-capacity evidence (Routing baseline, effective rate, yield and override/fallback) used for operation durations | Hypothetical child-before-parent dependencies and recorded operation clocks exist; still requires firm material/order netting, plant-approved maintenance-aware dispatch slots, alternatives, shift splitting and plant validation |
+| 08 | Manufacturing order management | Draft/released/in-process/held/completed/cancelled, route/BOM snapshots, order-specific mixed alternative allocation, controlled group lock after first actual usage, immutable material usage/lot/actor history and print evidence | Correction/reversal governance for material usage, deeper connection to completion quantities, lifecycle role separation and representative line UAT remain |
+| 09 | Semi-finished execution | Ordered operations, good/scrap/rework, quality-adjusted WIP | Read-only gated WIP/operation readiness added; partial transfers, mixed lots, corrections/reversal governance and station transactions remain |
+| 10 | Final assembly | Final-product work orders and quality-gated operation results | BOM-controlled origin lots from completed semi-finished orders now link to final assembly lots; model/variant selection, serial and end-of-line testing remain |
+| 11 | Line-side material | Independent manual BOM consumption and standard/actual variance | Quantity reconciliation by operation/lot, reversals, component substitution rules and controlled backflush |
+| 12 | Adherence / deviation | Basic MPS vs output plus **approved MPS-to-order quantity assignment**, deviation/root cause/action/closure | Per-line pegged on-time/late/unknown-date completion added; escalations, overdue alerts, evidence verification and factory UAT remain |
+| 13 | In-process quality | Approved Control Plans, numerical tolerances, compulsory inspections, automatic holds and disposition | Per-characteristic historical pass/fail and readiness added, QC completion releases machine bookings; sample frequencies, SPC, MSA, reaction plans and calibration references remain |
+| 14 | OEE | Daily availability/performance/quality preview and time duration entries | Completed operator-clock OEE and local-day clipping added; overlapping downtime reconciliation, PLC verification, shifts and retroactive quality scrap remain |
+| 15 | Lot/serial genealogy | Exact lot lookup and bounded links between consecutive order operations | Audited cross-order semi-finished origin with quantity/BOM/quality checks added; multi-level recall drilldown, serial labels and corrections remain |
+| 16 | What-if | Capacity multipliers and side-effect-free schedule comparison | Multiple constrained scenario dimensions, cost/material sensitivity, versioned assumption comparison |
+| 17 | Conversion cost | Independent rates and standard cycle + scrap cost estimates | Recorded clock-time versus standard conversion variance and effective-rate guard added; rate history, overhead allocation, valuation rules and plant verification remain |
+| 18 | Dashboards | Production, OEE, WIP, plan adherence and late-order previews | Access-controlled drilldowns, periodic trend, target/threshold alerts, exports and signed-off KPI definitions |
+
+## Strict prohibitions
+- Do not implement or connect warehouse, purchasing, sales or HR modules. The only future possible external source is an explicitly approved read-only item catalog query.
+- Never silently rebuild/drop persistent databases. Every EF model change must ship additive reviewed migrations where possible, with backup and rollback rehearsal.
+- All user-entered dates must use the shared functional Persian (Jalali) calendar; store normalized dates in SQL Server.
+- Keep experimental changes in `feature/production-platform-foundation`; `main` stays unchanged until accepted.
+
+## Current release gate
+Until all relevant functional, cybersecurity, SQL Server/IIS, backup-restore, performance and factory user-acceptance tests pass, the Draft PR must not be merged or considered an approved production release.
+
+## Stage 9.9 acceptance progress
+- Auto-release of future capacity reservations when a routing step completes or a non-executed manufacturing order is cancelled, with preserved immutable audit and transaction atomicity.
+- Shared order-level + center-level SQL Server application locks protect booking, live clock and manufacturing lifecycle mutations.
+- Upstream slot cannot be manually cancelled while a later unfinished routing stage remains booked.
+- Completed-operation and order-cancellation regression coverage added. **Still pending:** factory UAT, held-order dispatch decisions, field repair of legacy audit inconsistencies, plant authorization and full 18-module sign-off.
+
+## Stage 12 verified incremental scope (not full acceptance)
+| Module | Added read-only capability | Still needed for production signoff |
+|---|---|---|
+| 11 | BOM planned-vs-output standard-vs-logged consumption, nulls for absent logs | Operator-batch per-step reconciliation, approved substitutions, reversals, bounded backflush |
+| 12 | Open/unassigned and overdue action alerts from existing recorded deviations | Action escalation owners, effectiveness evidence, signoff, notification policy |
+| 13 | Exploratory individuals/moving-range limits on actual frozen Control Plan results; reject counts | Approved SPC baselines, MSA, sampling plans, rational subgrouping and reaction workflow |
+| 15 | Bidirectional multistep work-order batch-link explorer with quantity edges and depth warnings | Serial-level trace and mixed-batch full genealogy, approved recall evidence, audited corrections |
+| 18 | Reproducible Jalali-date alert dashboard for QC/order/deviation exceptions | Plant KPI targets, role-specific drilldowns, alerts policy, scheduled exports and UAT |
+
+CI covers unit invariants and separate disposable SQL Server integration scenarios. **No** database or ERP schema exchange was added. Keep PR Draft; do not declare modules complete without factory UAT.
+
+## Stage 13 verified additional development work (not plant acceptance)
+| Module | Increment added | Still outstanding |
+|---|---|---|
+| 03 S&OP | Historic-vs-live in-window demand and approved MPS quantity reconciliation | Product-mix reconciliation, owners, iterative cross-functional approvals |
+| 04 MPS | Exact imported-demand GUID reference audit; manual/unmatched plan quantities reported separately | Approved version lock/revision reason, release calendar, exception workflow |
+| 05 MRP | Planning-source certainty, surplus and release-before-baseline risk | Firm material netting, validated receipt commitments, production workday lead times |
+| 06 CRP | Ranked bottleneck centers; overload/no-shift-day counts and undefined utilization | Operator/tool resource calendars, cross-midnight shifts, actual execution constraint governance |
+| 16 What-if | Capacity multiplier **plus** maintenance blackout day sensitivity and finite allocations | Alternative routing, changeover model, cost/material constrained decision optimization |
+
+All endpoints are local IPPCS-only. No inventory, purchase, sales or employee systems connected. Full 18-module sign-off remains open.
+
+## Stage 14 actual guarded workflows (still not full factory UAT)
+| Module | Functional improvement | Production signoff remaining |
+|---|---|---|
+| 01 Master revisions | Serializable graph-level BOM and item-level Routing approval, overlap/cycle/duplicate validation, explicit preflight, immutable approved revision dates | Approved ECO/changeover workflow, revision ownership/signatures, instrument/resource hierarchy, plant UAT |
+| 07 APS | QC-, route-step- and clock-aware read-only dispatch board with actual machine reservation evidence and no-slot warnings | Approved real dispatch/alternative routing, shift splitting, tool/labor capacity and PLC confirmation |
+| 08 Work orders | Pre-release approved-revision/MPS preflight enforced in transactional release; draft reschedule/quantity edit rebinds valid revisions with immutable actor + before/after audit | Signed release, permission separation, non-draft revision/change requests, full plant exception/rework signoff |
+
+As previously, the release gate is still Draft; no ERP module or integration is created.
+
+## Stage 15 controlled operational progress (partial pending UAT)
+| Module | Stage 15 functional proof | Still required before plant acceptance |
+|---|---|---|
+| 11 Consumption | Confirmed batch+frozen BOM consumption with per-component maximum; immutable correction rows; duplicate and mismatch detection; legacy evidence distinguished | Material substitutions and shop-floor authorization, controlled auto backflush, per-shift consumption, physical stock/warehouse processes intentionally excluded |
+| 12 Deviations | Immutable corrective-action before/after revision journal and reason, manual escalation and linked follow-up; initial action no longer silently overwrites earlier assignment | Independent effectiveness signoff, escalation owners/SLAs, policy for corrective action evidence and plant UAT |
+| 18 Dashboards | Escalated cases flagged Critical when overdue and drill down into the referenced case, even when its due date is outside ordinary alert horizon | KPI benchmark signoff, alert acknowledgement, authorized drilldown by group, operator user testing |
+
+Strict isolation maintained: no warehouse, purchasing, sales or HR integration; no schema reset, no approval to merge main.
+
+## Stage 16 manufacturing closure increments (factory signoff still required)
+| Module | Real runtime process and tested evidence | Remaining factory acceptance |
+|---|---|---|
+| 09 Semi-finished stages | Internal per-lot handoff audit across adjacent operations; lot writer rejects unresolved quarantine, pending/quality-rejected quantities, failed frozen mandatory checks | Real station transfer forms, partial mixed-lot correction approval, operator validation and UAT |
+| 10 Final shock absorber assembly | Each finished lot must have frozen BOM-matched documented semi-finished order origins before internal EOL signature; genealogy locked afterward | Variant/serial labeling, 100% traceability policy, engineering BOM change control and EOL UAT |
+| 13 Quality | In-plant final signoff requires completed work order, inspected last operation, no open holds, complete operation-step provenance, per-lot semi-origin; local quality role/immutable audit | Approved inspection sample policy, MSA/gauge calibration, reaction plans, independent review and client-specific EOL test requirements |
+
+**Status:** Stage 16 CI can establish database and code regression only. It does not complete a plant-specific UAT or authorize production rollout; all 18 module release gates remain pending.
+
+## Stage 17 planning-controlled improvements (not the 18-module release signoff)
+| Module | Governed, testable Stage 17 implementation | Still needed for plant acceptance |
+|---|---|---|
+| 04 MPS | Immutable approved source; single pending controlled clone with mandatory reason; serialized all MPS writers; approved line/actor audit; automatically signed approval material/capacity differences | Factory-approved program change authority, official freeze horizon, owner signatures and signed UAT |
+| 05 MRP | Current net material impact for controlled MPS source/candidate; result frozen with approval decision and explicit snapshot constraints | Confirmed physical material planning policy (without integration), validated supplier lead assumptions and workday calendar |
+| 06 CRP | Center/day load and overload deltas from controlled MPS version, recalculated/signed at new version approval | Tool/labor/maintenance calendars, true alternative resources, plant constraint simulation and acceptance |
+
+All 18 modules continue to require line-specific scenario approval and staged deployment validation. `docs/18_MODULE_RELEASE_GATES.md` remains the definitive factory signoff checklist.
+
+## Stage 18 stronger code proof (NOT factory acceptance)
+| Module | Integrated Stage 18 increment | Remaining launch gate |
+|---|---|---|
+| 01 BOM/Routing | Engineering diff against selected approved baseline; changes to parts, ratios, stations and time; report impacts on frozen active orders and overlap blockers | Formal ECO owner/signatures, dated cutover or supersession, rollback, revised Control Plan authorization and factory UAT |
+| 15 Traceability | Globally unique factory product serial bound to finished actual confirmed output **after EOL QA**, immutable journal, bound per-lot quantities, serial-to-batch multi-order ancestors | Approved serial coding standard, verified label/scanning, unit split/merge trace, sampling/recall exercise, customer requirement alignment |
+
+Nothing connects to warehouse, purchasing, sales or HR. Plant decision makers have not yet signed the full set of 18 module acceptance gates.
+
+## Stage 19 — additional implementation, release not yet proven
+| Module | Stage 19 additions | Open gate |
+|---|---|---|
+| 14 OEE | Start/end timed center stoppages, operation clock interlock, conservative daily reconciliation across Tehran midnight, distinguish unlocated legacy durations | Representative multi-shift UAT, reason-coded approved downtime taxonomy, known machine data, proof of source clock accuracy; exact-head CI has yet to execute |
+| 17 Cost conversion | Frozen operation standard rate and explicit missing-rate evidence at work-order release, protected from later center-rate updates, separate historical audit endpoint and UI | Factory finance-approved rates and historical changes, overhead allocation/revaluation policy, cost-vs-output signoff and operational UAT; exact-head CI has yet to execute |
+
+Still strictly no external warehouse, purchasing, sales or HR connections or modules. A failed-to-start CI is not equivalent to a validated failed compilation; both need to be distinguished.
+
+## Stage 20 implementation — night-shift calendar (tests committed; CI not yet verified)
+| Module | Functional scope advanced | Outstanding factory gate |
+|---|---|---|
+| 03 S&OP | True local calendar-day center capacity including previous-night minutes | Planning owner approval of actual shift coverage; scenario signoff |
+| 06 CRP | Correct next-day night availability and weekend rollover; missing-day capability remains visible | Tool, labor, break and maintenance calendars with verified plant time sheet |
+| 07 APS | Nonpreemptive next-day finish, two-day center occupancy, night blackout and chain precedence; versioned algorithm | Resource/tool alternatives, job split policies, validated overnight scheduling UAT |
+| 08 Capacity reservation | Append-only overnight work-order reservation and accurate next-day Jalali finish; real weekly overlap prevention | Multi-operator concurrency, approved dispatch changes/rollback and plant line trial |
+
+These rows are implementation evidence, **not an attestation of successfully run CI**. GitHub Actions infrastructure has been failing before any logged test step since Stage19. Do not merge to main or assert all 18 modules complete.
+
+
+## Stage 21–22: engineering revision transition (implementation evidence, not accepted)
+- Module 01 now has auditable and future-effective Routing/BOM cutover preview/commit, a distinct additive SQL engineering journal migration and nonoverlap/cycle constraints.
+- Module 08 has a bounded (1–100), all-or-nothing, preview-first transfer of explicitly selected draft manufacturing orders to a valid newly approved engineering revision; frozen released orders remain on their prior historic version.
+- Module 04 / 05 write operations and BOM/Routing authoring require the explicit `IpPlanningWrite` policy instead of broad production-user authentication. This is not a multi-person ECO signature.
+- `/engineering-rebind.html` offers Persian RTL cutover and draft-order handling with a Jalali date component. `FactoryStageTwentyOneDraftRebindTests`, `FactoryStageTwentyTwoCutoverTests`, and disposable SQL `stage21_engineering_rebind_checks.py` / `stage22_engineering_cutover_checks.py` are linked to CI.
+- **Important:** the Stage 22 engineering journal has an additive reviewed EF migration file plus an updated model snapshot, but CI has not yet verified model diff, build, unit tests or SQL migration success. GitHub Actions worker jobs for stages 19–22 fail before any actual steps or logs; do **not** report this feature as green, complete or production-ready.
+- Still outstanding: reviewed ECO signatories (two-person approval), shop-floor cutover authorization, verified BOM/route precedence for older frozen orders, scheduled plan reconciliation, permission matrix audit, audit-event retention, representative factory UAT, and actual backup/rollback rehearsal. No warehouse/purchasing/sales/HR integration was added.
+
+
+## Stage 23–24 — separation of duties and evidence-based effectiveness
+- Module 12: closed CAPA remains **pending effectiveness** until a different authorized QA identity approves with traceable evidence. QA rejection reopens the same deviation, preserving history. The next independent approval requires a governed action revision after rejection and a new closure. Closed unverified cases remain available via `/production-deviations/effectiveness-pending`; a simple closure never earns the `Verified` status.
+- Modules 08/09/13: order create/release/cancel/resume are planner/admin actions; shop-floor quantity and downtime writes are operator/admin; hold reporting permits the proper floor/quality roles; release of quality holds remains quality/admin. Authorization tests were extended in the disposable SQL chain.
+- Added `FactoryStageTwentyThreeEffectivenessTests.cs`, `stage23_deviation_effectiveness_checks.py`, additional role assertions in `production_e2e_smoke.py`, and Persian review controls. Additive schema migration for Stage 23/24 is **not** required; the existing event journal is used.
+- Full factory UAT cases and individual release evidence requirements are in `docs/FACTORY_UAT_RELEASE_CHECKLIST.md`. No factory owner signoff or exact-head successful CI is available for Stages 19–24. Do not merge/deploy.
+
+
+## Stage 58 — time-phased material gate and pegging input integrity (implementation committed; CI pending)
+- Module 05 / 07: APS material-feasibility preview now evaluates approved BOM revision validity against each demand line's actual need date, rather than the horizon start. Expected receipts are counted only when available by that demand date; earlier demand priority remains cumulative so infeasible demand cannot silently release the same material to later demand.
+- Module 05: time-phased gross-material pegging now rejects null inputs, invalid demand rows, duplicate or empty balance item identities, negative balance buckets, and invalid/duplicate expected receipt identities before attempting allocations. This prevents ambiguous source provenance and invalid unused balances from being silently ignored.
+- Regression coverage adds demand-date BOM revision selection, receipt arrival before/after need date, duplicate receipt IDs, and invalid unrelated balance records.
+- No schema migration and no external warehouse, purchasing, sales or HR integration. These are planning assumptions and previews only; they do not reserve or issue physical stock.
+- GitHub Actions was observed running for the latest committed head at the time of this note. Do not treat the commit as green until the exact-head workflow finishes successfully; factory UAT and all 18 sign-offs remain separate.
+
+
+## Stage 59 — MRP lot-capacity graph integrity (implementation committed; exact-head CI pending)
+- Module 05 / 06 / 07: the finite lot-capacity preview now validates its incoming net-pegging graph before building task identities or dependency maps. Blank/duplicate planned-lot keys, invalid item identities, deterministic task-ID collisions, blank/duplicate demand keys, orphan allocations, nonpositive allocation quantities and incomplete source provenance are rejected with explicit domain errors.
+- Null graph/routing/shift inputs are rejected explicitly rather than failing later during dictionary construction or scheduling.
+- Regression tests cover duplicate and blank lot identities, duplicate demand keys, orphan/nonpositive allocations, and null preview inputs.
+- No schema migration, material reservation, work-order creation or external ERP integration. Product-specific routing rates, setup/yield calculations and finite capacity behavior are unchanged.
+- This is input-integrity hardening for the MRP-to-CRP/APS preview, not a claim of full MRP/CRP/APS or factory acceptance. Verify the exact latest commit's build, unit tests and disposable SQL workflow before calling it green.
+
+
+## Stage 60 — MRP pegging provenance and quantity integrity (implementation committed; CI pending)
+- Module 05 / 06 / 07: the MRP-to-capacity preview now verifies every allocation against its originating demand: item identity and need date must match, supply availability cannot be later than the demand date, source type must be recognized, and total pegged quantity cannot exceed gross demand.
+- Proposed manufacturing/external receipts must resolve to an existing planned lot with matching item and receipt date; proposal type must agree with source type. This prevents a malformed graph from scheduling a parent lot against an unrelated or future component receipt.
+- Regression tests cover item/date mismatches, late supply, over-allocation and proposed-lot provenance mismatch.
+- No database schema changes and no physical reservation/order creation. Existing product-specific run rates, setup/yield calculations and finite scheduling behavior are unchanged.
+- This is a read-only planning integrity control, not factory acceptance. Validate the exact-head build, unit tests and SQL Server workflow before marking this stage green.
+
+
+## Stage 61 — order-level alternative mix consistency
+
+- The manufacturing-order material-options read model now derives each alternative's planned quantity from the order's current planned output and the saved share percentage. A quantity reschedule therefore cannot leave the displayed alternative quantities at the previous order quantity.
+- An unchanged alternative mix is now idempotent: resubmitting the same group shares does not delete/reinsert allocation rows or append a misleading revision audit event. Groups with actual consumption retain their existing immutable-mix guard; unused groups can still be adjusted independently.
+- Added regression coverage proving that a 60/40 mix recalculates to 120 and 100 component units when planned output changes to 200, even when stored historical planned quantities remain 60 and 50.
+- Scope remains order planning and shop-floor evidence only. No warehouse issue, stock reservation, inventory valuation or external ERP integration is created. This is not factory acceptance; API concurrency, SQL integration and line-side UAT remain release gates.
+
+
+## Stage 62 — MRP/APS cyclic-dependency regression fixture
+
+- The Stage 61 CI run confirmed SQL Server schema acceptance, but the .NET test job failed in the cyclic-lot-dependency test because its synthetic graph assigned each proposed receipt to the wrong component item. The stricter Stage 60 source-to-lot consistency validation correctly rejected that malformed fixture before the cycle detector ran.
+- Corrected the fixture so each parent demand references the other lot's actual item, preserving the intended two-node dependency cycle. The regression now exercises cycle rejection after the graph passes source identity, item and receipt-date validation.
+- No production scheduling behavior or database schema changed in this correction. CI must pass on the new commit before this regression can be marked verified.
+
+
+## Stage 63 — controlled non-Development IIS UAT hosting
+
+- Removed the unconditional non-Development startup abort after verifying the existing ASP.NET Core Identity authentication, role policies, login lockout/rate limit, CSRF validation and local account-management workflow.
+- Production authentication cookies now require HTTPS (`SecurePolicy.Always`); HSTS is enabled outside Development; Swagger remains Development-only. HTTPS redirection remains enabled.
+- Added an explicit one-time production bootstrap gate. It requires `Bootstrap:EnableInitialAdmin=true` plus configured credentials, waits until all EF migrations are applied, and refuses to promote any account if an Administrator already exists. The operator must remove bootstrap settings after first login.
+- Added unit coverage for the one-time admin gate and environment-specific secure-cookie policy. No database schema or external integration changed.
+- Added `docs/FACTORY_OPERATIONAL_TEST_SETUP.md` with isolated SQL Server, IIS/.NET 10 Hosting Bundle, HTTPS, least-privilege database identity, bootstrap, smoke checks and factory UAT instructions.
+- This makes controlled IIS/UAT deployment possible; it does **not** establish production security certification, backup/restore acceptance, load testing, or factory acceptance. Keep the PR Draft and Factory Accepted at zero until those gates pass.
+
+
+## Stage 64 — first-UAT handoff documentation
+
+- Updated the first-UAT pack and Visual Studio first-run guide to distinguish controlled IIS UAT from permanent production operation.
+- IIS UAT is permitted only on an isolated site with HTTPS, a dedicated IPPCS UAT database, least-privilege SQL identity, one-time administrator bootstrap and explicit test records. The complete runbook is `docs/FACTORY_OPERATIONAL_TEST_SETUP.md`.
+- No branch merge or production release is authorized by these documentation changes. The fixed UAT branch/package must be created from a single commit only after all CI jobs on that exact commit pass.
+
+
+## Stage 65 — immutable MRP run traceability
+
+- Added `GET /api/v1/mrp/runs/{runId}/net-demand-pegging`.
+- The endpoint reconstructs the net-MRP demand/allocation/lot graph from the exact input and result JSON saved by that MRP calculation. It does not recalculate from mutable live BOM, planning balances, expected receipts or item types.
+- The response identifies the MRP run, MPS version, calculation time and algorithm. Unsupported algorithms, mismatched MPS identity, missing snapshots and invalid/tampered graph evidence fail closed.
+- Added tests for saved-run reconstruction and unsupported/mismatched snapshots.
+- This is a planning evidence improvement only: it does not create manufacturing orders, purchase orders, inventory reservations or capacity reservations. Factory acceptance remains pending.
+
+
+## Stage 66 — saved MRP runs in the planning workbench
+
+- Added a history endpoint for the latest 50 saved MRP calculations per MPS version.
+- The BOM/MPS/MRP workbench now lets the planner select a historical saved run and review its net demand, planned lots and supply allocations from the immutable snapshot introduced in Stage 65.
+- A newly calculated MRP run is selected automatically; switching the MPS version refreshes the run list. The review no longer silently recalculates against today's edited planning inputs.
+- The result remains a planning simulation. Conversion to released orders, stock reservation and warehouse transactions are intentionally separate approval steps.
+
+
+## Stage 67 — lot capacity preview from saved MRP run
+
+- Added `GET /api/v1/mrp/runs/{runId}/lot-capacity-preview`.
+- The endpoint restores MPS lines, BOM revisions/lines, planning balances, expected receipts, item types and MRP rows from the selected calculation snapshot; it does not rebuild MRP from current master/planning data.
+- Current approved routings, product-dependent capacity rates, shifts, active order reservations and operation-clock evidence are read at preview time. The response explicitly distinguishes the frozen MRP input basis from current capacity evidence.
+- The planning workbench now uses the selected saved MRP run for both net pegging and lot-capacity preview. The old MPS-based preview remains for compatibility.
+- This is still a preview. It does not release orders or reserve material/capacity. The end-to-end MRP-to-order conversion and factory UAT acceptance remain open.
+
+
+## Stage 68 — saved MRP proposals to draft manufacturing orders (automated CI accepted; factory UAT pending)
+
+- Module 05 → 08: added a planner-controlled batch conversion endpoint for a specifically selected, saved MRP run. It restores and validates the immutable input/result snapshot and converts **only** `ProposalType=Manufacturing`; external supply proposals are excluded.
+- New orders retain the MRP lot quantity, planned release date, receipt/due date and the BOM revision selected by the saved MRP snapshot. A single approved Routing with operations is resolved by the planned release date. Each order is created as `Draft`; the existing release workflow, including revision, control-plan, quality, cost and capacity gates, remains the only release path.
+- Stable run+lot order numbers plus the existing unique order-number index protect retries and concurrent duplicate creation. The batch is transactional: a failure rolls back the selected batch. Existing conversions are reported as already created. Direct MPS links are rechecked against all non-cancelled order pegs inside the transaction; conversion fails closed if existing commitments plus the proposed link would exceed the approved MPS quantity.
+- Direct MPS source allocations receive normal order-to-MPS pegs. Component/subassembly orders do not get a misleading direct MPS link; every contributing demand and parent-lot key is preserved in immutable order-audit evidence, including multiple parent lots.
+- The planning workbench now lists eligible manufacturing proposals, disables already-created or routing-invalid rows, supports multi-selection and displays the created draft order identities.
+- No new schema was needed: source idempotency and multi-parent provenance use the existing order audit journal; direct MPS links use the existing pegging table. No inventory, material or capacity reservation, warehouse issue, purchase order or order release is performed.
+- Regression tests cover stable run/lot identity, exclusion of external proposals, direct MPS pegging and multi-parent subassembly provenance. The disposable SQL end-to-end suite also exercises actual saved-run conversion, draft state and release readiness, idempotent retry, MPS over-allocation rejection and external-proposal exclusion. Exact-head CI: run `41308936804` at commit `f72d12117d086693c73688edd8ebc5f91601a1db` succeeded. Build, .NET tests, browser syntax, Jalali UI tests, EF model/migration parity, SQL Server migration, fresh installer replay, authenticated SQL write smoke and the full production SQL E2E suite all passed. This is automated acceptance only; representative factory UAT remains required and this stage is not factory acceptance.
+
+
+## Stage 69 — controlled draft release and dispatch-to-capacity workflow (automated CI accepted; factory UAT pending)
+
+- Release preflight and the actual release transaction now share one BOM alternative-allocation validator. It rejects allocations that point outside the frozen BOM, duplicate line allocations, attempts to allocate mandatory non-alternative components, malformed/overlapping alternative groups, non-100% mixes, and stored planned component quantities that do not reconcile to order quantity × BOM usage/scrap × selected share.
+- A valid group with no explicit allocation continues to use exactly the approved engineering default; alternatives are never all added as simultaneous demand. Mixed alternatives remain supported, with every selected share summing to 100%.
+- The release-check API now reports alternative allocation issues before the planner commits to release. The execution workbench's release action always runs that preflight, displays the blockers, and asks for confirmation only when the check passes. The release endpoint repeats all authoritative checks inside its serializable transaction; the browser check is not a security boundary.
+- Dispatch board rows that pass route/quality/hold/clock checks and have no slot now offer a direct handoff to the existing capacity-reservation form with the order, operation and selected Jalali date prefilled. The planner still chooses an actual time window; the reservation endpoint enforces the center lock, shift fit and no-overlap rules. No automatic or speculative machine booking is made.
+- New unit coverage validates implicit engineering default, a valid 60/40 mix, stale/mismatched planned component quantities, and foreign/mandatory line allocations.
+- No database schema change. Existing immutable audit and capacity reservation behavior remains in force. Exact-head CI run `41321258967` at commit `53c0bdda2f81bd6fcdc512308087164bc9e5a470` succeeded: Build, all 349 .NET tests, browser script syntax, Jalali browser tests, PowerShell preflight, EF migration/model parity, fresh SQL installer replay and protected SQL write authentication passed. Representative factory UAT is still required. This is not production acceptance.
+## Stage 70 — BOM-line and operation traceability for shop-floor material consumption (automated CI accepted; factory UAT pending)
+
+- Reworked the line-side material evidence so each new lot consumption is bound to the exact frozen ManufacturingBomLine.Id, not only ComponentItemId. This prevents ambiguous accounting when the same item appears on multiple BOM rows or in distinct alternative groups.
+- The operator selects a specific BOM row in the execution workbench. The server re-resolves that row against the order's frozen BOM, verifies that the selected alternative has a positive share, and enforces the reported-lot standard quantity against consumption already recorded for that same lot + BOM row.
+- The immutable existing Reference field carries the BOM-line identity for new entries (IPLOT for lot-bound use; IPBOM for non-lot line-side use). No schema migration was required. Reference lengths are bounded to fit the existing 200-character SQL column.
+- Both material entry paths now use BOM-line identity. Both endpoints accept their previous component-ID payload only as a compatibility path when the component maps to exactly one BOM row; ambiguous duplicate-item payloads fail closed and require the BOM-line ID. Legacy unattributed consumption is included only when it maps to one BOM row.
+- Material history now exposes BOM-line identity and, for lot-bound entries, the originating operation ID/sequence. The execution UI displays the operation and BOM row, while preserving the existing operator, reversal, and net-quantity evidence.
+- Legacy records without a BOM-line key are deliberately not silently attributed to a row. They can be reconciled to the only BOM row for that component when the mapping is unique; if the same component appears on multiple rows, the API fails closed rather than guessing. Their history remains visible as legacy/unassigned evidence.
+- Added regression tests for the same component on multiple BOM rows, exact lot-level separation, legacy lot entries without BOM-line identity (both unique and ambiguous component mappings), and non-lot entries with BOM-line identity. Browser UI checks assert the BOM-line selector and operation-level history.
+- No inventory reservation, warehouse issue, stock movement, accounting entry or physical WIP transfer is created by this stage. The evidence journal remains distinct from the warehouse ledger. Exact-head CI run `41335327527` at commit `8b7a7d053122d22df0b1c1906ba6f9c95a44565f` succeeded: build, .NET tests, browser script syntax, Jalali UI tests, PowerShell preflight, EF migration/model parity, disposable SQL Server migration, second-database installer replay, protected SQL write smoke and complete UAT source/SQL package generation all passed. Automated acceptance is not factory acceptance; representative factory UAT remains required.
+
+
+## Stage 71 — WIP handoff integrity and lot-level reconciliation (automated CI pending; factory UAT pending)
+
+- Strengthened the existing operation-to-operation WIP handoff audit to validate every genealogy edge before calculating coverage. A dangling confirmation, self-link, duplicate source/destination pair, non-positive quantity, reverse timestamp, or link that skips an operation now makes the audit fail closed instead of silently omitting that edge.
+- The audit now separately checks total upstream allocation, each source lot allocation, each destination lot allocation and each destination lot's untraced quantity. This prevents an apparently complete aggregate handoff from concealing a lot-level over-allocation. Reverse-time links remain visible in the audit but explicitly fail the chronology/quality gate, so the audit can still report independent quantity over-allocation without discarding the evidence.
+- Quality readiness remains blocked by open holds, pending quantities, failed mandatory characteristics and over-allocation. The handoff journal continues to use the existing immutable genealogy link and quality-approved write endpoint; it is not a warehouse movement, custody transfer or stock balance.
+- Added regression tests for exact lot-level quantity reconciliation, remaining upstream WIP, non-adjacent operation links and dangling confirmation references.
+- No schema migration was needed. CI and factory UAT are pending for this stage.

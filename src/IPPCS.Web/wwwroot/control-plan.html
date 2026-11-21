@@ -1,0 +1,205 @@
+<!doctype html><html lang="fa" dir="rtl"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>IPPCS | کنترل پلن و ردیابی عملیات</title>
+<link rel="stylesheet" href="/css/production.css">
+<script defer src="/js/security-client.js"></script><script defer src="/js/jalali-datepicker.js"></script>
+<script defer src="/js/factory-choices.js"></script>
+<script defer src="/js/control-plan.js"></script></head><body>
+<div class="app-shell"><aside class="sidebar">
+<div class="brand"><div class="brand-logo">IP</div><div><strong>ایندامین سایپا</strong><small>کنترل کیفیت فرآیند و ردیابی تولید</small></div></div>
+<nav>
+<a class="planning-link" href="/app.html">داشبورد اصلی</a>
+<a class="planning-link" href="/execution.html">دستورات ساخت و اجرا</a>
+<a class="planning-link" href="/factory-recall.html">بررسی دامنه اثر بچ‌های تولید</a>
+<button class="nav-active" data-section="controlplan">کنترل پلن تولید</button>
+<button data-section="inspection">بازرسی حین تولید</button>
+<button data-section="genealogy">شجره بچ بین عملیات</button>
+<button data-section="assembly">ردیابی نیمه‌ساخته تا مونتاژ نهایی</button>
+<button data-section="readiness">آمادگی عملیات و وضعیت بازرسی</button>
+<button data-section="handoff">ممیزی انتقال بچ بین عملیات</button>
+<button data-section="eol">گواهی داخلی کنترل نهایی مونتاژ</button>
+<button data-section="spc">پایش آماری اندازه‌گیری‌ها SPC</button>
+<button data-section="tracegraph">ردیابی چندمرحله‌ای بچ</button>
+<button data-section="serials">ردیابی سریال کمک‌فنر نهایی</button>
+</nav>
+<div class="sidebar-foot">IPPCS • نسخه آزمایشی<br>بدون اتصال به انبار، خرید، فروش یا منابع انسانی</div></aside>
+<div class="main">
+<header class="topbar"><div><span class="eyebrow">کنترل کیفیت اختصاصی فرآیند کمک‌فنر</span><h1 id="page-title">کنترل پلن تولید</h1></div><button class="btn-outline" data-ip-logout>خروج</button></header>
+<main class="content"><div class="notice" id="feedback" hidden role="status" aria-live="polite"></div>
+<div class="callout">این قابلیت در مرحله آزمایشی است. فقط کنترل پلن مصوب مرتبط با مسیر ساخت و تاریخ شروع دستور هنگام آزادسازی به دستور منتقل می‌شود؛ سابقه بازرسی قابل حذف یا بازنویسی نیست. ردیابی فقط در سطح گزارش‌های عملیات IPPCS است و شجره کامل تأمین مواد را تشکیل نمی‌دهد.</div>
+<section id="controlplan" class="page">
+<div class="section-title"><h3>تعریف و تصویب Control Plan</h3><small>نسخه، محدوده تاریخ شمسی، مشخصه‌ها و حدود پذیرش برای هر عملیات ساخت</small></div>
+<form id="plan-form" class="panel form-grid">
+<label>نسخه مسیر ساخت<select name="routing" id="plan-routing" required></select></label>
+<label>کد کنترل پلن<input name="code" required maxlength="64" placeholder="CP-DAMPER-A"></label>
+<label>شروع اعتبار<span class="jalali-field"><input name="from" data-jalali-date required><button class="date-trigger" type="button" data-jalali-trigger>▣</button></span></label>
+<label>پایان اعتبار (اختیاری)<span class="jalali-field"><input name="to" data-jalali-date><button class="date-trigger" type="button" data-jalali-trigger>▣</button></span></label>
+<div class="form-actions"><button class="btn-main" type="submit">ثبت کنترل پلن پیش‌نویس</button></div></form>
+<form id="characteristic-form" class="panel form-grid">
+<h3 class="wide">مشخصه‌های بازرسی</h3>
+<label>کنترل پلن پیش‌نویس<select name="planId" id="draft-plan" required></select></label>
+<label>شماره ترتیب عملیات<input name="sequence" type="number" min="1" step="1" required></label>
+<label>کد مشخصه<input name="code" maxlength="64" required placeholder="DAMPING-FORCE"></label>
+<label>عنوان مشخصه<input name="description" maxlength="240" required placeholder="نیروی میرایی"></label>
+<label>واحد مشخصه (اطلاعات پایه)<select id="quality-characteristic-unit" name="unit" required aria-label="واحد مشخصه کنترل پلن"></select></label>
+<label>حداقل مجاز<input name="minimum" type="number" step="any"></label>
+<label>حداکثر مجاز<input name="maximum" type="number" step="any"></label>
+<p class="wide">برای مشخصه‌های عددی، حداقل یک حد پذیرش (حد پایین یا بالا) لازم است؛ بدون حد مشخصات، سامانه نتیجه را قبول نمی‌کند. مشخصه‌های کیفیِ صرفاً قبول/مردود هنوز در این فرم عددی تعریف نمی‌شوند.</p>
+<label>اجباری بودن<select name="mandatory"><option value="true">بله</option><option value="false">خیر</option></select></label>
+<div class="form-actions"><button class="btn-main" type="submit">ثبت مشخصه</button></div>
+</form>
+<div class="panel form-grid">
+ <h3 class="wide">چاپ کنترل پلن نسخه‌دار</h3>
+ <label>کنترل پلن<select id="print-control-plan-select"></select></label>
+ <div class="form-actions"><button id="print-control-plan-button" class="btn-outline" type="button">چاپ برگه کنترل پلن</button></div>
+</div>
+<div class="panel"><h3>نسخه‌های کنترل پلن و مشخصه‌ها</h3><div id="plan-table"></div></div>
+</section>
+<section id="inspection" class="page" hidden>
+<div class="section-title"><h3>بازرسی و اندازه‌گیری حین ساخت</h3><small>ثبت قبول یا مردود، با قرنطینه خودکار مقدار نامنطبق</small></div>
+<div class="panel form-grid"><label>دستور تولید<select id="inspection-order"></select></label>
+<div class="form-actions"><button id="inspection-refresh" class="btn-outline" type="button">نمایش مشخصه‌های دستور</button></div></div>
+<div class="panel"><h3>کنترل‌های نسخه ثابت دستور</h3><div id="requirement-table"></div></div>
+<form id="inspection-form" class="panel form-grid">
+<label>مشخصه بازرسی<select name="requirement" id="inspection-requirement" required></select></label>
+<label>مقدار اندازه‌گیری<input name="value" type="number" step="any" required></label>
+<label>مقدار نامنطبق در صورت مردودی<input name="nonconforming" type="number" step="any" min="0" value="0" required></label>
+<label>توضیح<input name="note" maxlength="500"></label>
+<div class="form-actions"><button class="btn-main" type="submit">ثبت نتیجه اندازه‌گیری</button></div>
+</form>
+<div class="panel"><h3>تاریخچه غیرقابل‌حذف اندازه‌گیری‌ها</h3><div id="inspection-history"></div></div>
+</section>
+<section id="genealogy" class="page" hidden>
+<div class="section-title"><h3>ارتباط بچ‌های تولید بین دو عملیات متوالی</h3><small>پیوند مقدار سالم گزارش‌شده از یک عملیات به عملیات بعدی، بدون ایجاد حواله انبار</small></div>
+<div class="panel form-grid"><label>دستور تولید<select id="link-order"></select></label>
+<div class="form-actions"><button id="link-refresh" class="btn-outline" type="button">دریافت گزارش‌های بچ</button></div></div>
+<form id="lot-link-form" class="panel form-grid">
+<label>گزارش مبدا<select name="from" id="link-from" required></select></label>
+<label>گزارش مقصد<select name="to" id="link-to" required></select></label>
+<label>مقدار انتساب<input name="quantity" type="number" min="0.0001" step="any" required></label>
+<div class="form-actions"><button class="btn-main" type="submit">ثبت ارتباط بچ‌ها</button></div>
+</form>
+<div class="panel"><h3>پیوندهای ثبت‌شده و قابل رسیدگی</h3><div id="genealogy-table"></div></div>
+</section>
+<section id="assembly" class="page" hidden>
+ <div class="section-title"><h3>پیوند بچ نیمه‌ساخته و مونتاژ نهایی</h3><small>انتساب مستند خروجی آخرین عملیات یک دستور نیمه‌ساخته تکمیل‌شده به بچ آخرین عملیات یک دستور مونتاژ نهایی</small></div>
+ <div class="callout">کالای نیمه‌ساخته باید در BOM مصوب دستور مونتاژ باشد. کنترل‌های کیفی باید پذیرفته شده باشند و مقدار انتساب از تولید سالم یا مصرف برآوردی BOM تجاوز نکند. این ثبت تنها شجره تولید IPPCS است و تغییری در موجودی انبار ندارد.</div>
+ <div class="panel form-grid">
+  <label>دستور مونتاژ نهایی<select id="assembly-order"></select></label>
+  <label>دستور نیمه‌ساخته تکمیل‌شده<select id="semi-source-order"></select></label>
+  <div class="form-actions"><button type="button" id="assembly-refresh" class="btn-outline">بارگذاری بچ‌ها و مانده ردیابی</button></div>
+ </div>
+ <form id="assembly-origin-form" class="panel form-grid">
+  <label>بچ خروجی نیمه‌ساخته<select id="assembly-source-confirmation" name="source" required></select></label>
+  <label>بچ خروجی مونتاژ<select id="assembly-destination-confirmation" name="target" required></select></label>
+  <label>تعداد نیمه‌ساخته قابل انتساب<input name="quantity" type="number" min="0.0001" step="any" required></label>
+  <div class="form-actions"><button class="btn-main" type="submit">ثبت منشأ بچ مونتاژ</button></div>
+ </form>
+ <div class="panel"><h3>پوشش موردانتظار BOM برای نیمه‌ساخته‌ها</h3><div id="assembly-coverage"></div></div>
+ <div class="panel"><h3>ارتباط‌های واقعی بین دستورهای تولید</h3><div id="assembly-links"></div></div>
+</section>
+<section id="readiness" class="page" hidden>
+ <div class="section-title"><h3>آمادگی مراحل ساخت و مونتاژ نهایی</h3><small>دسترسی به وضعیت عملیات، مانده WIP، کنترل‌های اجباری و کیفیت قطعات بدون اتصال به منابع خارجی</small></div>
+ <div class="panel form-grid">
+  <label>دستور ساخت<select id="readiness-order"></select></label>
+  <div class="form-actions"><button type="button" id="readiness-refresh" class="btn-outline">بررسی آمادگی و کنترل کیفیت</button></div>
+ </div>
+ <div class="panel"><h3>آمادگی مرحله به مرحله دستور</h3><div id="readiness-steps"></div></div>
+ <div class="panel"><h3>وضعیت کنترل‌های نسخه ثابت دستور</h3><div id="readiness-inspections"></div></div>
+</section>
+<section id="handoff" class="page" hidden>
+ <div class="section-title"><h3>ممیزی انتقال مستند نیمه‌ساخته بین عملیات</h3>
+ <small>مقایسه خروجی سالم قابل انتقال با مقدار مستند بچ در مرحله بعد، با لحاظ قرنطینه و کیفیت</small></div>
+ <div class="callout">این گزارش پیوندهای واقعی ثبت‌شده ساخت را با مانده WIP مقایسه می‌کند؛ رسید فیزیکی به انبار یا حواله ایجاد نمی‌شود. انتقال از عملیات دارای قرنطینه یا کنترل کیفیت مردود قابل تأیید نیست.</div>
+ <div class="panel form-grid">
+  <label>دستور تولید<select id="handoff-order"></select></label>
+  <div class="form-actions"><button id="handoff-refresh" class="btn-outline" type="button">ممیزی مراحل و بچ‌های بدون پیوند</button></div>
+ </div>
+ <div class="panel"><h3>جمع‌بندی میزان پوشش مرحله به مرحله</h3><div id="handoff-summary"></div></div>
+ <div class="panel"><h3>تفکیک مبدأ و مقصد در مراحل تولید</h3><div id="handoff-steps"></div></div>
+ <div class="panel"><h3>بچ‌های مرحله بعد با منشأ مستند ناقص</h3><div id="handoff-lots"></div></div>
+</section>
+<section id="eol" class="page" hidden>
+ <div class="section-title"><h3>گواهی کیفیت داخلی مونتاژ نهایی کمک‌فنر</h3>
+ <small>گیت کنترل نهایی شامل پایان عملیات، بازرسی اجباری، نبود قرنطینه، پیوند مراحل و پوشش منشأ نیمه‌ساخته به تفکیک بچ</small></div>
+ <div class="callout">این تأیید فقط داخل IPPCS و توسط نقش تأییدکننده کیفیت ثبت می‌شود. به معنی اجازه ارسال به مشتری، خروج انبار، فروش یا صدور گواهی بیرونی نیست. پس از تأیید، شجره بچ همین دستور در سامانه قفل می‌شود.</div>
+ <div class="panel form-grid">
+  <label>دستور مونتاژ نهایی<select id="eol-order"></select></label>
+  <div class="form-actions">
+   <button id="eol-refresh" type="button" class="btn-outline">بررسی گیت‌های کنترل نهایی</button>
+   <button id="eol-approve" type="button" class="btn-main">تأیید داخلی نهایی توسط کیفیت</button>
+  </div>
+ </div>
+ <div class="panel">
+ <div class="form-actions"><button id="print-eol-certificate" type="button" class="btn-outline">چاپ گواهی داخلی EOL ثبت‌شده</button></div>
+ <p>چاپ گواهی فقط پس از ثبت تأیید نهایی معتبر و بررسی سازگاری امضای بچ امکان‌پذیر است؛ چاپ پیش‌نویس به‌جای گواهی مجاز نیست.</p>
+</div>
+<div class="panel"><h3>خلاصه کنترل نهایی و وضعیت تأیید</h3><div id="eol-summary"></div></div>
+ <div class="panel"><h3>موانع و کنترل‌های ناقص</h3><div id="eol-issues"></div></div>
+ <div class="panel"><h3>پوشش شجره نیمه‌ساخته برای هر بچ مونتاژ</h3><div id="eol-coverage"></div></div>
+</section>
+<section id="serials" class="page" hidden>
+ <div class="section-title"><h3>ثبت و ردیابی شماره سریال محصول نهایی</h3>
+  <small>شناسه داخلی هر کمک‌فنر پس از گواهی کنترل نهایی، دارای شجره قابل جستجو تا بچ نیمه‌ساخته</small></div>
+ <div class="callout">شماره سریال باید در کل تاریخچه تولید IPPCS یکتا باشد. پس از تأیید داخلی کیفیت قابل ثبت است و تعداد سریال‌ها نباید از خروجی سالم بچ تجاوز کند. این فرم برچسب فیزیکی چاپ نمی‌کند و هیچ ارتباطی با تحویل، فروش، مشتری یا انبار ندارد.</div>
+ <form id="factory-serial-form" class="panel form-grid">
+  <h3 class="wide">ثبت شماره سریال داخلی</h3>
+  <label>دستور مونتاژ نهایی تکمیل‌شده<select id="factory-serial-order" required></select></label>
+  <label>بچ آخرین عملیات<select id="factory-serial-lot" required></select></label>
+  <label>شماره سریال<input id="factory-serial-code" required minlength="3" maxlength="64" placeholder="SAIPA-1405-00001"></label>
+  <div class="form-actions"><button class="btn-main" type="submit">ثبت سریال به بچ گواهی‌شده</button><button class="btn-outline" id="factory-serial-reload" type="button">فهرست سریال‌های ثبت‌شده</button></div>
+ </form>
+ <div class="panel"><h3>سریال‌های تخصیص‌یافته و بچ منشأ</h3><div id="factory-serial-ledger"></div></div>
+ <form id="factory-serial-trace-form" class="panel form-grid">
+  <h3 class="wide">جستجوی سریال و ردیابی پسرو</h3>
+  <label>شماره سریال ثبت‌شده<input id="factory-serial-trace-code" required maxlength="64" placeholder="SAIPA-1405-00001"></label>
+  <label>حداکثر عمق ارتباط<input id="factory-serial-trace-depth" type="number" min="1" max="16" value="8"></label>
+  <div class="form-actions"><button type="submit" class="btn-outline">جستجوی شجره واقعی ساخت سریال</button></div>
+ </form>
+ <div class="panel"><h3>سریال و دستور محصول نهایی</h3><div id="factory-serial-trace-summary"></div></div>
+ <div class="panel"><h3>گره‌های بچ از محصول تا نیمه‌ساخته</h3><div id="factory-serial-trace-nodes"></div></div>
+ <div class="panel"><h3>پیوندهای واقعی تولید</h3><div id="factory-serial-trace-edges"></div></div>
+</section>
+<section id="spc" class="page" hidden>
+ <div class="section-title"><h3>پایش آماری مشخصه‌های تولید</h3><small>نمودار افراد و دامنه متحرک بر اساس اندازه‌گیری‌های واقعی ثبت‌شده؛ مقادیر نمونه‌برداری‌شده قابل ویرایش نیستند</small></div>
+ <div class="callout">حدود کنترل آماری از نمونه‌های همان دستور تخمین زده می‌شوند و حد مجاز محصول نیستند. برای پذیرش SPC، MSA، کالیبراسیون و برنامه نمونه‌برداری معتبر نیاز به تأیید کارخانه است.</div>
+ <div class="panel form-grid">
+  <label>دستور تولید<select id="spc-order"></select></label>
+  <label>مشخصه کنترل پلن<select id="spc-requirement"></select></label>
+  <div class="form-actions"><button id="spc-refresh" class="btn-outline" type="button">محاسبه پایش آماری</button></div>
+ </div>
+ <div class="panel"><h3>شاخص‌های اندازه‌گیری</h3><div id="spc-summary"></div></div>
+ <div class="panel">
+  <h3>ممیزی شواهد نمونه‌برداری و سیگنال‌های اولیه SPC</h3>
+  <p>این ممیزی داده‌ای فقط تناوب ثبت‌شده، سازگاری تاریخچه و نشانه‌های احتمالی تغییر فرایند را بررسی می‌کند. حد کنترل تخمینی و ۲۵ نمونه، جایگزین MSA/Gage R&amp;R، کالیبراسیون یا روش نمونه‌برداری مصوب کارخانه نیست. این صفحه هیچ مجوز ترخیص محصول صادر نمی‌کند.</p>
+  <div id="spc-evidence-summary" aria-live="polite"></div>
+  <div id="spc-evidence-findings"></div>
+  <div id="spc-evidence-signals"></div>
+ </div>
+ <div class="panel">
+  <h3>برآورد آزمایشی پوشش تعداد نمونه‌ها</h3>
+  <p>این محاسبه صرفاً برای بررسی اولیه فاصله تعداد نمونه‌ها با یک فراوانی فرضی است؛ نه طرح نمونه‌برداری مصوب. نتیجه با هر تعداد، گواهی MSA/رعایت نمونه‌برداری در سطح بچ یا مجوز ترخیص نمی‌سازد.</p>
+  <div class="form-grid">
+   <label>فرض محاسبه: هر چند قطعه یک نمونه؟<input id="sampling-every-units" type="number" min="1" max="10000" step="1" value="5"></label>
+   <div class="form-actions"><button id="sampling-coverage-check" class="btn-outline" type="button">بررسی فرضی تعداد نمونه‌ها</button></div>
+  </div>
+  <div id="sampling-coverage-summary" aria-live="polite"></div>
+ </div>
+ <div class="panel"><h3>تاریخچه اندازه‌ها و حدود کنترل محاسباتی</h3><div id="spc-samples"></div></div>
+</section>
+<section id="tracegraph" class="page" hidden>
+ <div class="section-title"><h3>ردیابی پیشرو و پسرو بچ در چند مرحله ساخت</h3><small>پیگیری تمام پیوندهای مستند از عملیات قبلی تا مونتاژ نهایی یا برعکس، در محدوده عمق انتخابی</small></div>
+ <div class="callout">این گزارش فقط رابطه‌های ثبت‌شده ساخت را دنبال می‌کند و جایگزین ردیابی انبار یا فراخوان رسمی محصول نیست. بدون پیوند مستند، رابطه حدس زده نمی‌شود.</div>
+ <div class="panel form-grid">
+  <label>دستور مرجع<select id="trace-order"></select></label>
+  <label>بچ گزارش عملیات<select id="trace-confirmation"></select></label>
+  <label>جهت ردیابی<select id="trace-direction"><option value="ancestors">پسرو: منشأ تولید</option><option value="descendants">پیشرو: مصرف در مراحل بعد</option></select></label>
+  <label>حداکثر عمق پیوند<input id="trace-depth" type="number" min="1" max="16" value="8"></label>
+  <div class="form-actions"><button id="trace-refresh" type="button" class="btn-outline">نمایش شجره مستند</button></div>
+ </div>
+ <div class="panel"><h3>گزارش بچ‌ها و دستورهای مرتبط</h3><div id="trace-summary"></div></div>
+ <div class="panel"><h3>گره‌های شجره ساخت</h3><div id="trace-nodes"></div></div>
+ <div class="panel"><h3>پیوندهای مستند و مقادیر آنها</h3><div id="trace-edges"></div></div>
+</section>
+</main><footer class="footer">IPPCS • کنترل پلن، بازرسی و ردیابی داخلی تولید<span>Prototype 0.6</span></footer>
+</div></div></body></html>

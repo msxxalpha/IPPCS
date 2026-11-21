@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>IPPCS | آمادگی اجرای آزمایشی ۱۸ ماژول</title>
+<link rel="stylesheet" href="/css/production.css">
+<script defer src="/js/security-client.js"></script>
+<script defer src="/js/factory-release-readiness.js"></script>
+</head>
+<body>
+<div class="app-shell">
+<aside class="sidebar"><div class="brand"><div class="brand-logo">IP</div><div>
+<strong>IPPCS ایندامین سایپا</strong><small>آمادگی آزمون و کنترل انتشار</small></div></div>
+<nav aria-label="راه‌اندازی و آزمون">
+<a class="planning-link" href="/app.html">صفحه اصلی سامانه</a>
+<a class="planning-link" href="/factory-master-data.html">اطلاعات پایه و دلایل عملیاتی</a>
+<a class="planning-link" href="/planning.html">BOM، MPS، MRP، CRP</a>
+<a class="planning-link" href="/factory-analytical-verification.html">آزمون هدایت‌شده محاسبات و تحلیل‌ها</a>
+<a class="planning-link" href="/execution.html">دستورات و عملیات تولید</a>
+<a class="planning-link" href="/control-plan.html">کیفیت، EOL و ردیابی</a>
+<a class="planning-link" href="/production-deviations.html">انحراف و اقدامات اصلاحی</a>
+</nav></aside>
+<div class="main">
+<header class="topbar">
+<div><span class="eyebrow">مرحله آماده‌سازی و پذیرش، بدون دستکاری اطلاعات</span>
+<h1>آمادگی اجرای آزمایشی IPPCS</h1></div>
+<button class="btn-outline" type="button" data-ip-logout>خروج</button>
+</header>
+<main class="content">
+<div class="callout">
+<strong>هشدار انتشار:</strong> این گزارش، مدرک نهایی‌سازی کارخانه نیست. ثبت اطلاعات پایه یا موفقیت آزمون خودکار به معنی تأیید فیزیکی تولید، کیفیت، امنیت استقرار یا مجوز بهره‌برداری نیست.
+</div>
+<div class="summary-stats">
+<div><span>ماژول‌های دارای کد اولیه و مسیر آزمایش</span><strong id="readiness-total">—</strong></div>
+<div><span>پیش‌نیازهای اطلاعات پایه آماده</span><strong id="readiness-configured">—</strong></div>
+<div><span>ماژول‌های تأییدشده در کارخانه</span><strong id="readiness-accepted">۰</strong></div>
+</div>
+<div id="readiness-notice" class="notice" role="status" aria-live="polite" hidden></div>
+<section class="panel">
+<h3>گام اول — بررسی داده‌های لازم برای سناریوی آزمایشی</h3>
+<p>این شمارش‌ها تنها نشان می‌دهند داده‌ای در سامانه وجود دارد؛ صحت BOM، اعتبار ابزار یا کیفیت واقعی ماشین را تأیید نمی‌کنند.</p>
+<div class="form-actions">
+<button id="readiness-refresh" class="btn-main" type="button">بازخوانی وضعیت بدون تغییر داده</button>
+</div>
+<div id="readiness-setup" class="factory-setup-grid" aria-live="polite"></div>
+</section>
+<section class="panel">
+<h3>موارد نیازمند اقدام در ECO، CAPA، EOL و APS</h3>
+<p>این صف بر اساس داده‌های موجود، موارد معوق، گواهی‌های کنترل نهایی ناقص یا قدیمی و سناریوی اخیر زمان‌بندی را برای پیگیری نشان می‌دهد. نبود مورد در صف به معنی مجوز انتشار یا تأیید کنترل کیفیت واقعی نیست.</p>
+<div class="summary-stats">
+<div><span>مجموع موارد قابل پیگیری</span><strong id="priority-total">—</strong></div>
+<div><span>موارد بحرانی</span><strong id="priority-critical">—</strong></div>
+<div><span>موارد با اولویت بالا</span><strong id="priority-high">—</strong></div>
+</div>
+<div class="form-actions"><button id="priority-refresh" class="btn-outline" type="button">بازخوانی صف اقدامات</button></div>
+<div id="priority-list" class="factory-setup-grid" aria-live="polite"></div>
+<p id="priority-disclaimer"></p>
+</section>
+<section class="panel">
+<h3>گام دوم — آزمون عملیاتی هر یک از ۱۸ ماژول</h3>
+<p>هر کارت شما را به صفحهٔ مرتبط می‌برد و حداقل موضوع بازمانده برای پذیرش نهایی را مشخص می‌کند. وضعیت «دارای قابلیت آزمایشی» به معنی آماده بهره‌برداری نیست.</p>
+<div id="readiness-modules" class="factory-module-uat-grid"></div>
+</section>
+<section class="panel">
+<h3>گام سوم — ثبت شواهد پذیرش کارخانه</h3>
+<p>برای هر ماژول با کاربر دارای نقش مناسب، یک سناریوی واقعی با محصول، بچ، تاریخ شمسی و مرکز کاری اجرا کنید. سپس نتیجه، تصویر، شماره رویداد، خطاها و تأیید مسئول فرایند را در فرم پذیرش سازمان ثبت کنید. این صفحه امضای تأیید تولید ایجاد نمی‌کند.</p>
+<div class="factory-release-actions">
+<a href="/app.html" class="btn-outline">بازگشت به صفحهٔ اصلی</a>
+<a href="/system-users.html" class="btn-outline">مدیریت نقش‌ها و کاربران مستقل IPPCS</a>
+</div>
+</section>
+</main></div></div>
+</body></html>
