@@ -250,6 +250,9 @@ public static class FactoryRevisionGovernance
                 var lines=await db.MpsDemandLines.AsNoTracking()
                     .Where(x=>ids.Contains(x.Id)).ToListAsync(ct);
                 var issues=ReleaseIssues(order,route,bom,links,lines).ToList();
+                var mrpPrerequisites = await MrpDraftOrderConversion.CheckReleasePrerequisites(db, order, ct);
+                foreach (var prerequisite in mrpPrerequisites)
+                    issues.Add(new(prerequisite.Code, prerequisite.Message));
                 var materialAllocations=await db.Set<ManufacturingOrderMaterialAllocation>()
                     .AsNoTracking().Where(x=>x.OrderId==id).ToListAsync(ct);
                 foreach(var issue in BomAlternativeExecution.ValidateReleaseAllocations(
