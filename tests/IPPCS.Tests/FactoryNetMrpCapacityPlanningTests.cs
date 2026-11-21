@@ -170,4 +170,90 @@ public sealed class FactoryNetMrpCapacityPlanningTests
         Assert.Equal(30m, row.ProductCapacityUnitsPerHour);
         Assert.Equal(30m, row.RequiredMinutes); // 5 setup + 10 x (2 / 0.8)
     }
+    [Fact]
+    public void Mps_revision_capacity_impact_uses_net_lots_after_finished_goods_coverage()
+    {
+        var finished = Guid.NewGuid();
+        var raw = Guid.NewGuid();
+        var center = Guid.NewGuid();
+        var bom = new ManufacturingBomRevision
+        {
+            Id = Guid.NewGuid(), ParentItemId = finished, Revision = "REV-NET-1",
+            State = ManufacturingRevisionState.Approved,
+            ValidFrom = Baseline.AddDays(-30),
+            Lines =
+            [
+                new ManufacturingBomLine
+                {
+                    Id = Guid.NewGuid(), ComponentItemId = raw,
+                    QuantityPer = 2m, ScrapPercent = 0m, Sequence = 10
+                }
+            ]
+        };
+        var source = new MpsVersion
+        {
+            State = PlanningApproval.Approved,
+            Lines =
+            [
+                new MpsDemandLine
+                {
+                    Id = Guid.NewGuid(), ItemId = finished, NeededOn = Baseline,
+                    Quantity = 10m, Reference = "SOURCE"
+                }
+            ]
+        };
+        var candidate = new MpsVersion
+        {
+            State = PlanningApproval.Draft,
+            Lines =
+            [
+                new MpsDemandLine
+                {
+                    Id = Guid.NewGuid(), ItemId = finished, NeededOn = Baseline,
+                    Quantity = 14m, Reference = "CANDIDATE"
+                }
+            ]
+        };
+        var balances = new[]
+        {
+            new PlanningBalance
+            {
+                ItemId = finished, PhysicalQuantity = 4m, SnapshotDate = Baseline,
+                MinimumBatch = 1m, BatchMultiple = 1m
+            },
+            new PlanningBalance
+            {
+                ItemId = raw, PhysicalQuantity = 100m, SnapshotDate = Baseline,
+                MinimumBatch = 1m, BatchMultiple = 1m
+            }
+        };
+        var types = new Dictionary<Guid, PlanningItemType>
+        {
+            [finished] = PlanningItemType.Finished,
+            [raw] = PlanningItemType.RawMaterial
+        };
+        var route = Route(finished, center);
+        var shifts = new[] { Shift(center, Baseline) };
+
+        var sourceNet = PlanningCalculators.FactoryNetMrpCapacityPlanning.BuildNetPlan(
+            source.Lines, [bom], balances, [], types);
+        var candidateNet = PlanningCalculators.FactoryNetMrpCapacityPlanning.BuildNetPlan(
+            candidate.Lines, [bom], balances, [], types);
+        var sourceCapacity = PlanningCalculators.FactoryNetMrpCapacityPlanning.RunRoughCutCrp(
+            sourceNet.Pegging.PlannedLots, [route], shifts, sourceNet.BaselineDate);
+        var candidateCapacity = PlanningCalculators.FactoryNetMrpCapacityPlanning.RunRoughCutCrp(
+            candidateNet.Pegging.PlannedLots, [route], shifts, candidateNet.BaselineDate);
+
+        var impact = FactoryMpsChangeControl.Compare(
+            source, candidate, sourceCapacity, candidateCapacity,
+            sourceNet.MrpRows, candidateNet.MrpRows);
+
+        var capacity = Assert.Single(impact.Capacity);
+        Assert.Equal(11m, capacity.BeforeMinutes); // 5 setup + (10 gross - 4 finished goods)
+        Assert.Equal(15m, capacity.AfterMinutes);  // 5 setup + (14 gross - 4 finished goods)
+        Assert.Equal(4m, capacity.DeltaMinutes);
+        Assert.Equal(4m, impact.DeltaQuantity);
+        Assert.Contains(impact.Materials, x => x.ItemId == raw && x.GrossDifference == 8m);
+    }
+
 }
