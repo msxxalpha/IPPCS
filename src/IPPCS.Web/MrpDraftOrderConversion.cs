@@ -87,6 +87,189 @@ public static class MrpDraftOrderConversion
         return true;
     }
 
+    public sealed record MrpDraftChildLotRequirement(
+        string LotKey, Guid ItemId, decimal RequiredAllocatedQuantity);
+    public sealed record MrpDraftPrerequisiteIssue(
+        string Code, string Message, string LotKey, Guid ItemId,
+        decimal RequiredQuantity, Guid? OrderId = null, string? OrderNumber = null);
+
+    public static bool TryParseSourceKey(string? value, out Guid runId, out string lotKey)
+    {
+        runId = Guid.Empty;
+        lotKey = "";
+        if (string.IsNullOrWhiteSpace(value)) return false;
+        var separator = value.IndexOf('|');
+        if (separator != 32 || separator == value.Length - 1 ||
+            !Guid.TryParseExact(value[..separator], "N", out runId))
+        {
+            runId = Guid.Empty;
+            return false;
+        }
+        lotKey = value[(separator + 1)..];
+        return !string.IsNullOrWhiteSpace(lotKey);
+    }
+
+    /// <summary>
+    /// Finds manufactured component lots that were proposed specifically to
+    /// satisfy this parent lot. The required quantity is the complete amount
+    /// pegged from that child lot to all demands in the saved run, not merely
+    /// the share consumed by this one parent.
+    /// </summary>
+    public static IReadOnlyList<MrpDraftChildLotRequirement> RequiredChildLots(
+        NetPeggingReport graph, string parentLotKey)
+    {
+        ArgumentNullException.ThrowIfNull(graph);
+        if (string.IsNullOrWhiteSpace(parentLotKey))
+            throw new ArgumentException("شناسه بچ بالادستی الزامی است.", nameof(parentLotKey));
+
+        var demandGroups = graph.Demands.GroupBy(x => x.DemandKey, StringComparer.Ordinal).ToArray();
+        if (demandGroups.Any(x => x.Count() != 1))
+            throw new InvalidOperationException("شناسه نیاز در گراف MRP تکراری است.");
+        var demandByKey = demandGroups.ToDictionary(x => x.Key, x => x.Single(), StringComparer.Ordinal);
+
+        var lotGroups = graph.PlannedLots.GroupBy(x => x.LotKey, StringComparer.Ordinal).ToArray();
+        if (lotGroups.Any(x => x.Count() != 1))
+            throw new InvalidOperationException("شناسه بچ در گراف MRP تکراری است.");
+        var lotByKey = lotGroups.ToDictionary(x => x.Key, x => x.Single(), StringComparer.Ordinal);
+
+        var requiredKeys = graph.Allocations
+            .Where(x => x.SourceType == "ProposedManufacturingReceipt" &&
+                demandByKey.TryGetValue(x.DemandKey, out var demand) &&
+                string.Equals(demand.ParentLotKey, parentLotKey, StringComparison.Ordinal))
+            .Select(x => x.SourceKey)
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(x => x, StringComparer.Ordinal)
+            .ToArray();
+
+        var result = new List<MrpDraftChildLotRequirement>();
+        foreach (var childKey in requiredKeys)
+        {
+            if (!lotByKey.TryGetValue(childKey, out var lot) ||
+                lot.ProposalType != "Manufacturing" || lot.Quantity <= 0 || lot.ItemId == Guid.Empty)
+                throw new InvalidOperationException("بچ زیرمونتاژ موردنیاز در گراف MRP معتبر نیست.");
+
+            var allocated = graph.Allocations.Where(x =>
+                x.SourceType == "ProposedManufacturingReceipt" &&
+                string.Equals(x.SourceKey, childKey, StringComparison.Ordinal))
+                .Sum(x => x.Quantity);
+            if (allocated <= 0 || allocated > lot.Quantity)
+                throw new InvalidOperationException("مقدار تخصیص‌یافته بچ زیرمونتاژ با مقدار برنامه‌ای آن سازگار نیست.");
+
+            result.Add(new MrpDraftChildLotRequirement(childKey, lot.ItemId, allocated));
+        }
+        return result;
+    }
+
+    public static MrpDraftPrerequisiteIssue? EvaluateChildReadiness(
+        MrpDraftChildLotRequirement requirement, ManufacturingOrder? childOrder,
+        bool hasOpenQualityHold)
+    {
+        if (childOrder is null)
+            return new("ChildDraftMissing", "برای بچ نیمه‌ساخته موردنیاز هنوز دستور ساخت متناظر ایجاد نشده است.",
+                requirement.LotKey, requirement.ItemId, requirement.RequiredAllocatedQuantity);
+        if (childOrder.ItemId != requirement.ItemId)
+            return new("ChildOrderMismatch", "کالای دستور زیرمونتاژ با بچ ذخیره‌شده MRP یکسان نیست.",
+                requirement.LotKey, requirement.ItemId, requirement.RequiredAllocatedQuantity,
+                childOrder.Id, childOrder.Number);
+        if (childOrder.Status != ManufacturingOrderStatus.Completed)
+            return new("ChildNotCompleted", "آزادسازی محصول بالادستی تا تکمیل دستور ساخت زیرمونتاژ مجاز نیست.",
+                requirement.LotKey, requirement.ItemId, requirement.RequiredAllocatedQuantity,
+                childOrder.Id, childOrder.Number);
+        if (hasOpenQualityHold || childOrder.Operations.Count == 0 ||
+            childOrder.Operations.Any(x => !x.IsComplete || x.QualityPendingQuantity != 0 ||
+                x.QualityRejectedQuantity < 0 || !ManufacturingInspectionRules.GatePassed(x)))
+            return new("ChildQualityNotReleased", "دستور زیرمونتاژ تکمیل‌شده باید تمام عملیات و گیت‌های کیفیت را بدون قرنطینه باز بگذراند.",
+                requirement.LotKey, requirement.ItemId, requirement.RequiredAllocatedQuantity,
+                childOrder.Id, childOrder.Number);
+
+        var final = childOrder.Operations.OrderBy(x => x.Sequence).Last();
+        var availableGood = Math.Max(0m, final.GoodQuantity - final.QualityRejectedQuantity);
+        if (availableGood < requirement.RequiredAllocatedQuantity)
+            return new("ChildOutputShortage", "خروجی سالم زیرمونتاژ برای مقدار تخصیص‌یافته در اجرای MRP کافی نیست.",
+                requirement.LotKey, requirement.ItemId, requirement.RequiredAllocatedQuantity,
+                childOrder.Id, childOrder.Number);
+        return null;
+    }
+
+    /// <summary>
+    /// Validates only MRP-generated parent orders. Manually entered orders remain
+    /// governed by their existing release rules; no external stock or warehouse
+    /// state is queried here.
+    /// </summary>
+    public static async Task<IReadOnlyList<MrpDraftPrerequisiteIssue>> CheckReleasePrerequisites(
+        ProductionDb db, ManufacturingOrder parentOrder, CancellationToken ct)
+    {
+        var parentSources = await db.ManufacturingOrderAudits.AsNoTracking()
+            .Where(x => x.OrderId == parentOrder.Id && x.Action == SourceAction)
+            .ToListAsync(ct);
+        if (parentSources.Count == 0) return Array.Empty<MrpDraftPrerequisiteIssue>();
+        if (parentSources.Count != 1 ||
+            !TryParseSourceKey(parentSources[0].Details, out var runId, out var parentLotKey))
+            return [new("InvalidMrpSource", "منشأ MRP دستور یکتا و معتبر نیست؛ آزادسازی متوقف شد.",
+                "", parentOrder.ItemId, 0m, parentOrder.Id, parentOrder.Number)];
+
+        var run = await db.PlanningCalculations.AsNoTracking()
+            .SingleOrDefaultAsync(x => x.Id == runId, ct);
+        if (run is null || !TryBuildFromRunSnapshot(run, out var graph, out var error))
+            return [new("InvalidMrpSnapshot", "تصویر ذخیره‌شده MRP برای کنترل پیش‌نیاز قابل بازسازی نیست: " +
+                (run is null ? "اجرای مرجع یافت نشد." : error),
+                parentLotKey, parentOrder.ItemId, 0m, parentOrder.Id, parentOrder.Number)];
+
+        IReadOnlyList<MrpDraftChildLotRequirement> requirements;
+        try { requirements = RequiredChildLots(graph, parentLotKey); }
+        catch (InvalidOperationException ex)
+        {
+            return [new("InvalidMrpPrerequisites", ex.Message, parentLotKey,
+                parentOrder.ItemId, 0m, parentOrder.Id, parentOrder.Number)];
+        }
+        if (requirements.Count == 0) return Array.Empty<MrpDraftPrerequisiteIssue>();
+
+        var prefix = runId.ToString("N") + "|";
+        var sourceEvents = await db.ManufacturingOrderAudits.AsNoTracking()
+            .Where(x => x.Action == SourceAction && x.Details != null &&
+                x.Details.StartsWith(prefix))
+            .ToListAsync(ct);
+        var childIds = new HashSet<Guid>();
+        var orderIdByLot = new Dictionary<string, Guid>(StringComparer.Ordinal);
+        var issues = new List<MrpDraftPrerequisiteIssue>();
+        foreach (var requirement in requirements)
+        {
+            var key = SourceKey(runId, requirement.LotKey);
+            var matches = sourceEvents.Where(x =>
+                string.Equals(x.Details, key, StringComparison.Ordinal)).ToArray();
+            if (matches.Length != 1)
+            {
+                issues.Add(new(matches.Length == 0 ? "ChildDraftMissing" : "ChildDraftAmbiguous",
+                    matches.Length == 0
+                        ? "برای بچ زیرمونتاژ موردنیاز هنوز دستور ساخت پیش‌نویس ایجاد نشده است."
+                        : "برای یک بچ زیرمونتاژ چند دستور متناظر ثبت شده؛ تعیین تکلیف ممیزی لازم است.",
+                    requirement.LotKey, requirement.ItemId, requirement.RequiredAllocatedQuantity));
+                continue;
+            }
+            orderIdByLot[requirement.LotKey] = matches[0].OrderId;
+            childIds.Add(matches[0].OrderId);
+        }
+
+        var children = await db.ManufacturingOrders.AsNoTracking()
+            .Include(x => x.Operations).ThenInclude(x => x.InspectionRequirements)
+            .Where(x => childIds.Contains(x.Id)).ToListAsync(ct);
+        var childById = children.ToDictionary(x => x.Id);
+        var openHolds = (await db.ManufacturingQualityHolds.AsNoTracking()
+            .Where(x => childIds.Contains(x.OrderId) &&
+                x.Status == ManufacturingQualityStatus.Open)
+            .Select(x => x.OrderId).Distinct().ToListAsync(ct)).ToHashSet();
+
+        foreach (var requirement in requirements.Where(x => orderIdByLot.ContainsKey(x.LotKey)))
+        {
+            var childId = orderIdByLot[requirement.LotKey];
+            childById.TryGetValue(childId, out var child);
+            var issue = EvaluateChildReadiness(requirement, child,
+                child is not null && openHolds.Contains(child.Id));
+            if (issue is not null) issues.Add(issue);
+        }
+        return issues;
+    }
+
     public static IEndpointRouteBuilder MapMrpDraftOrderConversion(this IEndpointRouteBuilder routes)
     {
         var readApi = routes.MapGroup("/api/v1").RequireAuthorization("IpProductionUser");
