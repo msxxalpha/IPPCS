@@ -630,8 +630,9 @@ function register(){
   ],r.centers);
   const product=await api("/crp/"+formval(f,"mpsId")+"/product-capacity-preview");
   table("#crp-product-capacity-table",[
-   ["محصول",x=>item(x.itemId)],["موعد","demandOnJalali"],
-   ["مقدار تقاضا",x=>format(x.demandQuantity)],["مرحله","operationSequence"],
+   ["محصول",x=>item(x.itemId)],["بچ خالص","lotKey"],["آزادسازی","releaseOnJalali"],
+   ["رسید برنامه‌ای","receiptOnJalali"],["قبل از مبنا",x=>x.releaseBeforeBaseline?"بله":"خیر"],
+   ["مقدار بچ خالص",x=>format(x.demandQuantity)],["مرحله","operationSequence"],
    ["عملیات","operationName"],["مرکز کاری",x=>center(x.workCenterId)],
    ["آماده‌سازی (دقیقه)",x=>format(x.setupMinutes)],
    ["زمان واحد (دقیقه)",x=>format(x.runMinutesPerUnit)],
