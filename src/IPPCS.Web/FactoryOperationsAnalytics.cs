@@ -245,12 +245,82 @@ public static class FactoryOperationsAnalyticsEndpoints
             var mps=await db.MpsVersions.AsNoTracking().Include(x=>x.Lines)
                 .SingleOrDefaultAsync(x=>x.Id==mpsId,ct);
             if(mps is null)return Results.NotFound();
-            var orders=await db.ManufacturingOrders.AsNoTracking().Include(x=>x.Operations)
-                .Where(x=>x.DueOn>=from&&x.DueOn<=through).ToListAsync(ct);
-            var output=FactoryOperationalMetrics.Adherence(mps.Lines,orders,from,through);
-            return Results.Ok(new{mpsId,rows=output.Select(x=>new{x.ItemId,x.MpsRequired,
-                x.CompletedGood,x.Variance,x.FulfilmentPercent}),note=
-                "فقط مقایسه تجمیعی محصول و موعد است؛ ارتباط مستقیم دستور با ردیف MPS هنوز پیاده نشده."});
+            if(mps.State!=PlanningApproval.Approved)
+                return Results.Conflict(new{message="گزارش تحقق فقط برای نسخه MPS مصوب معتبر است."});
+            var scopedLines=mps.Lines.Where(x=>x.NeededOn>=from&&x.NeededOn<=through)
+                .OrderBy(x=>x.NeededOn).ThenBy(x=>x.ItemId).ToArray();
+            var lineIds=scopedLines.Select(x=>x.Id).ToArray();
+            var itemIds=scopedLines.Select(x=>x.ItemId).Distinct().ToArray();
+            var links=await db.ManufacturingOrderPegs.AsNoTracking()
+                .Where(x=>lineIds.Contains(x.MpsLineId)).ToListAsync(ct);
+            var linkedOrderIds=links.Select(x=>x.OrderId).Distinct().ToArray();
+            var linkedOrders=await db.ManufacturingOrders.AsNoTracking().Include(x=>x.Operations)
+                .Where(x=>linkedOrderIds.Contains(x.Id)).ToListAsync(ct);
+            var byOrder=linkedOrders.ToDictionary(x=>x.Id);
+            var lineRows=scopedLines.Select(line=>{
+                var assignments=links.Where(x=>x.MpsLineId==line.Id)
+                    .Where(x=>byOrder.TryGetValue(x.OrderId,out var order)
+                        &&order.Status!=ManufacturingOrderStatus.Cancelled).ToArray();
+                var assigned=assignments.Sum(x=>x.LinkedQuantity);
+                var completed=assignments.Sum(link=>{
+                    var order=byOrder[link.OrderId];
+                    var finalGood=order.Operations.OrderBy(x=>x.Sequence)
+                        .LastOrDefault()?.GoodQuantity??0m;
+                    if(order.PlannedQuantity<=0)return 0m;
+                    var allocatedGood=Math.Min(order.PlannedQuantity,Math.Max(0m,finalGood))
+                        *link.LinkedQuantity/order.PlannedQuantity;
+                    return Math.Min(link.LinkedQuantity,allocatedGood);
+                });
+                return new{
+                    lineId=line.Id,line.ItemId,line.Reference,line.Quantity,
+                    neededOnJalali=PersianPlanningDates.Format(line.NeededOn),
+                    assignedQuantity=assigned,completedGood=completed,
+                    outstandingQuantity=Math.Max(0m,assigned-completed),
+                    unassignedQuantity=Math.Max(0m,line.Quantity-assigned),
+                    remainingDemand=Math.Max(0m,line.Quantity-completed),
+                    variance=completed-line.Quantity,
+                    fulfilmentPercent=line.Quantity<=0?(decimal?)null:
+                        Math.Round(100m*completed/line.Quantity,2),
+                    orders=assignments.Select(link=>{
+                        var order=byOrder[link.OrderId];
+                        var finalGood=order.Operations.OrderBy(x=>x.Sequence)
+                            .LastOrDefault()?.GoodQuantity??0m;
+                        var allocatedGood=order.PlannedQuantity<=0?0m:
+                            Math.Min(link.LinkedQuantity,
+                                Math.Min(order.PlannedQuantity,Math.Max(0m,finalGood))
+                                *link.LinkedQuantity/order.PlannedQuantity);
+                        return new{link.OrderId,link.LinkedQuantity,order.Number,order.Status,
+                            completedGood=allocatedGood,
+                            dueOnJalali=PersianPlanningDates.Format(order.DueOn)};
+                    })
+                };
+            }).ToArray();
+            var rows=lineRows.GroupBy(x=>x.ItemId).OrderBy(x=>x.Key).Select(group=>{
+                var required=group.Sum(x=>x.Quantity);
+                var assigned=group.Sum(x=>x.assignedQuantity);
+                var completed=group.Sum(x=>x.completedGood);
+                return new{
+                    ItemId=group.Key,MpsRequired=required,Assigned=assigned,
+                    CompletedGood=completed,Outstanding=Math.Max(0m,assigned-completed),
+                    Unassigned=Math.Max(0m,required-assigned),
+                    Variance=completed-required,
+                    FulfilmentPercent=required<=0?(decimal?)null:
+                        Math.Round(100m*completed/required,2)
+                };
+            }).ToArray();
+            var unlinked=await db.ManufacturingOrders.AsNoTracking().Include(x=>x.Operations)
+                .Where(x=>itemIds.Contains(x.ItemId)&&x.DueOn>=from&&x.DueOn<=through
+                    &&!linkedOrderIds.Contains(x.Id)).ToListAsync(ct);
+            return Results.Ok(new{
+                mpsId,rows,lineRows,
+                unlinkedOrders=unlinked.Select(order=>new{
+                    order.Id,order.Number,order.ItemId,order.PlannedQuantity,order.Status,
+                    completedGood=order.Operations.OrderBy(x=>x.Sequence)
+                        .LastOrDefault()?.GoodQuantity??0m,
+                    dueOnJalali=PersianPlanningDates.Format(order.DueOn)
+                }),
+                note="تحقق هر ردیف فقط از مقدار دستورهای تخصیص‌یافته به همان ردیف MPS محاسبه می‌شود. مقدار خوب مرحله نهایی به نسبت سهم تخصیص در دستور توزیع می‌شود. دستورهای بدون انتساب در فهرست جداگانه نمایش داده می‌شوند و به‌طور خودکار به MPS نسبت داده نمی‌شوند."
+            });
         });
 
         api.MapPost("/factory-whatif/capacity",async(FactoryScenarioInput input,ProductionDb db,CancellationToken ct)=>{
