@@ -278,6 +278,17 @@ aps = request("/api/v1/factory-aps/calculate", "POST", {
 assert len(aps["allocations"]) == 2 and len(aps["unscheduled"]) == 0, aps
 assert aps["allocations"][0]["finishTime"] <= aps["allocations"][1]["startTime"]
 assert request(f"/api/v1/factory-aps/runs/{aps['runId']}")["result"]
+# CRP must share APS's net MRP manufacturing basis, not the gross MPS quantity.
+crp_stress = request(f"/api/v1/crp/{mps['id']}/center-stress")
+assert crp_stress["calculationBasis"] == "NetMrpManufacturingLots"
+assert crp_stress["grossMpsQuantity"] == 10
+assert crp_stress["netManufacturingQuantity"] == 6
+assert crp_stress["plannedManufacturingLots"] == 1
+crp_product = request(f"/api/v1/crp/{mps['id']}/product-capacity-preview")
+assert crp_product["calculationBasis"] == "NetMrpManufacturingLots"
+assert crp_product["netManufacturingQuantity"] == 6
+assert len(crp_product["rows"]) == 2
+assert all(row["demandQuantity"] == 6 for row in crp_product["rows"])
 whatif = request("/api/v1/factory-whatif/capacity", "POST", {
     "mpsVersionId": mps["id"], "startJalali": JALALI_NOW,
     "horizonDays": 7, "baselineCapacity": 1, "scenarioCapacity": 0.75
