@@ -535,6 +535,110 @@ request(f"/api/v1/planning-balances/{raw['id']}", "PUT", {
 print("PASS: saved MRP manufacturing lots create idempotent Draft orders, preserve BOM/route/dates, "
       "peg direct MPS demand, block over-allocation, and exclude external supply proposals.")
 
+# Stage 9.55: an MRP parent order cannot release before its planned semi-finished
+# child lot is completed and quality-released. All data remains inside IPPCS.
+nested_raw = request("/api/v1/items", "POST", {
+    "code": "CI-NESTED-RAW", "name": "Nested chain raw material", "unit": "PCS", "type": 0
+}, 201)
+nested_semi = request("/api/v1/items", "POST", {
+    "code": "CI-NESTED-SEMI", "name": "Nested chain semi-finished", "unit": "PCS", "type": 1
+}, 201)
+nested_finished = request("/api/v1/items", "POST", {
+    "code": "CI-NESTED-FINISHED", "name": "Nested chain finished product", "unit": "PCS", "type": 2
+}, 201)
+
+
+def add_nested_route_and_control(item_id, suffix):
+    r = request("/api/v1/routings", "POST", {
+        "itemId": item_id, "revisionCode": f"CI-NESTED-{suffix}-R1",
+        "effectiveFromJalali": JALALI_NOW, "effectiveToJalali": None
+    }, 201)
+    request(f"/api/v1/routings/{r['id']}/operations", "POST", {
+        "sequence": 10, "name": f"{suffix} operation", "workCenterId": center["id"],
+        "setupMinutes": 1, "runMinutesPerUnit": 1, "yieldPercent": 100
+    }, 201)
+    request(f"/api/v1/routings/{r['id']}/approve", "POST")
+    cp = request("/api/v1/control-plans", "POST", {
+        "routingRevisionId": r["id"], "code": f"CI-NESTED-{suffix}-CP",
+        "validFromJalali": JALALI_NOW, "validUntilJalali": None
+    }, 201)
+    request(f"/api/v1/control-plans/{cp['id']}/characteristics", "POST", {
+        "operationSequence": 10, "code": f"{suffix}-CHECK", "description": f"{suffix} quality check",
+        "unit": "N", "minimum": 0, "maximum": 100, "mandatory": True
+    }, 201)
+    request(f"/api/v1/control-plans/{cp['id']}/approve", "POST")
+    return r["id"]
+
+
+nested_semi_route = add_nested_route_and_control(nested_semi["id"], "SEMI")
+nested_finished_route = add_nested_route_and_control(nested_finished["id"], "FINISHED")
+nested_semi_bom = request("/api/v1/bom-revisions", "POST", {
+    "parentItemId": nested_semi["id"], "revision": "CI-NESTED-SEMI-BOM",
+    "validFromJalali": JALALI_NOW, "validUntilJalali": None
+}, 201)
+request(f"/api/v1/bom-revisions/{nested_semi_bom['id']}/lines", "POST", {
+    "componentItemId": nested_raw["id"], "quantityPer": 2, "scrapPercent": 0, "sequence": 10
+}, 201)
+request(f"/api/v1/bom-revisions/{nested_semi_bom['id']}/approve", "POST")
+nested_finished_bom = request("/api/v1/bom-revisions", "POST", {
+    "parentItemId": nested_finished["id"], "revision": "CI-NESTED-FINISHED-BOM",
+    "validFromJalali": JALALI_NOW, "validUntilJalali": None
+}, 201)
+request(f"/api/v1/bom-revisions/{nested_finished_bom['id']}/lines", "POST", {
+    "componentItemId": nested_semi["id"], "quantityPer": 1, "scrapPercent": 0, "sequence": 10
+}, 201)
+request(f"/api/v1/bom-revisions/{nested_finished_bom['id']}/approve", "POST")
+
+for item_id, physical in [
+    (nested_finished["id"], 0), (nested_semi["id"], 0), (nested_raw["id"], 100)
+]:
+    request(f"/api/v1/planning-balances/{item_id}", "PUT", {
+        "itemId": item_id, "physicalQuantity": physical, "reservedQuantity": 0,
+        "quarantinedQuantity": 0, "safetyQuantity": 0, "leadDays": 0,
+        "minimumBatch": 1, "batchMultiple": 1, "snapshotDateJalali": JALALI_NOW
+    })
+nested_mps = request("/api/v1/mps", "POST", {"code": "CI-MPS-NESTED-RELEASE-GATE"}, 201)
+request(f"/api/v1/mps/{nested_mps['id']}/lines", "POST", {
+    "itemId": nested_finished["id"], "neededOnJalali": JALALI_NOW,
+    "quantity": 5, "reference": "Nested MRP dependency"
+}, 201)
+request(f"/api/v1/mps/{nested_mps['id']}/approve", "POST")
+nested_run = request(f"/api/v1/mrp/{nested_mps['id']}/calculate", "POST")["runId"]
+nested_proposals = request(f"/api/v1/mrp/runs/{nested_run}/manufacturing-proposals")["proposals"]
+assert {x["itemId"] for x in nested_proposals} == {nested_finished["id"], nested_semi["id"]}, nested_proposals
+nested_created = request(f"/api/v1/mrp/runs/{nested_run}/manufacturing-drafts", "POST", {
+    "lotKeys": [x["lotKey"] for x in nested_proposals]
+})
+nested_orders = {x["lotKey"]: x["orderId"] for x in nested_created["results"]}
+parent_lot = next(x for x in nested_proposals if x["itemId"] == nested_finished["id"])
+child_lot = next(x for x in nested_proposals if x["itemId"] == nested_semi["id"])
+parent_order_id = nested_orders[parent_lot["lotKey"]]
+child_order_id = nested_orders[child_lot["lotKey"]]
+blocked_parent = request(f"/api/v1/manufacturing-orders/{parent_order_id}/release-check")
+assert not blocked_parent["canRelease"] and any(
+    x["code"] == "ChildNotCompleted" for x in blocked_parent["issues"]
+), blocked_parent
+request(f"/api/v1/manufacturing-orders/{parent_order_id}/release", "POST", status=409)
+
+child_released = request(f"/api/v1/manufacturing-orders/{child_order_id}/release", "POST")
+assert child_released["status"] == 1, child_released
+child_operation = child_released["operations"][0]
+request(f"/api/v1/manufacturing-orders/{child_order_id}/operations/{child_operation['id']}/confirm", "POST", {
+    "goodQuantity": 5, "scrapQuantity": 0, "reworkQuantity": 0, "lotCode": "CI-NESTED-SEMI-LOT"
+})
+child_requirements = request(f"/api/v1/manufacturing-orders/{child_order_id}/inspection-requirements")["requirements"]
+child_requirement = next(x for x in child_requirements if x["operationSequence"] == 10)
+child_inspection = request(
+    f"/api/v1/manufacturing-orders/{child_order_id}/inspections/{child_requirement['id']}", "POST",
+    {"value": 50, "nonconformingQuantity": 0, "note": "Semi-finished lot accepted"}
+)
+assert child_inspection["orderStatus"] == 4, child_inspection
+ready_parent = request(f"/api/v1/manufacturing-orders/{parent_order_id}/release-check")
+assert ready_parent["canRelease"] and not ready_parent["issues"], ready_parent
+released_parent = request(f"/api/v1/manufacturing-orders/{parent_order_id}/release", "POST")
+assert released_parent["status"] == 1, released_parent
+print("PASS: MRP parent release is blocked until its semi-finished child order completes, passes quality and provides enough good output.")
+
 # Stage 9.6: no false capacity availability while an active production order
 # still uses the same operation center. This is an independent IPPCS order.
 competing = request("/api/v1/manufacturing-orders", "POST", {
