@@ -30,6 +30,11 @@ def stage13_acceptance(request, jalali, mps_id, sop_id, center_id, raw_id):
       "scenarioUnavailableDays":[{"workCenterId":center_id,
         "dateJalali":jalali,"reason":"CI only: planned maintenance"}]}
     case=request("/api/v1/factory-whatif/capacity-maintenance","POST",payload)
+    assert case["calculationBasis"]=="NetMrpManufacturingLots",case
+    assert case["plannedManufacturingLots"]==1,case
+    assert len(case["netManufacturingQuantitiesByItem"])==1,case
+    assert case["netManufacturingQuantitiesByItem"][0]["quantity"]==6,case
+    assert case["planningBaselineJalali"]==jalali,case
     assert case["maintenanceDays"]==1,case
     assert case["baseline"]["plannedOperations"]==case["scenario"]["plannedOperations"],case
     assert case["scenario"]["scheduledOperations"]<=case["baseline"]["scheduledOperations"],case
