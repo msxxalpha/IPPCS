@@ -257,7 +257,7 @@ request(f"/api/v1/mps/{mps['id']}/lines", "POST", {
 request(f"/api/v1/mps/{mps['id']}/approve", "POST")
 # A zero finished-goods baseline is explicit: the MRP gate must not infer it.
 request(f"/api/v1/planning-balances/{product['id']}", "PUT", {
-    "itemId": product["id"], "physicalQuantity": 0, "reservedQuantity": 0,
+    "itemId": product["id"], "physicalQuantity": 4, "reservedQuantity": 0,
     "quarantinedQuantity": 0, "safetyQuantity": 0, "leadDays": 0,
     "minimumBatch": 1, "batchMultiple": 1, "snapshotDateJalali": JALALI_NOW
 })
