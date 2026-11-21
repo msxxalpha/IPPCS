@@ -409,6 +409,13 @@ request(f"/api/v1/production-pegging/orders/{peg_order['id']}", "POST", {
 updated_report = request(f"/api/v1/production-pegging/mps/{mps['id']}")
 assert updated_report["rows"][0]["assignedQuantity"] == 10
 assert updated_report["rows"][0]["unassignedQuantity"] == 0
+line_adherence = request(
+    f"/api/v1/factory-kpis/adherence/{mps['id']}?fromJalali={JALALI_NOW}&throughJalali={JALALI_NOW}"
+)
+assert line_adherence["lineRows"][0]["assignedQuantity"] == 10
+assert line_adherence["lineRows"][0]["completedGood"] == 0
+assert line_adherence["lineRows"][0]["unassignedQuantity"] == 0
+print("PASS: MPS line attainment follows explicit order pegging.")
 print("PASS: approved MPS quantity links to work orders; duplicate allocations blocked.")
 # Audited production deviation workflow tied to the approved MPS line and pegged order.
 deviation = request("/api/v1/production-deviations", "POST", {
