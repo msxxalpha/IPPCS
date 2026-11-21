@@ -818,9 +818,9 @@ public static class PlanningStageThreeEndpoints
             var shifts=await db.WorkShifts.AsNoTracking().ToListAsync(ct);
             var rates=await WorkCenterProductCapacityRules.LoadActiveRates(db,ct);
             try{
-                var net=FactoryNetMrpCapacityPlanning.BuildNetPlan(version.Lines,boms,balances,receipts,types);
+                var net=PlanningCalculators.FactoryNetMrpCapacityPlanning.BuildNetPlan(version.Lines,boms,balances,receipts,types);
                 var lots=net.Pegging.PlannedLots.Where(x=>x.ProposalType=="Manufacturing").ToArray();
-                var detail=FactoryNetMrpCapacityPlanning.RunProductCapacityCrp(
+                var detail=PlanningCalculators.FactoryNetMrpCapacityPlanning.RunProductCapacityCrp(
                     lots,routes,shifts,net.BaselineDate,rates);
                 var byId=lots.ToDictionary(x=>FactoryApsMrpBridge.StableLotId(x.LotKey));
                 return Results.Ok(new{
@@ -864,9 +864,9 @@ public static class PlanningStageThreeEndpoints
             var shifts=await db.WorkShifts.AsNoTracking().ToListAsync(ct);
             var rates=await WorkCenterProductCapacityRules.LoadActiveRates(db,ct);
             try{
-                var net=FactoryNetMrpCapacityPlanning.BuildNetPlan(version.Lines,boms,balances,receipts,types);
+                var net=PlanningCalculators.FactoryNetMrpCapacityPlanning.BuildNetPlan(version.Lines,boms,balances,receipts,types);
                 var lots=net.Pegging.PlannedLots.Where(x=>x.ProposalType=="Manufacturing").ToArray();
-                var rows=FactoryNetMrpCapacityPlanning.RunRoughCutCrp(
+                var rows=PlanningCalculators.FactoryNetMrpCapacityPlanning.RunRoughCutCrp(
                     lots,routes,shifts,net.BaselineDate,rates);
                 return Results.Ok(new{
                     mode="NetMrpRoughCutCapacity",
