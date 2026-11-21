@@ -101,21 +101,28 @@ public static class FactoryMpsChangeControl
         ProductionDb db,MpsVersion source,MpsVersion candidate,CancellationToken ct)
     {
         var routings=await db.RoutingRevisions.AsNoTracking().Include(x=>x.Operations)
-            .ToListAsync(ct);
+            .Where(x=>x.State==RoutingState.Approved).ToListAsync(ct);
         var productCapacityRates=await WorkCenterProductCapacityRules.LoadActiveRates(db,ct);
         var shifts=await db.WorkShifts.AsNoTracking().ToListAsync(ct);
         var boms=await db.ManufacturingBomRevisions.AsNoTracking().Include(x=>x.Lines)
-            .ToListAsync(ct);
+            .Where(x=>x.State==ManufacturingRevisionState.Approved).ToListAsync(ct);
         var balances=await db.PlanningBalances.AsNoTracking().ToListAsync(ct);
         var receipts=await db.PlanningExpectedReceipts.AsNoTracking().ToListAsync(ct);
         var types=await db.Items.AsNoTracking().ToDictionaryAsync(x=>x.Id,x=>x.Type,ct);
-        if(balances.Count>0&&balances.Any(x=>x.SnapshotDate!=balances[0].SnapshotDate))
-            throw new InvalidOperationException("مبناهای مانده فرضی برنامه‌ریزی یکسان نیستند.");
-        return Compare(source,candidate,
-            PlanningCalculators.RunRoughCutCrp(source.Lines,routings,shifts,productCapacityRates),
-            PlanningCalculators.RunRoughCutCrp(candidate.Lines,routings,shifts,productCapacityRates),
-            PlanningCalculators.RunMrp(source.Lines,boms,balances,receipts,types),
-            PlanningCalculators.RunMrp(candidate.Lines,boms,balances,receipts,types));
+        var sourceNet=PlanningCalculators.FactoryNetMrpCapacityPlanning.BuildNetPlan(
+            source.Lines,boms,balances,receipts,types);
+        var candidateNet=PlanningCalculators.FactoryNetMrpCapacityPlanning.BuildNetPlan(
+            candidate.Lines,boms,balances,receipts,types);
+        var sourceLots=sourceNet.Pegging.PlannedLots
+            .Where(x=>x.ProposalType=="Manufacturing").ToArray();
+        var candidateLots=candidateNet.Pegging.PlannedLots
+            .Where(x=>x.ProposalType=="Manufacturing").ToArray();
+        var beforeCapacity=PlanningCalculators.FactoryNetMrpCapacityPlanning.RunRoughCutCrp(
+            sourceLots,routings,shifts,sourceNet.BaselineDate,productCapacityRates);
+        var afterCapacity=PlanningCalculators.FactoryNetMrpCapacityPlanning.RunRoughCutCrp(
+            candidateLots,routings,shifts,candidateNet.BaselineDate,productCapacityRates);
+        return Compare(source,candidate,beforeCapacity,afterCapacity,
+            sourceNet.MrpRows,candidateNet.MrpRows);
     }
 
     public static IEndpointRouteBuilder MapMpsChangeControl(this IEndpointRouteBuilder routes)
