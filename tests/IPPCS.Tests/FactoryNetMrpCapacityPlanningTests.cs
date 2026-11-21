@@ -36,6 +36,60 @@ public sealed class FactoryNetMrpCapacityPlanningTests
         };
 
     [Fact]
+    public void Net_plan_consumes_finished_goods_before_exploding_raw_material_demand()
+    {
+        var finished = Guid.NewGuid();
+        var raw = Guid.NewGuid();
+        var bom = new ManufacturingBomRevision
+        {
+            Id = Guid.NewGuid(), ParentItemId = finished, Revision = "NET-1",
+            State = ManufacturingRevisionState.Approved,
+            ValidFrom = Baseline.AddDays(-30),
+            Lines =
+            [
+                new ManufacturingBomLine
+                {
+                    Id = Guid.NewGuid(), ComponentItemId = raw,
+                    QuantityPer = 2m, ScrapPercent = 0m, Sequence = 10
+                }
+            ]
+        };
+        var planLine = new MpsDemandLine
+        {
+            Id = Guid.NewGuid(), ItemId = finished, NeededOn = Baseline,
+            Quantity = 10m
+        };
+        var balances = new[]
+        {
+            new PlanningBalance
+            {
+                ItemId = finished, PhysicalQuantity = 4m, SnapshotDate = Baseline,
+                MinimumBatch = 1m, BatchMultiple = 1m
+            },
+            new PlanningBalance
+            {
+                ItemId = raw, PhysicalQuantity = 25m, SnapshotDate = Baseline,
+                MinimumBatch = 1m, BatchMultiple = 1m
+            }
+        };
+        var types = new Dictionary<Guid, PlanningItemType>
+        {
+            [finished] = PlanningItemType.Finished,
+            [raw] = PlanningItemType.RawMaterial
+        };
+
+        var net = PlanningCalculators.FactoryNetMrpCapacityPlanning.BuildNetPlan(
+            [planLine], [bom], balances, [], types);
+        var lot = Assert.Single(net.Pegging.PlannedLots);
+        Assert.Equal(finished, lot.ItemId);
+        Assert.Equal(6m, lot.Quantity);
+        Assert.Equal(4m, lot.NetShortage);
+        Assert.Equal(1, net.MrpRows.Count(x => x.ItemId == finished));
+        Assert.Equal(1, net.MrpRows.Count(x => x.ItemId == raw));
+        Assert.Equal(12m, Assert.Single(net.MrpRows, x => x.ItemId == raw).GrossRequired);
+    }
+
+    [Fact]
     public void Crp_uses_net_manufacturing_lot_quantity_not_gross_mps_demand()
     {
         var item = Guid.NewGuid();
