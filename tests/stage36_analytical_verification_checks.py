@@ -43,7 +43,10 @@ def stage36_acceptance(request, jalali):
 
     mps=state["examples"]["approvedMpsId"]
     crp=request(f"/api/v1/crp/{mps}/preview")
-    assert crp["mode"]=="RoughCutSingleDay" and isinstance(crp["rows"],list),crp
+    assert crp["mode"]=="NetMrpRoughCutCapacity",crp
+    assert crp["calculationBasis"]=="NetMrpManufacturingLots",crp
+    assert crp["plannedManufacturingLots"]>=0 and crp["netManufacturingQuantity"]>=0,crp
+    assert isinstance(crp["rows"],list),crp
     mrp=request("/api/v1/mrp/runs/"+state["examples"]["recentMrpRunId"])
     assert mrp["mpsVersionId"] and mrp["results"],mrp
     aps=request("/api/v1/factory-aps/runs/"+state["examples"]["recentApsRunId"])
