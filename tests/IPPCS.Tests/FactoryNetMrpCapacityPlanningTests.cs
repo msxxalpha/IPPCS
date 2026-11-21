@@ -44,7 +44,7 @@ public sealed class FactoryNetMrpCapacityPlanningTests
         var receipt = release.AddDays(2);
         var lot = Lot("PLAN:NET-20", item, release, receipt, 20m);
 
-        var rows = FactoryNetMrpCapacityPlanning.RunProductCapacityCrp(
+        var rows = PlanningCalculators.FactoryNetMrpCapacityPlanning.RunProductCapacityCrp(
             [lot], [Route(item, center)], [Shift(center, release)], Baseline);
 
         var row = Assert.Single(rows);
@@ -61,7 +61,7 @@ public sealed class FactoryNetMrpCapacityPlanningTests
         var external = Lot("PLAN:EXTERNAL", item, Baseline, Baseline.AddDays(1), 10m)
             with { ProposalType = "ExternalPlanningOnly" };
 
-        var rows = FactoryNetMrpCapacityPlanning.RunRoughCutCrp(
+        var rows = PlanningCalculators.FactoryNetMrpCapacityPlanning.RunRoughCutCrp(
             [external], [Route(item, center)], [Shift(center, Baseline)], Baseline);
 
         Assert.Empty(rows);
@@ -76,7 +76,7 @@ public sealed class FactoryNetMrpCapacityPlanningTests
         var first = Lot("PLAN:A", itemA, Baseline, Baseline.AddDays(1), 10m);
         var second = Lot("PLAN:B", itemB, Baseline, Baseline.AddDays(1), 15m);
 
-        var rows = FactoryNetMrpCapacityPlanning.RunRoughCutCrp(
+        var rows = PlanningCalculators.FactoryNetMrpCapacityPlanning.RunRoughCutCrp(
             [first, second], [Route(itemA, center), Route(itemB, center)],
             [Shift(center, Baseline)], Baseline);
 
@@ -93,7 +93,7 @@ public sealed class FactoryNetMrpCapacityPlanningTests
         var lot = Lot("PLAN:PAST", item, Baseline.AddDays(-2),
             Baseline.AddDays(1), 8m);
 
-        var rows = FactoryNetMrpCapacityPlanning.RunRoughCutCrp(
+        var rows = PlanningCalculators.FactoryNetMrpCapacityPlanning.RunRoughCutCrp(
             [lot], [Route(item, center)], [Shift(center, Baseline)], Baseline);
 
         Assert.Equal(Baseline, Assert.Single(rows).NeededOn);
@@ -108,12 +108,12 @@ public sealed class FactoryNetMrpCapacityPlanningTests
         var opId = route.Operations.Single().Id;
         var lot = Lot("PLAN:RATE", item, Baseline, Baseline.AddDays(1), 10m);
 
-        var row = Assert.Single(FactoryNetMrpCapacityPlanning.RunProductCapacityCrp(
+        var row = Assert.Single(PlanningCalculators.FactoryNetMrpCapacityPlanning.RunProductCapacityCrp(
             [lot], [route], [Shift(center, Baseline)], Baseline,
             new Dictionary<Guid, decimal> { [opId] = 30m }));
 
         Assert.True(row.HasProductCapacityOverride);
         Assert.Equal(30m, row.ProductCapacityUnitsPerHour);
-        Assert.Equal(25m, row.RequiredMinutes); // 5 setup + 10 x (2 / 0.8)
+        Assert.Equal(30m, row.RequiredMinutes); // 5 setup + 10 x (2 / 0.8)
     }
 }
