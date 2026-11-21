@@ -206,6 +206,124 @@ public static class PlanningCalculators
         return rows.OrderBy(x=>x.NeededOn).ThenBy(x=>x.ItemId).ToList();
     }
 
+// Net MRP-to-CRP bridge. Capacity is loaded only for manufacturing proposals,
+// never for gross MPS quantities already covered by planning supply.
+public static class FactoryNetMrpCapacityPlanning
+{
+    public static List<CrpProductCapacityRow> RunProductCapacityCrp(
+        IReadOnlyList<NetPegPlannedLot> plannedLots,
+        IReadOnlyList<RoutingRevision> routings,
+        IReadOnlyList<WorkShift> shifts,
+        DateOnly planningStart,
+        IReadOnlyDictionary<Guid, decimal>? productCapacityRates = null)
+    {
+        ArgumentNullException.ThrowIfNull(plannedLots);
+        ArgumentNullException.ThrowIfNull(routings);
+        ArgumentNullException.ThrowIfNull(shifts);
+
+        var lots = plannedLots.Where(x => x.ProposalType == "Manufacturing")
+            .OrderBy(x => x.ReleaseOn).ThenBy(x => x.ReceiptOn)
+            .ThenBy(x => x.ItemId).ThenBy(x => x.LotKey, StringComparer.Ordinal)
+            .ToArray();
+        if (lots.Any(x => string.IsNullOrWhiteSpace(x.LotKey) ||
+            x.ItemId == Guid.Empty || x.Quantity <= 0 || x.ReleaseOn > x.ReceiptOn) ||
+            lots.Select(x => x.LotKey).Distinct(StringComparer.Ordinal).Count() != lots.Length)
+            throw new InvalidOperationException("بچ‌های خالص ساخت برای محاسبه CRP معتبر یا یکتا نیستند.");
+
+        var lotIds = lots.ToDictionary(x => x.LotKey,
+            x => FactoryApsMrpBridge.StableLotId(x.LotKey), StringComparer.Ordinal);
+        if (lotIds.Values.Distinct().Count() != lotIds.Count)
+            throw new InvalidOperationException("شناسه پایدار بچ‌های خالص در CRP تکراری است.");
+
+        var rows = new List<CrpProductCapacityRow>();
+        foreach (var lot in lots)
+        {
+            // Match the routing revision selected by APS for the lot's receipt date.
+            var matching = routings.Where(r => r.ItemId == lot.ItemId &&
+                r.State == RoutingState.Approved && r.EffectiveFrom <= lot.ReceiptOn &&
+                (r.EffectiveTo is null || lot.ReceiptOn <= r.EffectiveTo.Value)).ToArray();
+            if (matching.Length != 1)
+                throw new InvalidOperationException("برای بچ خالص MRP دقیقاً یک مسیر ساخت مصوب معتبر لازم است.");
+            var operations = matching[0].Operations.OrderBy(x => x.Sequence).ToArray();
+            if (operations.Length == 0 ||
+                operations.Select(x => x.Sequence).Distinct().Count() != operations.Length)
+                throw new InvalidOperationException("مسیر ساخت بچ خالص فاقد عملیات با ترتیب یکتا است.");
+
+            // Past-due releases are still shown, but are bucketed at the current
+            // planning baseline because capacity before that snapshot cannot be replanned.
+            var capacityDate = lot.ReleaseOn < planningStart ? planningStart : lot.ReleaseOn;
+            for (var i = 0; i < operations.Length; i++)
+            {
+                var operation = operations[i];
+                if (operation.WorkCenterId == Guid.Empty || operation.Sequence <= 0 ||
+                    string.IsNullOrWhiteSpace(operation.Name) || operation.SetupMinutes < 0 ||
+                    operation.RunMinutesPerUnit <= 0 || operation.YieldPercent is <= 0 or > 100)
+                    throw new InvalidOperationException("مرکز، زمان یا بازده عملیات مسیر CRP نامعتبر است.");
+
+                decimal? configuredRate = null;
+                if (productCapacityRates is not null &&
+                    productCapacityRates.TryGetValue(operation.Id, out var rate))
+                {
+                    if (rate <= 0)
+                        throw new InvalidOperationException("ظرفیت محصول‌محور ذخیره‌شده باید مثبت باشد.");
+                    configuredRate = rate;
+                }
+                var effectiveRunMinutes = configuredRate.HasValue
+                    ? 60m / configuredRate.Value : operation.RunMinutesPerUnit;
+
+                decimal cumulativeYield = 1m;
+                for (var j = i; j < operations.Length; j++)
+                {
+                    if (operations[j].YieldPercent is <= 0 or > 100)
+                        throw new InvalidOperationException("بازده تجمعی عملیات مسیر CRP نامعتبر است.");
+                    cumulativeYield *= operations[j].YieldPercent / 100m;
+                }
+                if (cumulativeYield <= 0)
+                    throw new InvalidOperationException("بازده تجمعی عملیات مسیر CRP صفر است.");
+
+                var runPerFinishedUnit = effectiveRunMinutes / cumulativeYield;
+                var required = operation.SetupMinutes + lot.Quantity * runPerFinishedUnit;
+                var available = FactoryShiftCalendar.AvailableMinutes(
+                    operation.WorkCenterId, capacityDate, shifts);
+                var standalone = available <= operation.SetupMinutes ? 0m :
+                    decimal.Floor((available - operation.SetupMinutes) / runPerFinishedUnit);
+
+                rows.Add(new CrpProductCapacityRow(
+                    lotIds[lot.LotKey], lot.ItemId, capacityDate, lot.Quantity,
+                    operation.WorkCenterId, operation.Sequence, operation.Name,
+                    operation.SetupMinutes, effectiveRunMinutes, operation.YieldPercent,
+                    configuredRate, configuredRate.HasValue, required, available,
+                    standalone, available == 0 ? null :
+                        Math.Round(required / available * 100m, 2),
+                    Math.Max(0m, required - available)));
+            }
+        }
+        return rows;
+    }
+
+    public static List<CrpRow> RunRoughCutCrp(
+        IReadOnlyList<NetPegPlannedLot> plannedLots,
+        IReadOnlyList<RoutingRevision> routings,
+        IReadOnlyList<WorkShift> shifts,
+        DateOnly planningStart,
+        IReadOnlyDictionary<Guid, decimal>? productCapacityRates = null)
+    {
+        var detail = RunProductCapacityCrp(
+            plannedLots, routings, shifts, planningStart, productCapacityRates);
+        return detail.GroupBy(x => (x.WorkCenterId, x.NeededOn))
+            .OrderBy(x => x.Key.NeededOn).ThenBy(x => x.Key.WorkCenterId)
+            .Select(group =>
+            {
+                var required = group.Sum(x => x.RequiredMinutes);
+                var available = FactoryShiftCalendar.AvailableMinutes(
+                    group.Key.WorkCenterId, group.Key.NeededOn, shifts);
+                return new CrpRow(group.Key.WorkCenterId, group.Key.NeededOn,
+                    required, available, Math.Max(0m, required - available),
+                    available == 0 ? null : Math.Round(required / available * 100m, 2));
+            }).ToList();
+    }
+}
+
     public static List<CrpProductCapacityRow> RunProductCapacityCrp(
         IReadOnlyList<MpsDemandLine> lines,
         IReadOnlyList<RoutingRevision> routings,
