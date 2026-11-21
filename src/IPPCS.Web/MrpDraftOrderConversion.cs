@@ -210,9 +210,11 @@ public static class MrpDraftOrderConversion
 
         var run = await db.PlanningCalculations.AsNoTracking()
             .SingleOrDefaultAsync(x => x.Id == runId, ct);
-        if (run is null || !TryBuildFromRunSnapshot(run, out var graph, out var error))
-            return [new("InvalidMrpSnapshot", "تصویر ذخیره‌شده MRP برای کنترل پیش‌نیاز قابل بازسازی نیست: " +
-                (run is null ? "اجرای مرجع یافت نشد." : error),
+        if (run is null)
+            return [new("InvalidMrpSnapshot", "اجرای مرجع MRP یافت نشد.",
+                parentLotKey, parentOrder.ItemId, 0m, parentOrder.Id, parentOrder.Number)];
+        if (!TryBuildFromRunSnapshot(run, out var graph, out var error))
+            return [new("InvalidMrpSnapshot", "تصویر ذخیره‌شده MRP برای کنترل پیش‌نیاز قابل بازسازی نیست: " + error,
                 parentLotKey, parentOrder.ItemId, 0m, parentOrder.Id, parentOrder.Number)];
 
         IReadOnlyList<MrpDraftChildLotRequirement> requirements;
