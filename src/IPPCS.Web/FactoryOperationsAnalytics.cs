@@ -266,15 +266,9 @@ public static class FactoryOperationsAnalyticsEndpoints
                     .Where(x=>byOrder.TryGetValue(x.OrderId,out var order)
                         &&order.Status!=ManufacturingOrderStatus.Cancelled).ToArray();
                 var assigned=assignments.Sum(x=>x.LinkedQuantity);
-                var completed=assignments.Sum(link=>{
-                    var order=byOrder[link.OrderId];
-                    var finalGood=order.Operations.OrderBy(x=>x.Sequence)
-                        .LastOrDefault()?.GoodQuantity??0m;
-                    if(order.PlannedQuantity<=0)return 0m;
-                    var allocatedGood=Math.Min(order.PlannedQuantity,Math.Max(0m,finalGood))
-                        *link.LinkedQuantity/order.PlannedQuantity;
-                    return Math.Min(link.LinkedQuantity,allocatedGood);
-                });
+                var completed=assignments.Sum(link=>
+                    ManufacturingOrderPegging.AllocatedGoodQuantity(
+                        byOrder[link.OrderId],link.LinkedQuantity));
                 return new{
                     lineId=line.Id,line.ItemId,line.Reference,line.Quantity,
                     neededOnJalali=PersianPlanningDates.Format(line.NeededOn),
@@ -287,12 +281,8 @@ public static class FactoryOperationsAnalyticsEndpoints
                         Math.Round(100m*completed/line.Quantity,2),
                     orders=assignments.Select(link=>{
                         var order=byOrder[link.OrderId];
-                        var finalGood=order.Operations.OrderBy(x=>x.Sequence)
-                            .LastOrDefault()?.GoodQuantity??0m;
-                        var allocatedGood=order.PlannedQuantity<=0?0m:
-                            Math.Min(link.LinkedQuantity,
-                                Math.Min(order.PlannedQuantity,Math.Max(0m,finalGood))
-                                *link.LinkedQuantity/order.PlannedQuantity);
+                        var allocatedGood=ManufacturingOrderPegging.AllocatedGoodQuantity(
+                            order,link.LinkedQuantity);
                         return new{link.OrderId,link.LinkedQuantity,order.Number,order.Status,
                             completedGood=allocatedGood,
                             dueOnJalali=PersianPlanningDates.Format(order.DueOn)};
