@@ -64,6 +64,12 @@ def stage36_acceptance(request, jalali):
         "mpsVersionId":mps,"startJalali":jalali,
         "horizonDays":14,"baselineCapacity":1,"scenarioCapacity":0.8})
     assert "baseline" in result and "scenario" in result,result
+    assert result["calculationBasis"]=="NetMrpManufacturingLots",result
+    assert result["plannedManufacturingLots"]==crp["plannedManufacturingLots"],result
+    assert sum(x["quantity"] for x in result["netManufacturingQuantitiesByItem"])==crp["netManufacturingQuantity"],result
+    assert result["planningBaselineJalali"]==crp["planningBaselineJalali"],result
+    assert result["baseline"]["scheduled"]+result["baseline"]["unscheduled"]>=0,result
+    assert result["scenario"]["scheduled"]+result["scenario"]["unscheduled"]>=0,result
     after=request(base)
     assert {g["number"]:g["evidenceCount"] for g in after["modules"]}==before,after
     assert after["factoryAccepted"]==0 and not after["releaseAuthorized"]
