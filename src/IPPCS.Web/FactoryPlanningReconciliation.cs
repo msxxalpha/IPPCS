@@ -129,17 +129,21 @@ public static class FactoryPlanningReconciliation
     public static FactoryScenarioSensitivity CompareScenario(Guid id,DateOnly start,
         int horizonDays,IReadOnlyList<ApsTask> tasks,IReadOnlyList<WorkShift> shifts,
         decimal baselineCapacity,decimal scenarioCapacity,
-        IReadOnlySet<(Guid WorkCenterId,DateOnly Date)> blocked)
+        IReadOnlySet<(Guid WorkCenterId,DateOnly Date)> blocked,
+        IReadOnlyDictionary<Guid,DateOnly>? earliestStartDates=null,
+        IReadOnlyDictionary<Guid,IReadOnlyCollection<Guid>>? prerequisites=null)
     {
-        var baseline=FiniteFactoryScheduler.Schedule(tasks,shifts,start,horizonDays,baselineCapacity);
+        var baseline=FiniteFactoryScheduler.Schedule(tasks,shifts,start,horizonDays,
+            baselineCapacity,earliestStartDates:earliestStartDates,prerequisites:prerequisites);
         var scenario=FiniteFactoryScheduler.Schedule(tasks,shifts,start,horizonDays,
-            scenarioCapacity,unavailableDays:blocked);
+            scenarioCapacity,unavailableDays:blocked,
+            earliestStartDates:earliestStartDates,prerequisites:prerequisites);
         var baseTotals=Summarize(baseline,tasks.Count);
         var changed=Summarize(scenario,tasks.Count);
         return new(id,PersianPlanningDates.Format(start),horizonDays,blocked.Count,
             baseTotals,changed,changed.ScheduledOperations-baseTotals.ScheduledOperations,
             changed.LateOperations-baseTotals.LateOperations,scenario.Unscheduled,
-            "مقایسه فرضی ظرفیت و تعطیلی مرکز است؛ مواد و رزروهای واقعی به این سناریو تخصیص نیافته‌اند و هیچ تغییری در برنامه ثبت نمی‌شود.");
+            "شبیه‌سازی ظرفیت بر اساس بچ‌های خالص MRP، تاریخ آزادسازی و تقدم عملیات انجام شده است؛ وابستگی نیمه‌ساخته‌ها نیز رعایت می‌شود. رزروهای واقعی و اجرای جاری در این سناریو لحاظ نشده‌اند و هیچ تغییری در برنامه یا سفارش‌ها ثبت نمی‌شود.");
     }
 
     public static IEndpointRouteBuilder MapPlanningReconciliation(this IEndpointRouteBuilder routes)
@@ -255,25 +259,57 @@ public static class FactoryPlanningReconciliation
                     return Results.BadRequest(new{message="مرکز، تاریخ یا دلیل عدم‌دسترسی معتبر نیست."});
                 blocked.Add((row.WorkCenterId,day));
             }
-            var routes=await db.RoutingRevisions.AsNoTracking()
-                .Include(x=>x.Operations).Where(x=>x.State==RoutingState.Approved).ToListAsync(ct);
+            var boms=await db.ManufacturingBomRevisions.AsNoTracking().Include(x=>x.Lines)
+                .Where(x=>x.State==ManufacturingRevisionState.Approved).ToListAsync(ct);
+            var balances=await db.PlanningBalances.AsNoTracking().ToListAsync(ct);
+            var receipts=await db.PlanningExpectedReceipts.AsNoTracking().ToListAsync(ct);
+            var types=await db.Items.AsNoTracking().ToDictionaryAsync(x=>x.Id,x=>x.Type,ct);
+            var routes=await db.RoutingRevisions.AsNoTracking().Include(x=>x.Operations)
+                .Where(x=>x.State==RoutingState.Approved).ToListAsync(ct);
             var shifts=await db.WorkShifts.AsNoTracking().ToListAsync(ct);
-            var tasks=new List<ApsTask>();
-            foreach(var line in mps.Lines)
-            {
-                var found=routes.Where(x=>x.ItemId==line.ItemId&&x.EffectiveFrom<=line.NeededOn&&
-                    (x.EffectiveTo is null||line.NeededOn<=x.EffectiveTo.Value)).ToArray();
-                if(found.Length!=1||found[0].Operations.Count==0||
-                    found[0].Operations.Any(x=>x.YieldPercent<=0||x.RunMinutesPerUnit<=0)||
-                    line.Quantity<=0)
-                    return Results.UnprocessableEntity(new{message="مسیر ساخت مصوب، بازده یا مقدار برنامه نامعتبر است."});
-                tasks.AddRange(found[0].Operations.Select(op=>new ApsTask(line.Id,line.ItemId,
-                    line.NeededOn,line.Quantity,found[0].Id,op.Sequence,op.WorkCenterId,
-                    op.SetupMinutes+op.RunMinutesPerUnit*line.Quantity*100m/op.YieldPercent,op.Name)));
+            var capacityRates=await WorkCenterProductCapacityRules.LoadActiveRates(db,ct);
+            WorkCenterProductCapacityRules.ApplyToRoutes(routes,capacityRates);
+            try{
+                var net=PlanningCalculators.FactoryNetMrpCapacityPlanning.BuildNetPlan(
+                    mps.Lines,boms,balances,receipts,types);
+                var bridge=FactoryApsMrpBridge.Build(net.Pegging,start);
+                if(bridge.MaterialShortages.Count>0)
+                    return Results.UnprocessableEntity(new{
+                        message="سناریو به علت کمبود اجزای ساخت با پیشنهاد تأمین خارجی قابل زمان‌بندی نیست.",
+                        materialWarnings=bridge.MaterialShortages
+                    });
+                var tasks=new List<ApsTask>();
+                foreach(var line in bridge.DemandLines.OrderBy(x=>x.NeededOn).ThenBy(x=>x.ItemId))
+                {
+                    var found=routes.Where(x=>x.ItemId==line.ItemId&&x.EffectiveFrom<=line.NeededOn&&
+                        (x.EffectiveTo is null||line.NeededOn<=x.EffectiveTo.Value)).ToArray();
+                    if(found.Length!=1)
+                        return Results.UnprocessableEntity(new{
+                            message="برای یکی از بچ‌های خالص MRP دقیقاً یک مسیر ساخت مصوب و معتبر لازم است.",
+                            itemId=line.ItemId,neededOnJalali=PersianPlanningDates.Format(line.NeededOn)
+                        });
+                    tasks.AddRange(FactoryApsTaskExpansion.Expand(line,found[0]));
+                }
+                var comparison=CompareScenario(mps.Id,start,input.HorizonDays,tasks,shifts,
+                    input.BaselineCapacity,input.ScenarioCapacity,blocked,
+                    bridge.EarliestStartDates,bridge.Prerequisites);
+                var manufacturingLots=bridge.Lots.Where(x=>x.ProposalType=="Manufacturing").ToArray();
+                return Results.Ok(new{
+                    comparison.MpsId,comparison.StartJalali,comparison.HorizonDays,
+                    comparison.MaintenanceDays,baseline=comparison.Baseline,
+                    scenario=comparison.Scenario,comparison.ScheduledChange,
+                    comparison.LateChange,scenarioUnscheduled=comparison.ScenarioUnscheduled,
+                    calculationBasis="NetMrpManufacturingLots",
+                    plannedManufacturingLots=manufacturingLots.Length,
+                    netManufacturingQuantitiesByItem=manufacturingLots.GroupBy(x=>x.ItemId)
+                        .OrderBy(x=>x.Key).Select(x=>new{itemId=x.Key,quantity=x.Sum(y=>y.Quantity)}),
+                    planningBaselineJalali=PersianPlanningDates.Format(net.BaselineDate),
+                    disclaimer=comparison.Disclaimer
+                });
+            }catch(Exception ex)when(ex is InvalidOperationException or ArgumentException
+                or OverflowException or KeyNotFoundException){
+                return Results.UnprocessableEntity(new{message=ex.Message});
             }
-            try{return Results.Ok(CompareScenario(mps.Id,start,input.HorizonDays,tasks,shifts,
-                    input.BaselineCapacity,input.ScenarioCapacity,blocked));}
-            catch(ArgumentException ex){return Results.BadRequest(new{message=ex.Message});}
         }).RequireAuthorization("IpPlanningWrite");
         return routes;
     }
