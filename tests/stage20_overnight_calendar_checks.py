@@ -67,6 +67,15 @@ def stage20_acceptance(request, jalali, tomorrow, component_id):
       "itemId":item["id"],"neededOnJalali":tomorrow,
       "quantity":30,"reference":"CI-ST20-CRP-NIGHT"},201)
     request(f"/api/v1/mps/{mps['id']}/approve","POST")
+    # CRP now shares net MRP's explicit planning-balance contract.
+    request(f"/api/v1/planning-balances/{item['id']}","PUT",{
+      "itemId":item["id"],"physicalQuantity":0,"reservedQuantity":0,
+      "quarantinedQuantity":0,"safetyQuantity":0,"leadDays":0,
+      "minimumBatch":1,"batchMultiple":1,"snapshotDateJalali":jalali})
+    request(f"/api/v1/planning-balances/{component_id}","PUT",{
+      "itemId":component_id,"physicalQuantity":1000,"reservedQuantity":0,
+      "quarantinedQuantity":0,"safetyQuantity":0,"leadDays":0,
+      "minimumBatch":1,"batchMultiple":1,"snapshotDateJalali":jalali})
     report=request(f"/api/v1/crp/{mps['id']}/preview")
     crp=next(x for x in report["rows"] if x["workCenterId"]==id)
     assert crp["capacityMinutes"]==420,crp   # 06:00 from overnight + 06:00..07:00 next shift
